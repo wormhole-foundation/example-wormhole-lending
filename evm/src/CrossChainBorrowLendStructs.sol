@@ -1,23 +1,41 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-struct AssetAmounts {
-    uint256 depositedAmount;
-    uint256 borrowedAmount;
+struct NormalizedAmounts {
+    uint256 deposited;
+    uint256 borrowed;
 }
 
-struct BorrowWormholePayload {
+struct MessageHeader {
     address borrower;
     // collateral info
     address collateralAddress; // for verification
-    uint256 collateralAmount;
     // borrow info
     address borrowAddress; // for verification
+}
+
+struct BorrowMessage {
+    MessageHeader header;
     uint256 borrowAmount;
 }
 
-struct InterestRateParameters {
+struct RepayMessage {
+    MessageHeader header;
+    uint256 repayAmount;
+}
+
+struct LiquidationIntentMessage {
+    MessageHeader header;
+}
+
+struct RevertBorrowMessage {
+    MessageHeader header;
+    uint256 borrowAmount;
+}
+
+struct InterestRateModel {
     uint64 ratePrecision;
-    uint64 linearRateCoefficientA;
+    uint64 rateIntercept;
+    uint64 rateCoefficientA;
     // TODO: add more complexity for example?
 }

@@ -40,8 +40,14 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         state.borrowingAssetAddress = borrowingAsset_;
 
         // interest rate parameters
-        state.interestRateParameters.ratePrecision = 1e18;
-        state.interestRateParameters.linearRateCoefficientA = 2e16;
+        state.interestRateModel.ratePrecision = 1e18;
+        state.interestRateModel.rateIntercept = 2e16; // 2%
+        state.interestRateModel.rateCoefficientA = 0;
+
+        // Price index of 1 with the current precision is 1e18
+        // since this is the precision of our value.
+        state.collateralPriceIndexPrecision = 1e18;
+        state.collateralPriceIndex = 1e18;
     }
 
     function collateralToken() internal view returns (IERC20) {
@@ -76,30 +82,77 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         return (0, 0);
     }
 
-    function accrueInterest() internal {
+    function computeInterestProportion(
+        uint256 secondsElapsed,
+        uint256 intercept,
+        uint256 coefficient
+    ) internal view returns (uint256) {
+        return
+            (secondsElapsed *
+                (intercept +
+                    (coefficient * state.totalCollateralBorrowed) /
+                    state.totalCollateralSupply)) /
+            365 /
+            24 /
+            60 /
+            60;
+    }
+
+    function updateCollateralPriceIndex() internal {
         // TODO: change to block.number?
-        if (block.timestamp == state.lastBorrowBlockTimestamp) {
+        uint256 secondsElapsed = block.timestamp -
+            state.lastActivityBlockTimestamp;
+
+        if (secondsElapsed == 0) {
             // nothing to do
             return;
         }
+        state.lastActivityBlockTimestamp = block.timestamp;
 
-        // Fixed borrow rate in this example. Use your own interest rate model here.
-        uint256 annualInterestRate = 2e16; // 2%
-        uint256 blockInterestRate = annualInterestRate / 365 / 24 / 60 / 60;
-
-        // uint256 accrued = (state.totalCollateralLiquidity *
-        //     blockInterestRate *
-        //     (block.timestamp - state.lastBorrowBlockTimestamp)) /
-        //     interestRatePrecision;
+        state.collateralPriceIndex =
+            (state.collateralPriceIndex *
+                computeInterestProportion(
+                    secondsElapsed,
+                    state.interestRateModel.rateIntercept,
+                    state.interestRateModel.rateCoefficientA
+                )) /
+            state.interestRateModel.ratePrecision;
     }
 
-    function initiateBorrowOnTargetChain(uint256 amount) public {
+    function collateralPriceIndex() internal view returns (uint256) {
+        return state.collateralPriceIndex;
+    }
+
+    function denormalizeAmount(uint256 normalizedAmount)
+        internal
+        view
+        returns (uint256)
+    {
+        return
+            (normalizedAmount * collateralPriceIndex()) /
+            state.collateralPriceIndexPrecision;
+    }
+
+    function normalizeAmount(uint256 denormalizedAmount)
+        internal
+        view
+        returns (uint256)
+    {
+        return
+            (denormalizedAmount * state.collateralPriceIndexPrecision) /
+            collateralPriceIndex();
+    }
+
+    function initiateBorrowOnTargetChain(uint256 amount)
+        public
+        returns (uint64 sequence)
+    {
         require(amount > 0, "nothing to borrow");
 
         // For EVMs, same private key will be used for borrowing-lending activity.
         // When introducing other chains (e.g. Cosmos), need to do wallet registration
         // so we can access a map of a non-EVM address based on this EVM borrower
-        AssetAmounts memory amounts = state.accountAssets[msg.sender];
+        AssetAmounts memory normalizedAmounts = state.accountAssets[msg.sender];
 
         // Need to calculate how much someone can borrow
         (
@@ -107,35 +160,50 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
             uint256 borrowAssetPriceInUSD
         ) = getOraclePrices();
 
-        uint256 maxAllowedToBorrow = (amounts.depositedAmount *
+        // update current price index
+        updateCollateralPriceIndex();
+
+        uint256 maxAllowedToBorrow = (denormalizeAmount(
+            normalizedAmounts.deposited
+        ) *
             state.collateralizationRatio *
             collateralAssetPriceInUSD *
             10**borrowTokenDecimals()) /
             (state.collateralizationRatioPrecision *
                 borrowAssetPriceInUSD *
                 10**collateralTokenDecimals()) -
-            amounts.borrowedAmount;
+            denormalizeAmount(normalizedAmounts.borrowed);
         require(amount < maxAllowedToBorrow, "amount >= maxAllowedToBorrow");
 
-        // update borrowed amount
-        state.accountAssets[msg.sender].borrowedAmount += amount;
+        // update state for borrower
+        uint256 normalizedAmount = normalizeAmount(amount);
+        state.acountAssets[msg.sender].borrowed += normalizedAmount;
+        state.totalAssets.borrowed += normalizedAmount;
 
-        IWormhole(state.wormholeContractAddress).publishMessage(
-            0, // nonce
-            encodeBorrowWormholePayload(
-                BorrowWormholePayload({
+        sequence = sendWormholeMessage(
+            encodeBorrowMessage(
+                BorrowMessage({
                     borrower: msg.sender,
                     collateralAddress: state.collateralAssetAddress,
-                    collateralAmount: amounts.depositedAmount,
                     borrowAddress: state.borrowingAssetAddress,
-                    borrowAmount: amounts.borrowedAmount
+                    borrowAmount: amount
                 })
-            ),
+            )
+        );
+    }
+
+    function sendWormholeMessage(bytes payload)
+        internal
+        returns (uint64 sequence)
+    {
+        sequence = IWormhole(state.wormholeContractAddress).publishMessage(
+            0, // nonce
+            payload,
             state.consistencyLevel
         );
     }
 
-    function borrow(bytes calldata encodedVm) public {
+    function borrow(bytes calldata encodedVm) public returns (uint64 sequence) {
         (
             IWormhole.VM memory parsed,
             bool valid,
@@ -150,19 +218,29 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         state.completedBorrows[parsed.hash] = true;
 
         // decode
-        BorrowWormholePayload memory params = decodeBorrowWormholePayload(
-            parsed.payload
-        );
+        BorrowMessage memory params = decodeBorrowMessage(parsed.payload);
 
         // correct assets?
         require(verifyAssetMeta(params), "invalid asset metadata");
 
         // TODO: check if we can release funds and transfer to borrower
-        if (params.borrowAmount < state.totalCollateralLiquidity) {
-            // TODO: emit vaa to reflect failure
+        if (
+            params.borrowAmount <
+            (state.totalCollateralSupply - state.totalCollateralBorrowed)
+        ) {
+            sequence = sendWormholeMessage(
+                encodeRevertBorrowMessage(
+                    MessageHeader({
+                        borrower: msg.sender,
+                        collateralAddress: state.borrowingAssetAddress,
+                        borrowAddress: state.collateralAssetAddress
+                    }),
+                    params.borrowAmount
+                )
+            );
         } else {
             // update liquidity state
-            state.totalCollateralLiquidity -= params.borrowAmount;
+            state.totalCollateralBorrowed += params.borrowAmount;
 
             SafeERC20.safeTransferFrom(
                 collateralToken(),
@@ -170,6 +248,9 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
                 msg.sender,
                 params.borrowAmount
             );
+
+            // no wormhole message. zero == success
+            sequence = 0;
         }
     }
 
@@ -183,7 +264,7 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
             parsed.emitterChainId == state.targetChainId;
     }
 
-    function verifyAssetMeta(BorrowWormholePayload memory params)
+    function verifyAssetMeta(BorrowMessage memory params)
         internal
         view
         returns (bool)
@@ -193,25 +274,54 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
             params.borrowAddress == state.collateralAssetAddress;
     }
 
-    function encodeBorrowWormholePayload(BorrowWormholePayload memory params)
+    function encodeBorrowMessage(MessageHeader memory header, uint256 amount)
         internal
         pure
         returns (bytes memory)
     {
         return
             abi.encodePacked(
-                params.borrower,
-                params.collateralAddress,
-                params.collateralAmount,
-                params.borrowAddress,
-                params.borrowAmount
+                uint8(1),
+                header.borrower,
+                header.collateralAddress,
+                header.borrowAddress,
+                amount
             );
     }
 
-    function decodeBorrowWormholePayload(bytes memory serialized)
+    function encodeRepayMessage(MessageHeader memory header, uint256 amount)
         internal
         pure
-        returns (BorrowWormholePayload memory params)
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(
+                uint8(2),
+                header.borrower,
+                header.collateralAddress,
+                header.borrowAddress,
+                amount
+            );
+    }
+
+    function encodeLiquidationIntentMessage(MessageHeader memory header)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(
+                uint8(3),
+                params.borrower,
+                params.collateralAddress,
+                params.borrowAddress
+            );
+    }
+
+    function decodeBorrowMessage(bytes memory serialized)
+        internal
+        pure
+        returns (BorrowMessage memory params)
     {
         uint256 index = 0;
         params.borrower = serialized.toAddress(index += 20);

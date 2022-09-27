@@ -18,12 +18,15 @@ contract CrossChainBorrowLendStorage {
         // borrow and lend activity
         address collateralAssetAddress;
         uint256 collateralizationRatio;
-        uint256 totalCollateralLiquidity;
+        //uint256 totalCollateralSupply;
         address borrowingAssetAddress;
-        uint256 lastBorrowBlockTimestamp;
-        mapping(address => AssetAmounts) accountAssets;
+        uint256 collateralPriceIndex;
+        uint256 collateralPriceIndexPrecision;
+        uint256 lastActivityBlockTimestamp;
+        NormalizedAmounts totalAssets;
+        mapping(address => NormalizedAmounts) accountAssets;
         mapping(bytes32 => bool) completedBorrows;
-        InterestRateParameters interestRateParameters;
+        InterestRateModel interestRateModel;
     }
 }
 
