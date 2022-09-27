@@ -38,6 +38,10 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         state.collateralizationRatioPrecision = 1e8; // fixed
 
         state.borrowingAssetAddress = borrowingAsset_;
+
+        // interest rate parameters
+        state.interestRateParameters.ratePrecision = 1e18;
+        state.interestRateParameters.linearRateCoefficientA = 2e16;
     }
 
     function collateralToken() internal view returns (IERC20) {
@@ -73,6 +77,7 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
     }
 
     function accrueInterest() internal {
+        // TODO: change to block.number?
         if (block.timestamp == state.lastBorrowBlockTimestamp) {
             // nothing to do
             return;
@@ -80,9 +85,10 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
 
         // Fixed borrow rate in this example. Use your own interest rate model here.
         uint256 annualInterestRate = 2e16; // 2%
+        uint256 blockInterestRate = annualInterestRate / 365 / 24 / 60 / 60;
 
         // uint256 accrued = (state.totalCollateralLiquidity *
-        //     interestRate *
+        //     blockInterestRate *
         //     (block.timestamp - state.lastBorrowBlockTimestamp)) /
         //     interestRatePrecision;
     }

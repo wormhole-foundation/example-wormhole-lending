@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {AssetAmounts} from "./CrossChainBorrowLendStructs.sol";
+import {AssetAmounts, InterestRateParameters} from "./CrossChainBorrowLendStructs.sol";
 
 contract CrossChainBorrowLendStorage {
     struct State {
@@ -11,7 +11,7 @@ contract CrossChainBorrowLendStorage {
         uint8 consistencyLevel;
         uint16 targetChainId;
         uint32 collateralizationRatioPrecision;
-        uint256 interestRatePrecision = 1e18;
+        uint256 interestRatePrecision;
         // price oracle
         address priceOracleAddress;
         bytes32 targetContractAddress;
@@ -23,6 +23,7 @@ contract CrossChainBorrowLendStorage {
         uint256 lastBorrowBlockTimestamp;
         mapping(address => AssetAmounts) accountAssets;
         mapping(bytes32 => bool) completedBorrows;
+        InterestRateParameters interestRateParameters;
     }
 }
 

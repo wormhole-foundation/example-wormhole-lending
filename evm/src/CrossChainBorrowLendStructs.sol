@@ -15,3 +15,9 @@ struct BorrowWormholePayload {
     address borrowAddress; // for verification
     uint256 borrowAmount;
 }
+
+struct InterestRateParameters {
+    uint64 ratePrecision;
+    uint64 linearRateCoefficientA;
+    // TODO: add more complexity for example?
+}
