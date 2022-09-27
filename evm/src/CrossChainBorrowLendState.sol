@@ -11,6 +11,7 @@ contract CrossChainBorrowLendStorage {
         uint8 consistencyLevel;
         uint16 targetChainId;
         uint32 collateralizationRatioPrecision;
+        uint256 interestRatePrecision = 1e18;
         // price oracle
         address priceOracleAddress;
         bytes32 targetContractAddress;

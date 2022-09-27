@@ -67,10 +67,6 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         );
     }
 
-    struct RandomStruct {
-        uint256 bleh;
-    }
-
     function getOraclePrices() internal view returns (uint256, uint256) {
         // TODO
         return (0, 0);
@@ -134,7 +130,6 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
     }
 
     function borrow(bytes calldata encodedVm) public {
-        // add replay protection
         (
             IWormhole.VM memory parsed,
             bool valid,
@@ -145,7 +140,7 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         // verify emitter
         require(verifyEmitter(parsed), "invalid emitter");
 
-        // completed
+        // completed (replay protection)
         state.completedBorrows[parsed.hash] = true;
 
         // decode
@@ -157,17 +152,19 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         require(verifyAssetMeta(params), "invalid asset metadata");
 
         // TODO: check if we can release funds and transfer to borrower
-        require(
-            params.borrowAmount < state.totalCollateralLiquidity,
-            "not enough liquidity"
-        );
+        if (params.borrowAmount < state.totalCollateralLiquidity) {
+            // TODO: emit vaa to reflect failure
+        } else {
+            // update liquidity state
+            state.totalCollateralLiquidity -= params.borrowAmount;
 
-        SafeERC20.safeTransferFrom(
-            collateralToken(),
-            address(this),
-            msg.sender,
-            params.borrowAmount
-        );
+            SafeERC20.safeTransferFrom(
+                collateralToken(),
+                address(this),
+                msg.sender,
+                params.borrowAmount
+            );
+        }
     }
 
     function verifyEmitter(IWormhole.VM memory parsed)
