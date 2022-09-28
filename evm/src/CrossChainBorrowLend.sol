@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./interfaces/IWormhole.sol";
 import "./libraries/external/BytesLib.sol";
@@ -12,7 +13,8 @@ import "./CrossChainBorrowLendMessages.sol";
 
 contract CrossChainBorrowLend is
     CrossChainBorrowLendGetters,
-    CrossChainBorrowLendMessages
+    CrossChainBorrowLendMessages,
+    ReentrancyGuard
 {
     constructor(
         address wormholeContractAddress_,
@@ -24,10 +26,10 @@ contract CrossChainBorrowLend is
         bytes32 collateralAssetPythId_,
         uint256 collateralizationRatio_,
         address borrowingAsset_,
-        bytes32 borrowingAssetPythId_
+        bytes32 borrowingAssetPythId_,
+        uint256 repayGracePeriod_
     ) {
-        // contract owner
-        state.owner = _msgSender();
+        // REVIEW: set owner for only owner methods if desireable
 
         // wormhole
         state.wormholeContractAddress = wormholeContractAddress_;
@@ -57,9 +59,12 @@ contract CrossChainBorrowLend is
         // pyth asset IDs
         state.collateralAssetPythId = collateralAssetPythId_;
         state.borrowingAssetPythId = borrowingAssetPythId_;
+
+        // repay grace period for this chain
+        state.repayGracePeriod = repayGracePeriod_;
     }
 
-    function addCollateral(uint256 amount) public {
+    function addCollateral(uint256 amount) public nonReentrant {
         require(amount > 0, "nothing to deposit");
 
         // update current price index
@@ -81,7 +86,7 @@ contract CrossChainBorrowLend is
         );
     }
 
-    function removeCollateral(uint256 amount) public {
+    function removeCollateral(uint256 amount) public nonReentrant {
         require(amount > 0, "nothing to withdraw");
 
         // fetch the account information for the caller
@@ -112,21 +117,20 @@ contract CrossChainBorrowLend is
         state.totalAssets.deposited -= normalizedAmount;
 
         // transfer the tokens to the caller
-        SafeERC20.safeTransfer(
-            collateralToken(),
-            _msgSender(),
-            amount
-        );
+        SafeERC20.safeTransfer(collateralToken(), _msgSender(), amount);
     }
 
-    function removeCollateralInFull() public {
+    function removeCollateralInFull() public nonReentrant {
         // fetch the account information for the caller
         NormalizedAmounts memory normalizedAmounts = state.accountAssets[
             _msgSender()
         ];
 
         // make sure the account has closed all borrowed positions
-        require(normalizedAmounts.borrowed == 0, "account has outstanding loans");
+        require(
+            normalizedAmounts.borrowed == 0,
+            "account has outstanding loans"
+        );
 
         // update current price index
         updateInterestAccrualIndex();
@@ -248,7 +252,9 @@ contract CrossChainBorrowLend is
                 BorrowMessage({
                     header: header,
                     borrowAmount: amount,
-                    totalNormalizedBorrowAmount: state.accountAssets[_msgSender()].borrowed,
+                    totalNormalizedBorrowAmount: state
+                        .accountAssets[_msgSender()]
+                        .borrowed,
                     interestAccrualIndex: borrowedIndex
                 })
             )
@@ -271,6 +277,7 @@ contract CrossChainBorrowLend is
         require(verifyEmitter(parsed), "invalid emitter");
 
         // completed (replay protection)
+        // also serves as reentrancy protection
         require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
 
@@ -315,7 +322,7 @@ contract CrossChainBorrowLend is
                 params.borrowAmount,
                 borrowedInterestAccrualIndex()
             );
-            state.totalAssets.deposited -= normalizedAmount;
+            state.totalAssets.borrowed += normalizedAmount;
 
             // save the total normalized borrow amount for repayments
             state.accountAssets[params.header.borrower].borrowed = params
@@ -346,6 +353,7 @@ contract CrossChainBorrowLend is
         require(verifyEmitter(parsed), "invalid emitter");
 
         // completed (replay protection)
+        // also serves as reentrancy protection
         require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
 
@@ -374,7 +382,11 @@ contract CrossChainBorrowLend is
         state.totalAssets.borrowed -= normalizedAmount;
     }
 
-    function initiateRepay(uint256 amount) public returns (uint64 sequence) {
+    function initiateRepay(uint256 amount)
+        public
+        nonReentrant
+        returns (uint64 sequence)
+    {
         require(amount > 0, "nothing to repay");
 
         // For EVMs, same private key will be used for borrowing-lending activity.
@@ -384,14 +396,32 @@ contract CrossChainBorrowLend is
             _msgSender()
         ];
 
+        // update the index
         updateInterestAccrualIndex();
 
+        // cache the index to save gas
+        uint256 index = interestAccrualIndex();
 
+        // save the normalized amount
+        uint256 normalizedAmount = normalizeAmount(amount, index);
 
-        // confirm that this caller has value
-        // update the index and then pay
+        // confirm that the caller has loans to pay back
+        require(
+            normalizedAmount <= normalizedAmounts.borrowed,
+            "loan payment too large"
+        );
 
-        // safeTransferFrom to this account
+        // update state on this contract
+        state.accountAssets[_msgSender()].borrowed -= normalizedAmount;
+        state.totalAssets.borrowed -= normalizedAmount;
+
+        // transfer to this contract
+        SafeERC20.safeTransferFrom(
+            borrowToken(),
+            _msgSender(),
+            address(this),
+            amount
+        );
 
         // construct wormhole message
         MessageHeader memory header = MessageHeader({
@@ -401,17 +431,75 @@ contract CrossChainBorrowLend is
             borrowAddress: state.collateralAssetAddress
         });
 
+        // add index and block timestamp
         sequence = sendWormholeMessage(
             encodeRepayMessage(
-                RepayMessage({header: header, repayAmount: amount})
+                RepayMessage({
+                    header: header,
+                    repayAmount: amount,
+                    targetInterestAccrualIndex: index,
+                    repayTimestamp: block.timestamp,
+                    paidInFull: 0
+                })
             )
         );
     }
 
-    /*function completeRepay(bytes calldata encodedVm)
+    function initiateRepayInFull()
         public
+        nonReentrant
         returns (uint64 sequence)
     {
+        // For EVMs, same private key will be used for borrowing-lending activity.
+        // When introducing other chains (e.g. Cosmos), need to do wallet registration
+        // so we can access a map of a non-EVM address based on this EVM borrower
+        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
+            _msgSender()
+        ];
+
+        // update the index
+        updateInterestAccrualIndex();
+
+        // cache the index to save gas
+        uint256 index = interestAccrualIndex();
+
+        // update state on the contract
+        uint256 normalizedAmount = normalizedAmounts.borrowed;
+        state.accountAssets[_msgSender()].borrowed = 0;
+        state.totalAssets.borrowed -= normalizedAmount;
+
+        // transfer to this contract
+        SafeERC20.safeTransferFrom(
+            borrowToken(),
+            _msgSender(),
+            address(this),
+            denormalizeAmount(normalizedAmount, index)
+        );
+
+        // construct wormhole message
+        MessageHeader memory header = MessageHeader({
+            payloadID: uint8(3),
+            borrower: _msgSender(),
+            collateralAddress: state.borrowingAssetAddress,
+            borrowAddress: state.collateralAssetAddress
+        });
+
+        // add index and block timestamp
+        sequence = sendWormholeMessage(
+            encodeRepayMessage(
+                RepayMessage({
+                    header: header,
+                    repayAmount: denormalizeAmount(normalizedAmount, index),
+                    targetInterestAccrualIndex: index,
+                    repayTimestamp: block.timestamp,
+                    paidInFull: 1
+                })
+            )
+        );
+    }
+
+    function completeRepay(bytes calldata encodedVm) public {
+        // parse and verify the RepayMessage
         (
             IWormhole.VM memory parsed,
             bool valid,
@@ -426,15 +514,60 @@ contract CrossChainBorrowLend is
         require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
 
-        // decode
+        // update the index
+        updateInterestAccrualIndex();
+
+        // cache the index to save gas
+        uint256 index = interestAccrualIndex();
+
+        // decode the RepayMessage
         RepayMessage memory params = decodeRepayMessage(parsed.payload);
 
         // correct assets?
         require(verifyAssetMetaFromRepay(params), "invalid asset metadata");
 
-        // TODO: do something meaningful here
-        sequence = 0;
-    }*/
+        // see if the loan is repaid in full
+        if (params.paidInFull == 1) {
+            if (
+                params.repayTimestamp + state.repayGracePeriod <=
+                block.timestamp
+            ) {
+                // update state in this contract
+                uint256 normalizedAmount = normalizeAmount(
+                    params.repayAmount,
+                    index
+                );
+                state.accountAssets[_msgSender()].borrowed = 0;
+                state.totalAssets.borrowed -= normalizedAmount;
+            } else {
+                // TODO: add additional interest and update state
+            }
+        }
+        // TODO: add additional interest and update state
+    }
+
+    /**
+     @notice `initiateLiquidationOnTargetChain` has not been implemented yet. This function should
+     determine if a particular position is undercollateralized by querying the `accountAssets` state variable
+     for the passed account and calculate the health of the account. If an account is considered undercollateralized,
+     this method should generate a Wormhole message to be delivered to the target chain by the caller.
+     The caller will invoke the `completeBorrowOnBehalf` method on the target chain and pass the Wormhole message as an argument.
+     If the account has not yet paid the loan back by the time the Wormhole message arrives on the target chain,
+     `completeBorrowOnBehalf` will accept funds from the caller, and generate another Wormhole messsage to be delivered to the source chain.
+     The caller will then invoke `completeLiquidation` on the source chain and pass the Wormhole message in as an argument. This function should
+     handle releasing the account's collateral to the liquidator, less fees.
+
+     In order for off-chain processes to calculate an account's health, the integrator needs to expose a getter
+     that will return the list of accounts with open positions. The integrator will also have to expose a getter
+     that allows the liquidator to query the `accountAssets` state variable for a particular account.
+    */
+    function initiateLiquidationOnTargetChain(address accountToLiquidate)
+        public
+    {}
+
+    function completeBorrowOnBehalf(bytes calldata encodedVm) {}
+
+    function completeLiquidation(bytes calldata encodedVm) {}
 
     function sendWormholeMessage(bytes memory payload)
         internal

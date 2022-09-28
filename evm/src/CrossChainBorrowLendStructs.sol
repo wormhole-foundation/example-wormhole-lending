@@ -35,11 +35,15 @@ struct RepayMessage {
     // payloadID = 3
     MessageHeader header;
     uint256 repayAmount;
+    uint256 targetInterestAccrualIndex;
+    uint256 repayTimestamp;
+    uint8 paidInFull;
 }
 
 struct LiquidationIntentMessage {
     // payloadID = 4
     MessageHeader header;
+    // TODO: add necessary variables
 }
 
 struct InterestRateModel {

@@ -5,11 +5,11 @@ import {NormalizedAmounts, InterestRateModel} from "./CrossChainBorrowLendStruct
 
 contract CrossChainBorrowLendStorage {
     struct State {
-        address owner;
         // wormhole things
         address wormholeContractAddress;
         uint8 consistencyLevel;
         uint16 targetChainId;
+        // precision variables
         uint32 collateralizationRatioPrecision;
         uint256 interestRatePrecision;
         // mock pyth price oracle
@@ -25,6 +25,7 @@ contract CrossChainBorrowLendStorage {
         uint256 interestAccrualIndexPrecision;
         uint256 lastActivityBlockTimestamp;
         NormalizedAmounts totalAssets;
+        uint256 repayGracePeriod;
         mapping(address => NormalizedAmounts) accountAssets;
         bytes32 borrowingAssetPythId;
         mapping(bytes32 => bool) consumedMessages;

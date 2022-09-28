@@ -11,10 +11,6 @@ import "./interfaces/IWormhole.sol";
 import "./CrossChainBorrowLendState.sol";
 
 contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
-    function owner() public view returns (address) {
-        return state.owner;
-    }
-
     function wormhole() internal view returns (IWormhole) {
         return IWormhole(state.wormholeContractAddress);
     }
