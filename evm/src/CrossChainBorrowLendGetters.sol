@@ -4,12 +4,13 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 import "./interfaces/IMockPyth.sol";
 import "./interfaces/IWormhole.sol";
 import "./CrossChainBorrowLendState.sol";
 
-contract CrossChainBorrowLendGetters is CrossChainBorrowLendState {
+contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
     function owner() public view returns (address) {
         return state.owner;
     }

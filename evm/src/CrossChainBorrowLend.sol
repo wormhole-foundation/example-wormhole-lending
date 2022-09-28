@@ -27,7 +27,7 @@ contract CrossChainBorrowLend is
         bytes32 borrowingAssetPythId_
     ) {
         // contract owner
-        state.owner = msg.sender;
+        state.owner = _msgSender();
 
         // wormhole
         state.wormholeContractAddress = wormholeContractAddress_;
@@ -64,7 +64,7 @@ contract CrossChainBorrowLend is
 
         SafeERC20.safeTransferFrom(
             collateralToken(),
-            msg.sender,
+            _msgSender(),
             address(this),
             amount
         );
@@ -137,7 +137,7 @@ contract CrossChainBorrowLend is
         // When introducing other chains (e.g. Cosmos), need to do wallet registration
         // so we can access a map of a non-EVM address based on this EVM borrower
         NormalizedAmounts memory normalizedAmounts = state.accountAssets[
-            msg.sender
+            _msgSender()
         ];
 
         // Need to calculate how much someone can borrow
@@ -163,13 +163,13 @@ contract CrossChainBorrowLend is
 
         // update state for borrower
         uint256 normalizedAmount = normalizeAmount(amount);
-        state.accountAssets[msg.sender].borrowed += normalizedAmount;
+        state.accountAssets[_msgSender()].borrowed += normalizedAmount;
         state.totalAssets.borrowed += normalizedAmount;
 
         // construct wormhole message
         MessageHeader memory header = MessageHeader({
             payloadID: uint8(1),
-            borrower: msg.sender,
+            borrower: _msgSender(),
             collateralAddress: state.collateralAssetAddress,
             borrowAddress: state.borrowingAssetAddress
         });
@@ -207,7 +207,7 @@ contract CrossChainBorrowLend is
             // switch the borrow and collateral addresses for the target chain
             MessageHeader memory header = MessageHeader({
                 payloadID: uint8(2),
-                borrower: msg.sender,
+                borrower: _msgSender(),
                 collateralAddress: state.borrowingAssetAddress,
                 borrowAddress: state.collateralAssetAddress
             });
@@ -224,7 +224,7 @@ contract CrossChainBorrowLend is
             SafeERC20.safeTransferFrom(
                 collateralToken(),
                 address(this),
-                msg.sender,
+                _msgSender(),
                 params.borrowAmount
             );
 
