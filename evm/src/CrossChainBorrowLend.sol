@@ -325,19 +325,28 @@ contract CrossChainBorrowLend is
                 params.borrowAmount,
                 borrowedInterestAccrualIndex()
             );
-            state.totalAssets.borrowed += normalizedAmount;
+            //state.totalAssets.borrowed += normalizedAmount;
 
             // save the total normalized borrow amount for repayments
+            state.totalAssets.borrowed +=
+                params.totalNormalizedBorrowAmount -
+                state.accountAssets[params.header.borrower].borrowed;
             state.accountAssets[params.header.borrower].borrowed = params
                 .totalNormalizedBorrowAmount;
 
-            // finally transfer
-            SafeERC20.safeTransferFrom(
-                collateralToken(),
-                address(this),
-                params.header.borrower,
-                params.borrowAmount
-            );
+            // params.borrowAmount == 0 means that there was a repayment
+            // made outside of the grace period, so we will have received
+            // another VAA representing the updated borrowed amount
+            // on the source chain.
+            if (params.borrowAmount > 0) {
+                // finally transfer
+                SafeERC20.safeTransferFrom(
+                    collateralToken(),
+                    address(this),
+                    params.header.borrower,
+                    params.borrowAmount
+                );
+            }
 
             // no wormhole message, return the default value: zero == success
         }
@@ -501,7 +510,10 @@ contract CrossChainBorrowLend is
         );
     }
 
-    function completeRepay(bytes calldata encodedVm) public {
+    function completeRepay(bytes calldata encodedVm)
+        public
+        returns (uint64 sequence)
+    {
         // parse and verify the RepayMessage
         (
             IWormhole.VM memory parsed,
@@ -538,12 +550,39 @@ contract CrossChainBorrowLend is
                 // update state in this contract
                 uint256 normalizedAmount = normalizeAmount(
                     params.repayAmount,
-                    index
+                    params.targetInterestAccrualIndex
                 );
                 state.accountAssets[params.header.borrower].borrowed = 0;
                 state.totalAssets.borrowed -= normalizedAmount;
             } else {
-                // TODO: add additional interest and update state
+                uint256 normalizedAmount = normalizeAmount(
+                    params.repayAmount,
+                    index
+                );
+                state
+                    .accountAssets[params.header.borrower]
+                    .borrowed -= normalizedAmount;
+                state.totalAssets.borrowed -= normalizedAmount;
+
+                // Send a wormhole message again since he did not repay in full
+                // (due to repaying outside of the grace period)
+                sequence = sendWormholeMessage(
+                    encodeBorrowMessage(
+                        BorrowMessage({
+                            header: MessageHeader({
+                                payloadID: uint8(1),
+                                borrower: _msgSender(),
+                                collateralAddress: state.collateralAssetAddress,
+                                borrowAddress: state.borrowingAssetAddress
+                            }),
+                            borrowAmount: 0,
+                            totalNormalizedBorrowAmount: state
+                                .accountAssets[_msgSender()]
+                                .borrowed,
+                            interestAccrualIndex: index
+                        })
+                    )
+                );
             }
         }
         // TODO: add additional interest and update state
