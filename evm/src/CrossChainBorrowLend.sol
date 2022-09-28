@@ -6,6 +6,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./interfaces/IWormhole.sol";
+import "./interfaces/IMockPyth.sol";
 import "./libraries/external/BytesLib.sol";
 
 import "./CrossChainBorrowLendState.sol";
@@ -17,18 +18,20 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
     constructor(
         address wormholeContractAddress_,
         uint8 consistencyLevel_,
-        address priceOracleAddress_,
+        address mockPythAddress_,
         uint16 targetChainId_,
         bytes32 targetContractAddress_,
         address collateralAsset_,
+        bytes32 collateralAssetPythId_,
         uint256 collateralizationRatio_,
-        address borrowingAsset_
+        address borrowingAsset_,
+        bytes32 borrowingAssetPythId_
     ) {
         state.owner = msg.sender;
         state.wormholeContractAddress = wormholeContractAddress_;
         state.consistencyLevel = consistencyLevel_;
 
-        state.priceOracleAddress = priceOracleAddress_;
+        state.mockPythAddress = mockPythAddress_;
 
         state.targetChainId = targetChainId_;
         state.targetContractAddress = targetContractAddress_;
@@ -48,6 +51,10 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         // since this is the precision of our value.
         state.collateralPriceIndexPrecision = 1e18;
         state.collateralPriceIndex = 1e18;
+
+        // pyth asset IDs
+        state.collateralAssetPythId = collateralAssetPythId_;
+        state.borrowingAssetPythId = borrowingAssetPythId_;
     }
 
     function collateralToken() internal view returns (IERC20) {
@@ -77,9 +84,26 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         );
     }
 
-    function getOraclePrices() internal view returns (uint256, uint256) {
-        // TODO
-        return (0, 0);
+    function getOraclePrices() internal view returns (uint64, uint64) {
+        IMockPyth.PriceFeed memory collateralFeed = mockPyth().queryPriceFeed(
+            state.collateralAssetPythId
+        );
+        IMockPyth.PriceFeed memory borrowFeed = mockPyth().queryPriceFeed(
+            state.borrowingAssetPythId
+        );
+
+        // sanity check the price feeds
+        require(
+            collateralFeed.price.price > 0 && borrowFeed.price.price > 0,
+            "negative prices detected"
+        );
+
+        // Users of Pyth prices should read: https://docs.pyth.network/consumers/best-practices
+        // before using the price feed. Blindly using the price alone is not recommended.
+        return (
+            uint64(collateralFeed.price.price),
+            uint64(borrowFeed.price.price)
+        );
     }
 
     function computeInterestProportion(
@@ -156,8 +180,8 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
 
         // Need to calculate how much someone can borrow
         (
-            uint256 collateralAssetPriceInUSD,
-            uint256 borrowAssetPriceInUSD
+            uint64 collateralAssetPriceInUSD,
+            uint64 borrowAssetPriceInUSD
         ) = getOraclePrices();
 
         // update current price index
@@ -335,5 +359,9 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
 
     function wormhole() internal view returns (IWormhole) {
         return IWormhole(state.wormholeContractAddress);
+    }
+
+    function mockPyth() internal view returns (IMockPyth) {
+        return IMockPyth(state.mockPythAddress);
     }
 }

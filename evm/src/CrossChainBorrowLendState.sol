@@ -12,11 +12,12 @@ contract CrossChainBorrowLendStorage {
         uint16 targetChainId;
         uint32 collateralizationRatioPrecision;
         uint256 interestRatePrecision;
-        // price oracle
-        address priceOracleAddress;
+        // mock pyth price oracle
+        address mockPythAddress;
         bytes32 targetContractAddress;
         // borrow and lend activity
         address collateralAssetAddress;
+        bytes32 collateralAssetPythId;
         uint256 collateralizationRatio;
         //uint256 totalCollateralSupply;
         address borrowingAssetAddress;
@@ -25,6 +26,7 @@ contract CrossChainBorrowLendStorage {
         uint256 lastActivityBlockTimestamp;
         NormalizedAmounts totalAssets;
         mapping(address => NormalizedAmounts) accountAssets;
+        bytes32 borrowingAssetPythId;
         mapping(bytes32 => bool) completedBorrows;
         InterestRateModel interestRateModel;
     }
