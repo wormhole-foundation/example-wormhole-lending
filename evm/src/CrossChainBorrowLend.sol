@@ -575,7 +575,7 @@ contract CrossChainBorrowLend is
                                 collateralAddress: state.collateralAssetAddress,
                                 borrowAddress: state.borrowingAssetAddress
                             }),
-                            borrowAmount: 0,
+                            borrowAmount: 0, // special value to indicate failed repay in full
                             totalNormalizedBorrowAmount: state
                                 .accountAssets[_msgSender()]
                                 .borrowed,
@@ -585,7 +585,15 @@ contract CrossChainBorrowLend is
                 );
             }
         } else {
-            // TODO: handle this part
+            // update state in this contract
+            uint256 normalizedAmount = normalizeAmount(
+                params.repayAmount,
+                params.targetInterestAccrualIndex
+            );
+            state
+                .accountAssets[params.header.borrower]
+                .borrowed -= normalizedAmount;
+            state.totalAssets.borrowed -= normalizedAmount;
         }
     }
 
