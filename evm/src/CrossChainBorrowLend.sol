@@ -584,30 +584,42 @@ contract CrossChainBorrowLend is
                     )
                 );
             }
+        } else {
+            // TODO: handle this part
         }
-        // TODO: add additional interest and update state
     }
 
     /**
-     @notice `initiateLiquidationOnTargetChain` has not been implemented yet. This function should
-     determine if a particular position is undercollateralized by querying the `accountAssets` state variable
-     for the passed account and calculate the health of the account. If an account is considered undercollateralized,
-     this method should generate a Wormhole message to be delivered to the target chain by the caller.
-     The caller will invoke the `completeBorrowOnBehalf` method on the target chain and pass the Wormhole message as an argument.
-     If the account has not yet paid the loan back by the time the Wormhole message arrives on the target chain,
-     `completeBorrowOnBehalf` will accept funds from the caller, and generate another Wormhole messsage to be delivered to the source chain.
-     The caller will then invoke `completeLiquidation` on the source chain and pass the Wormhole message in as an argument. This function should
-     handle releasing the account's collateral to the liquidator, less fees.
+     @notice `initiateLiquidationOnTargetChain` has not been implemented yet.
+     
+     This function should determine if a particular position is undercollateralized
+     by querying the `accountAssets` state variable for the passed account. Calculate
+     the health of the account.
+     
+     If an account is undercollateralized, this method should generate a Wormhole
+     message sent to the target chain by the caller. The caller will invoke the
+     `completeRepayOnBehalf` method on the target chain and pass the signed Wormhole
+     message as an argument.
+     
+     If the account has not yet paid the loan back by the time the Wormhole message
+     arrives on the target chain, `completeRepayOnBehalf` will accept funds from the
+     caller, and generate another Wormhole messsage to be delivered to the source chain.
 
-     In order for off-chain processes to calculate an account's health, the integrator needs to expose a getter
-     that will return the list of accounts with open positions. The integrator will also have to expose a getter
-     that allows the liquidator to query the `accountAssets` state variable for a particular account.
+     The caller will then invoke `completeLiquidation` on the source chain and pass
+     the signed Wormhole message in as an argument. This function should handle
+     releasing the account's collateral to the liquidator, less fees (which should be
+     defined in the contract and updated by the contract owner).
+
+     In order for off-chain processes to calculate an account's health, the integrator
+     needs to expose a getter that will return the list of accounts with open positions.
+     The integrator needs to expose a getter that allows the liquidator to query the
+     `accountAssets` state variable for a particular account.
     */
     function initiateLiquidationOnTargetChain(address accountToLiquidate)
         public
     {}
 
-    function completeBorrowOnBehalf(bytes calldata encodedVm) public {}
+    function completeRepayOnBehalf(bytes calldata encodedVm) public {}
 
     function completeLiquidation(bytes calldata encodedVm) public {}
 
