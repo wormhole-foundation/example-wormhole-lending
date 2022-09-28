@@ -115,7 +115,7 @@ contract CrossChainBorrowLend is
         SafeERC20.safeTransfer(
             collateralToken(),
             _msgSender(),
-            denormalizeAmount(amount, index);
+            amount;
         );
     }
 
@@ -384,8 +384,14 @@ contract CrossChainBorrowLend is
             _msgSender()
         ];
 
+        updateInterestAccrualIndex();
+
+
+
         // confirm that this caller has value
         // update the index and then pay
+
+        // safeTransferFrom to this account
 
         // construct wormhole message
         MessageHeader memory header = MessageHeader({
