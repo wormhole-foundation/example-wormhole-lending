@@ -68,4 +68,24 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
     function normalizedLiquidity() internal view returns (uint256) {
         return state.totalAssets.deposited - state.totalAssets.borrowed;
     }
+
+    function denormalizeAmount(uint256 normalizedAmount)
+        internal
+        view
+        returns (uint256)
+    {
+        return
+            (normalizedAmount * collateralPriceIndex()) /
+            state.collateralPriceIndexPrecision;
+    }
+
+    function normalizeAmount(uint256 denormalizedAmount)
+        internal
+        view
+        returns (uint256)
+    {
+        return
+            (denormalizedAmount * state.collateralPriceIndexPrecision) /
+            collateralPriceIndex();
+    }
 }

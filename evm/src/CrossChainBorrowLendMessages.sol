@@ -14,11 +14,12 @@ contract CrossChainBorrowLendMessages {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            header.borrower,
-            header.collateralAddress,
-            header.borrowAddress
-        );
+        return
+            abi.encodePacked(
+                header.borrower,
+                header.collateralAddress,
+                header.borrowAddress
+            );
     }
 
     function encodeBorrowMessage(BorrowMessage memory message)
@@ -30,7 +31,8 @@ contract CrossChainBorrowLendMessages {
             abi.encodePacked(
                 uint8(1), // payloadID
                 encodeMessageHeader(message.header),
-                message.borrowAmount
+                message.borrowAmount,
+                message.totalNormalizedBorrowAmount
             );
     }
 
@@ -60,11 +62,9 @@ contract CrossChainBorrowLendMessages {
             );
     }
 
-    function encodeLiquidationIntentMessage(LiquidationIntentMessage memory message)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function encodeLiquidationIntentMessage(
+        LiquidationIntentMessage memory message
+    ) internal pure returns (bytes memory) {
         return
             abi.encodePacked(
                 uint8(4), // payloadID
@@ -94,7 +94,9 @@ contract CrossChainBorrowLendMessages {
         uint256 index = 0;
 
         // parse the message header
-        params.header = decodeMessageHeader(serialized.slice(index, index += 61));
+        params.header = decodeMessageHeader(
+            serialized.slice(index, index += 61)
+        );
         params.borrowAmount = serialized.toUint256(index += 32);
 
         require(params.header.payloadID == 1, "invalid message");
@@ -109,7 +111,9 @@ contract CrossChainBorrowLendMessages {
         uint256 index = 0;
 
         // parse the message header
-        params.header = decodeMessageHeader(serialized.slice(index, index += 61));
+        params.header = decodeMessageHeader(
+            serialized.slice(index, index += 61)
+        );
         params.borrowAmount = serialized.toUint256(index += 32);
 
         require(params.header.payloadID == 2, "invalid message");
@@ -124,7 +128,9 @@ contract CrossChainBorrowLendMessages {
         uint256 index = 0;
 
         // parse the message header
-        params.header = decodeMessageHeader(serialized.slice(index, index += 61));
+        params.header = decodeMessageHeader(
+            serialized.slice(index, index += 61)
+        );
         params.repayAmount = serialized.toUint256(index += 32);
 
         require(params.header.payloadID == 3, "invalid message");
@@ -139,7 +145,9 @@ contract CrossChainBorrowLendMessages {
         uint256 index = 0;
 
         // parse the message header
-        params.header = decodeMessageHeader(serialized.slice(index, index += 61));
+        params.header = decodeMessageHeader(
+            serialized.slice(index, index += 61)
+        );
 
         // TODO: deserialize the LiquidationIntentMessage when implemented
 

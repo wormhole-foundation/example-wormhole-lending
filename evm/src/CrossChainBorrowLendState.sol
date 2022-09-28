@@ -26,7 +26,7 @@ contract CrossChainBorrowLendStorage {
         NormalizedAmounts totalAssets;
         mapping(address => NormalizedAmounts) accountAssets;
         bytes32 borrowingAssetPythId;
-        mapping(bytes32 => bool) completedBorrows;
+        mapping(bytes32 => bool) consumedMessages;
         InterestRateModel interestRateModel;
     }
 }

@@ -59,8 +59,16 @@ contract CrossChainBorrowLend is
         state.borrowingAssetPythId = borrowingAssetPythId_;
     }
 
-    function depositCollateral(uint256 amount) public {
+    function supply(uint256 amount) public {
         require(amount > 0, "nothing to deposit");
+
+        // update current price index
+        updateCollateralPriceIndex();
+
+        // update state for supplier
+        uint256 normalizedAmount = normalizeAmount(amount);
+        state.accountAssets[_msgSender()].deposited += normalizedAmount;
+        state.totalAssets.deposited += normalizedAmount;
 
         SafeERC20.safeTransferFrom(
             collateralToken(),
@@ -107,30 +115,7 @@ contract CrossChainBorrowLend is
             state.interestRateModel.ratePrecision;
     }
 
-    function denormalizeAmount(uint256 normalizedAmount)
-        internal
-        view
-        returns (uint256)
-    {
-        return
-            (normalizedAmount * collateralPriceIndex()) /
-            state.collateralPriceIndexPrecision;
-    }
-
-    function normalizeAmount(uint256 denormalizedAmount)
-        internal
-        view
-        returns (uint256)
-    {
-        return
-            (denormalizedAmount * state.collateralPriceIndexPrecision) /
-            collateralPriceIndex();
-    }
-
-    function initiateBorrowOnTargetChain(uint256 amount)
-        public
-        returns (uint64 sequence)
-    {
+    function initiateBorrow(uint256 amount) public returns (uint64 sequence) {
         require(amount > 0, "nothing to borrow");
 
         // For EVMs, same private key will be used for borrowing-lending activity.
@@ -176,12 +161,19 @@ contract CrossChainBorrowLend is
 
         sequence = sendWormholeMessage(
             encodeBorrowMessage(
-                BorrowMessage({header: header, borrowAmount: amount})
+                BorrowMessage({
+                    header: header,
+                    borrowAmount: amount,
+                    totalNormalizedBorrowAmount: normalizedAmount
+                })
             )
         );
     }
 
-    function borrow(bytes calldata encodedVm) public returns (uint64 sequence) {
+    function completeBorrow(bytes calldata encodedVm)
+        public
+        returns (uint64 sequence)
+    {
         (
             IWormhole.VM memory parsed,
             bool valid,
@@ -193,13 +185,13 @@ contract CrossChainBorrowLend is
         require(verifyEmitter(parsed), "invalid emitter");
 
         // completed (replay protection)
-        state.completedBorrows[parsed.hash] = true;
+        consumeMessageHash(parsed.hash);
 
         // decode
         BorrowMessage memory params = decodeBorrowMessage(parsed.payload);
 
         // correct assets?
-        require(verifyAssetMeta(params), "invalid asset metadata");
+        require(verifyAssetMetaFromBorrow(params), "invalid asset metadata");
 
         // TODO: check if we can release funds and transfer to borrower
         if (params.borrowAmount < denormalizeAmount(normalizedLiquidity())) {
@@ -221,6 +213,18 @@ contract CrossChainBorrowLend is
                 )
             );
         } else {
+            // update current price index
+            updateCollateralPriceIndex();
+
+            // update state for borrower
+            uint256 normalizedAmount = normalizeAmount(params.borrowAmount);
+            state.totalAssets.deposited -= normalizedAmount;
+
+            // save the total normalized borrow amount for repayments
+            state.accountAssets[_msgSender()].borrowed = params
+                .totalNormalizedBorrowAmount;
+
+            // finally transfer
             SafeERC20.safeTransferFrom(
                 collateralToken(),
                 address(this),
@@ -231,6 +235,58 @@ contract CrossChainBorrowLend is
             // no wormhole message. zero == success
             sequence = 0;
         }
+    }
+
+    function repay(uint256 amount) public returns (uint64 sequence) {
+        require(amount > 0, "nothing to repay");
+
+        // For EVMs, same private key will be used for borrowing-lending activity.
+        // When introducing other chains (e.g. Cosmos), need to do wallet registration
+        // so we can access a map of a non-EVM address based on this EVM borrower
+        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
+            _msgSender()
+        ];
+
+        // construct wormhole message
+        MessageHeader memory header = MessageHeader({
+            payloadID: uint8(3),
+            borrower: _msgSender(),
+            collateralAddress: state.borrowingAssetAddress,
+            borrowAddress: state.collateralAssetAddress
+        });
+
+        sequence = sendWormholeMessage(
+            encodeRepayMessage(
+                RepayMessage({header: header, repayAmount: amount})
+            )
+        );
+    }
+
+    function completeRepay(bytes calldata encodedVm)
+        public
+        returns (uint64 sequence)
+    {
+        (
+            IWormhole.VM memory parsed,
+            bool valid,
+            string memory reason
+        ) = wormhole().parseAndVerifyVM(encodedVm);
+        require(valid, reason);
+
+        // verify emitter
+        require(verifyEmitter(parsed), "invalid emitter");
+
+        // completed (replay protection)
+        consumeMessageHash(parsed.hash);
+
+        // decode
+        RepayMessage memory params = decodeRepayMessage(parsed.payload);
+
+        // correct assets?
+        require(verifyAssetMetaFromRepay(params), "invalid asset metadata");
+
+        // TODO: do something meaningful here
+        sequence = 0;
     }
 
     function sendWormholeMessage(bytes memory payload)
@@ -254,7 +310,7 @@ contract CrossChainBorrowLend is
             parsed.emitterChainId == state.targetChainId;
     }
 
-    function verifyAssetMeta(BorrowMessage memory params)
+    function verifyAssetMetaFromBorrow(BorrowMessage memory params)
         internal
         view
         returns (bool)
@@ -262,5 +318,19 @@ contract CrossChainBorrowLend is
         return
             params.header.collateralAddress == state.borrowingAssetAddress &&
             params.header.borrowAddress == state.collateralAssetAddress;
+    }
+
+    function verifyAssetMetaFromRepay(RepayMessage memory params)
+        internal
+        view
+        returns (bool)
+    {
+        return
+            params.header.collateralAddress == state.collateralAssetAddress &&
+            params.header.borrowAddress == state.borrowingAssetAddress;
+    }
+
+    function consumeMessageHash(bytes32 vmHash) internal {
+        state.consumedMessages[vmHash] = true;
     }
 }

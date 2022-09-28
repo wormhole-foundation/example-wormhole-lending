@@ -20,6 +20,7 @@ struct BorrowMessage {
     // payloadID = 1
     MessageHeader header;
     uint256 borrowAmount;
+    uint256 totalNormalizedBorrowAmount;
 }
 
 struct RevertBorrowMessage {
