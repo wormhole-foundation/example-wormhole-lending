@@ -3,7 +3,13 @@
 all: build
 
 .PHONY: dependencies
-dependencies: venus_dependencies wormhole_dependencies
+dependencies: forge_dependencies venus_dependencies wormhole_dependencies
+
+.PHONY: forge_dependencies
+forge_dependencies: forge-std
+
+forge-std:
+	forge install foundry-rs/forge-std --no-git
 
 .PHONY: venus_dependencies
 venus_dependencies: venus-protocol
