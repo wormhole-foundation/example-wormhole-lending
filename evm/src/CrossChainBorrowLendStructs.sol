@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.0;
 
 struct NormalizedAmounts {
     uint256 deposited;
@@ -7,6 +7,8 @@ struct NormalizedAmounts {
 }
 
 struct MessageHeader {
+    uint8 payloadID;
+    // address of the borrower
     address borrower;
     // collateral info
     address collateralAddress; // for verification
@@ -15,22 +17,26 @@ struct MessageHeader {
 }
 
 struct BorrowMessage {
+    // payloadID = 1
+    MessageHeader header;
+    uint256 borrowAmount;
+}
+
+struct RevertBorrowMessage {
+    // payloadID = 2
     MessageHeader header;
     uint256 borrowAmount;
 }
 
 struct RepayMessage {
+    // payloadID = 3
     MessageHeader header;
     uint256 repayAmount;
 }
 
 struct LiquidationIntentMessage {
+    // payloadID = 4
     MessageHeader header;
-}
-
-struct RevertBorrowMessage {
-    MessageHeader header;
-    uint256 borrowAmount;
 }
 
 struct InterestRateModel {

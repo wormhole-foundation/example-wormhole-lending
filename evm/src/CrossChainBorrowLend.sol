@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./interfaces/IWormhole.sol";
-import "./interfaces/IMockPyth.sol";
 import "./libraries/external/BytesLib.sol";
 
-import "./CrossChainBorrowLendState.sol";
 import "./CrossChainBorrowLendStructs.sol";
+import "./CrossChainBorrowLendGetters.sol";
+import "./CrossChainBorrowLendMessages.sol";
 
-contract CrossChainBorrowLend is CrossChainBorrowLendState {
-    using BytesLib for bytes;
-
+contract CrossChainBorrowLend is
+    CrossChainBorrowLendGetters,
+    CrossChainBorrowLendMessages
+{
     constructor(
         address wormholeContractAddress_,
         uint8 consistencyLevel_,
@@ -27,7 +26,10 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         address borrowingAsset_,
         bytes32 borrowingAssetPythId_
     ) {
+        // contract owner
         state.owner = msg.sender;
+
+        // wormhole
         state.wormholeContractAddress = wormholeContractAddress_;
         state.consistencyLevel = consistencyLevel_;
 
@@ -57,22 +59,6 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         state.borrowingAssetPythId = borrowingAssetPythId_;
     }
 
-    function collateralToken() internal view returns (IERC20) {
-        return IERC20(state.collateralAssetAddress);
-    }
-
-    function collateralTokenDecimals() internal view returns (uint8) {
-        return IERC20Metadata(state.collateralAssetAddress).decimals();
-    }
-
-    function borrowToken() internal view returns (IERC20) {
-        return IERC20(state.borrowingAssetAddress);
-    }
-
-    function borrowTokenDecimals() internal view returns (uint8) {
-        return IERC20Metadata(state.borrowingAssetAddress).decimals();
-    }
-
     function depositCollateral(uint256 amount) public {
         require(amount > 0, "nothing to deposit");
 
@@ -81,28 +67,6 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
             msg.sender,
             address(this),
             amount
-        );
-    }
-
-    function getOraclePrices() internal view returns (uint64, uint64) {
-        IMockPyth.PriceFeed memory collateralFeed = mockPyth().queryPriceFeed(
-            state.collateralAssetPythId
-        );
-        IMockPyth.PriceFeed memory borrowFeed = mockPyth().queryPriceFeed(
-            state.borrowingAssetPythId
-        );
-
-        // sanity check the price feeds
-        require(
-            collateralFeed.price.price > 0 && borrowFeed.price.price > 0,
-            "negative prices detected"
-        );
-
-        // Users of Pyth prices should read: https://docs.pyth.network/consumers/best-practices
-        // before using the price feed. Blindly using the price alone is not recommended.
-        return (
-            uint64(collateralFeed.price.price),
-            uint64(borrowFeed.price.price)
         );
     }
 
@@ -143,10 +107,6 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
             state.interestRateModel.ratePrecision;
     }
 
-    function collateralPriceIndex() internal view returns (uint256) {
-        return state.collateralPriceIndex;
-    }
-
     function denormalizeAmount(uint256 normalizedAmount)
         internal
         view
@@ -176,7 +136,9 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         // For EVMs, same private key will be used for borrowing-lending activity.
         // When introducing other chains (e.g. Cosmos), need to do wallet registration
         // so we can access a map of a non-EVM address based on this EVM borrower
-        AssetAmounts memory normalizedAmounts = state.accountAssets[msg.sender];
+        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
+            msg.sender
+        ];
 
         // Need to calculate how much someone can borrow
         (
@@ -201,29 +163,21 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
 
         // update state for borrower
         uint256 normalizedAmount = normalizeAmount(amount);
-        state.acountAssets[msg.sender].borrowed += normalizedAmount;
+        state.accountAssets[msg.sender].borrowed += normalizedAmount;
         state.totalAssets.borrowed += normalizedAmount;
+
+        // construct wormhole message
+        MessageHeader memory header = MessageHeader({
+            payloadID: uint8(1),
+            borrower: msg.sender,
+            collateralAddress: state.collateralAssetAddress,
+            borrowAddress: state.borrowingAssetAddress
+        });
 
         sequence = sendWormholeMessage(
             encodeBorrowMessage(
-                BorrowMessage({
-                    borrower: msg.sender,
-                    collateralAddress: state.collateralAssetAddress,
-                    borrowAddress: state.borrowingAssetAddress,
-                    borrowAmount: amount
-                })
+                BorrowMessage({header: header, borrowAmount: amount})
             )
-        );
-    }
-
-    function sendWormholeMessage(bytes payload)
-        internal
-        returns (uint64 sequence)
-    {
-        sequence = IWormhole(state.wormholeContractAddress).publishMessage(
-            0, // nonce
-            payload,
-            state.consistencyLevel
         );
     }
 
@@ -252,14 +206,21 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
             params.borrowAmount <
             (state.totalCollateralSupply - state.totalCollateralBorrowed)
         ) {
+            // construct wormhole message
+            // switch the borrow and collateral addresses for the target chain
+            MessageHeader memory header = MessageHeader({
+                payloadID: uint8(2),
+                borrower: msg.sender,
+                collateralAddress: state.borrowingAssetAddress,
+                borrowAddress: state.collateralAssetAddress
+            });
+
             sequence = sendWormholeMessage(
                 encodeRevertBorrowMessage(
-                    MessageHeader({
-                        borrower: msg.sender,
-                        collateralAddress: state.borrowingAssetAddress,
-                        borrowAddress: state.collateralAssetAddress
-                    }),
-                    params.borrowAmount
+                    RevertBorrowMessage({
+                        header: header,
+                        borrowAmount: params.borrowAmount
+                    })
                 )
             );
         } else {
@@ -278,6 +239,17 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         }
     }
 
+    function sendWormholeMessage(bytes memory payload)
+        internal
+        returns (uint64 sequence)
+    {
+        sequence = IWormhole(state.wormholeContractAddress).publishMessage(
+            0, // nonce
+            payload,
+            state.consistencyLevel
+        );
+    }
+
     function verifyEmitter(IWormhole.VM memory parsed)
         internal
         view
@@ -294,74 +266,7 @@ contract CrossChainBorrowLend is CrossChainBorrowLendState {
         returns (bool)
     {
         return
-            params.collateralAddress == state.borrowingAssetAddress &&
-            params.borrowAddress == state.collateralAssetAddress;
-    }
-
-    function encodeBorrowMessage(MessageHeader memory header, uint256 amount)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(1),
-                header.borrower,
-                header.collateralAddress,
-                header.borrowAddress,
-                amount
-            );
-    }
-
-    function encodeRepayMessage(MessageHeader memory header, uint256 amount)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(2),
-                header.borrower,
-                header.collateralAddress,
-                header.borrowAddress,
-                amount
-            );
-    }
-
-    function encodeLiquidationIntentMessage(MessageHeader memory header)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(3),
-                params.borrower,
-                params.collateralAddress,
-                params.borrowAddress
-            );
-    }
-
-    function decodeBorrowMessage(bytes memory serialized)
-        internal
-        pure
-        returns (BorrowMessage memory params)
-    {
-        uint256 index = 0;
-        params.borrower = serialized.toAddress(index += 20);
-        params.collateralAddress = serialized.toAddress(index += 20);
-        params.collateralAmount = serialized.toUint256(index += 32);
-        params.borrowAddress = serialized.toAddress(index += 20);
-        params.borrowAmount = serialized.toUint256(index += 32);
-
-        require(index == serialized.length, "index != serialized.length");
-    }
-
-    function wormhole() internal view returns (IWormhole) {
-        return IWormhole(state.wormholeContractAddress);
-    }
-
-    function mockPyth() internal view returns (IMockPyth) {
-        return IMockPyth(state.mockPythAddress);
+            params.header.collateralAddress == state.borrowingAssetAddress &&
+            params.header.borrowAddress == state.collateralAssetAddress;
     }
 }
