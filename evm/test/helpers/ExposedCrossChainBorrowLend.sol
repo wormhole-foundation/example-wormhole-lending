@@ -18,7 +18,8 @@ contract ExposedCrossChainBorrowLend is CrossChainBorrowLend {
         bytes32 collateralAssetPythId_,
         uint256 collateralizationRatio_,
         address borrowingAsset_,
-        bytes32 borrowingAssetPythId_
+        bytes32 borrowingAssetPythId_,
+        uint256 repayGracePeriod_
     )
         CrossChainBorrowLend(
             wormholeContractAddress_,
@@ -30,7 +31,8 @@ contract ExposedCrossChainBorrowLend is CrossChainBorrowLend {
             collateralAssetPythId_,
             collateralizationRatio_,
             borrowingAsset_,
-            borrowingAssetPythId_
+            borrowingAssetPythId_,
+            repayGracePeriod_
         )
     {
         // nothing else

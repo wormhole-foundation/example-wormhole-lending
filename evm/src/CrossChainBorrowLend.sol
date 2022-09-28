@@ -104,7 +104,7 @@ contract CrossChainBorrowLend is
         updateInterestAccrualIndex();
 
         // cache the interestAccrualIndex value to save gas
-        uint256 index = interestAccrualIndex();
+        uint256 index = collateralInterestAccrualIndex();
 
         // compute the max amount allowed to withdraw
         uint256 maxAllowedToBorrow = 0.69e18; // add equation
@@ -144,7 +144,10 @@ contract CrossChainBorrowLend is
         SafeERC20.safeTransfer(
             collateralToken(),
             _msgSender(),
-            denormalizeAmount(normalizedAmount, interestAccrualIndex())
+            denormalizeAmount(
+                normalizedAmount,
+                collateralInterestAccrualIndex()
+            )
         );
     }
 
@@ -400,7 +403,7 @@ contract CrossChainBorrowLend is
         updateInterestAccrualIndex();
 
         // cache the index to save gas
-        uint256 index = interestAccrualIndex();
+        uint256 index = borrowedInterestAccrualIndex();
 
         // save the normalized amount
         uint256 normalizedAmount = normalizeAmount(amount, index);
@@ -461,7 +464,7 @@ contract CrossChainBorrowLend is
         updateInterestAccrualIndex();
 
         // cache the index to save gas
-        uint256 index = interestAccrualIndex();
+        uint256 index = borrowedInterestAccrualIndex();
 
         // update state on the contract
         uint256 normalizedAmount = normalizedAmounts.borrowed;
@@ -518,7 +521,7 @@ contract CrossChainBorrowLend is
         updateInterestAccrualIndex();
 
         // cache the index to save gas
-        uint256 index = interestAccrualIndex();
+        uint256 index = borrowedInterestAccrualIndex();
 
         // decode the RepayMessage
         RepayMessage memory params = decodeRepayMessage(parsed.payload);
@@ -537,7 +540,7 @@ contract CrossChainBorrowLend is
                     params.repayAmount,
                     index
                 );
-                state.accountAssets[_msgSender()].borrowed = 0;
+                state.accountAssets[params.header.borrower].borrowed = 0;
                 state.totalAssets.borrowed -= normalizedAmount;
             } else {
                 // TODO: add additional interest and update state
@@ -565,9 +568,9 @@ contract CrossChainBorrowLend is
         public
     {}
 
-    function completeBorrowOnBehalf(bytes calldata encodedVm) {}
+    function completeBorrowOnBehalf(bytes calldata encodedVm) public {}
 
-    function completeLiquidation(bytes calldata encodedVm) {}
+    function completeLiquidation(bytes calldata encodedVm) public {}
 
     function sendWormholeMessage(bytes memory payload)
         internal

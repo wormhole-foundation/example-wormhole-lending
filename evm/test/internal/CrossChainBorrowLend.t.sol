@@ -42,7 +42,8 @@ contract CrossChainBorrowLendTest is Test {
             collateralAssetPythId,
             collateralizationRatio,
             borrowingAssetAddress,
-            borrowingAssetPythId
+            borrowingAssetPythId,
+            5 * 60 // gracePeriod (5 minutes)
         );
     }
 
