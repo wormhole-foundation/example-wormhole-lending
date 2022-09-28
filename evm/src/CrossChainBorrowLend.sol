@@ -59,7 +59,7 @@ contract CrossChainBorrowLend is
         state.borrowingAssetPythId = borrowingAssetPythId_;
     }
 
-    function supply(uint256 amount) public {
+    function addCollateral(uint256 amount) public {
         require(amount > 0, "nothing to deposit");
 
         // update current price index
@@ -78,6 +78,69 @@ contract CrossChainBorrowLend is
             _msgSender(),
             address(this),
             amount
+        );
+    }
+
+    function removeCollateral(uint256 amount) public {
+        require(amount > 0, "nothing to withdraw");
+
+        // fetch the account information for the caller
+        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
+            _msgSender()
+        ];
+
+        // Need to calculate how much someone can withdraw
+        (
+            uint64 collateralAssetPriceInUSD,
+            uint64 borrowAssetPriceInUSD
+        ) = getOraclePrices();
+
+        // update current price index
+        updateInterestAccrualIndex();
+
+        // cache the interestAccrualIndex value to save gas
+        uint256 index = interestAccrualIndex();
+
+        // compute the max amount allowed to withdraw
+        uint256 maxAllowedToBorrow = 0.69e18; // add equation
+
+        require(amount < maxAllowedToBorrow, "amount >= maxAllowedToWithdraw");
+
+        // update state for supplier
+        uint256 normalizedAmount = normalizeAmount(amount, index);
+        state.accountAssets[_msgSender()].deposited -= normalizedAmount;
+        state.totalAssets.deposited -= normalizedAmount;
+
+        // transfer the tokens to the caller
+        SafeERC20.safeTransfer(
+            collateralToken(),
+            _msgSender(),
+            denormalizeAmount(amount, index);
+        );
+    }
+
+    function removeCollateralInFull() public {
+        // fetch the account information for the caller
+        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
+            _msgSender()
+        ];
+
+        // make sure the account has closed all borrowed positions
+        require(normalizedAmounts.borrowed == 0, "account has outstanding loans");
+
+        // update current price index
+        updateInterestAccrualIndex();
+
+        // update state for supplier
+        uint256 normalizedAmount = normalizedAmounts.deposit;
+        state.accountAssets[_msgSender()].deposited = 0;
+        state.totalAssets.deposited -= normalizedAmount;
+
+        // transfer the tokens to the caller
+        SafeERC20.safeTransfer(
+            collateralToken(),
+            _msgSender(),
+            denormalizeAmount(normalizedAmount, index);
         );
     }
 
@@ -185,7 +248,7 @@ contract CrossChainBorrowLend is
                 BorrowMessage({
                     header: header,
                     borrowAmount: amount,
-                    totalNormalizedBorrowAmount: normalizedAmount,
+                    totalNormalizedBorrowAmount: state.accountAssets[_msgSender()].borrowed,
                     interestAccrualIndex: borrowedIndex
                 })
             )
@@ -311,7 +374,7 @@ contract CrossChainBorrowLend is
         state.totalAssets.borrowed -= normalizedAmount;
     }
 
-    function repay(uint256 amount) public returns (uint64 sequence) {
+    function initiateRepay(uint256 amount) public returns (uint64 sequence) {
         require(amount > 0, "nothing to repay");
 
         // For EVMs, same private key will be used for borrowing-lending activity.
@@ -320,6 +383,9 @@ contract CrossChainBorrowLend is
         NormalizedAmounts memory normalizedAmounts = state.accountAssets[
             _msgSender()
         ];
+
+        // confirm that this caller has value
+        // update the index and then pay
 
         // construct wormhole message
         MessageHeader memory header = MessageHeader({
@@ -336,7 +402,7 @@ contract CrossChainBorrowLend is
         );
     }
 
-    function completeRepay(bytes calldata encodedVm)
+    /*function completeRepay(bytes calldata encodedVm)
         public
         returns (uint64 sequence)
     {
@@ -362,7 +428,7 @@ contract CrossChainBorrowLend is
 
         // TODO: do something meaningful here
         sequence = 0;
-    }
+    }*/
 
     function sendWormholeMessage(bytes memory payload)
         internal
