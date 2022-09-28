@@ -3,8 +3,8 @@
 pragma solidity ^0.8.0;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {NormalizedAmounts} from "../../src/CrossChainBorrowLendStructs.sol";
-import {ExposedCrossChainBorrowLend} from "../helpers/ExposedCrossChainBorrowLend.sol";
+import {NormalizedAmounts} from "../src/CrossChainBorrowLendStructs.sol";
+import {ExposedCrossChainBorrowLend} from "./helpers/ExposedCrossChainBorrowLend.sol";
 import "forge-std/Test.sol";
 
 import "forge-std/console.sol";
