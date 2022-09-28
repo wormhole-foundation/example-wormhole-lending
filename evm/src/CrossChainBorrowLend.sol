@@ -78,8 +78,8 @@ contract CrossChainBorrowLend is
         return
             (secondsElapsed *
                 (intercept +
-                    (coefficient * state.totalCollateralBorrowed) /
-                    state.totalCollateralSupply)) /
+                    (coefficient * state.totalAssets.borrowed) /
+                    state.totalAssets.deposited)) /
             365 /
             24 /
             60 /
@@ -202,10 +202,7 @@ contract CrossChainBorrowLend is
         require(verifyAssetMeta(params), "invalid asset metadata");
 
         // TODO: check if we can release funds and transfer to borrower
-        if (
-            params.borrowAmount <
-            (state.totalCollateralSupply - state.totalCollateralBorrowed)
-        ) {
+        if (params.borrowAmount < denormalizeAmount(normalizedLiquidity())) {
             // construct wormhole message
             // switch the borrow and collateral addresses for the target chain
             MessageHeader memory header = MessageHeader({
@@ -224,9 +221,6 @@ contract CrossChainBorrowLend is
                 )
             );
         } else {
-            // update liquidity state
-            state.totalCollateralBorrowed += params.borrowAmount;
-
             SafeERC20.safeTransferFrom(
                 collateralToken(),
                 address(this),

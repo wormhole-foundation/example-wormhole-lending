@@ -19,8 +19,6 @@ contract CrossChainBorrowLendStorage {
         address collateralAssetAddress;
         bytes32 collateralAssetPythId;
         uint256 collateralizationRatio;
-        uint256 totalCollateralSupply; // REVIEW: added to get contracts compiling
-        uint256 totalCollateralBorrowed; // REVIEW: added to get contracts compiling
         address borrowingAssetAddress;
         uint256 collateralPriceIndex;
         uint256 collateralPriceIndexPrecision;

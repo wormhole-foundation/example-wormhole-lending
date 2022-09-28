@@ -63,4 +63,8 @@ contract CrossChainBorrowLendGetters is CrossChainBorrowLendState {
     function mockPyth() internal view returns (IMockPyth) {
         return IMockPyth(state.mockPythAddress);
     }
+
+    function normalizedLiquidity() internal view returns (uint256) {
+        return state.totalAssets.deposited - state.totalAssets.borrowed;
+    }
 }
