@@ -103,7 +103,7 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
     function normalizedAmounts()
         public
         view
-        returns (NormalizedAmounts memory)
+        returns (NormalizedTotalAmounts memory)
     {
         return state.totalAssets;
     }
@@ -120,11 +120,11 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
 
         // denormalize
         uint256 denormalizedDeposited = denormalizeAmount(
-            normalized.deposited,
+            normalized.sourceDeposited,
             collateralInterestAccrualIndex()
         );
         uint256 denormalizedBorrowed = denormalizeAmount(
-            normalized.borrowed,
+            normalized.targetBorrowed,
             borrowedInterestAccrualIndex()
         );
 
@@ -162,11 +162,11 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
 
         // denormalize
         uint256 denormalizedDeposited = denormalizeAmount(
-            normalized.deposited,
+            normalized.sourceDeposited,
             collateralInterestAccrualIndex()
         );
         uint256 denormalizedBorrowed = denormalizeAmount(
-            normalized.borrowed,
+            normalized.targetBorrowed,
             borrowedInterestAccrualIndex()
         );
 

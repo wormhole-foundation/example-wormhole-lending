@@ -1,9 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-struct NormalizedAmounts {
+struct NormalizedTotalAmounts {
     uint256 deposited;
     uint256 borrowed;
+}
+
+struct NormalizedAmounts {
+    uint256 sourceDeposited;
+    uint256 sourceBorrowed;
+    uint256 targetDeposited;
+    uint256 targetBorrowed;
 }
 
 struct MessageHeader {

@@ -101,12 +101,12 @@ contract ExposedCrossChainBorrowLend is CrossChainBorrowLend {
     function HACKED_setAccountAssetsDeposited(address account, uint256 amount)
         external
     {
-        state.accountAssets[account].deposited = amount;
+        state.accountAssets[account].sourceDeposited = amount;
     }
 
     function HACKED_setAccountAssetsBorrowed(address account, uint256 amount)
         external
     {
-        state.accountAssets[account].borrowed = amount;
+        state.accountAssets[account].targetBorrowed = amount;
     }
 }

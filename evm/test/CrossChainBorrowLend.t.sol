@@ -2,7 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import {NormalizedAmounts} from "../src/CrossChainBorrowLendStructs.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {NormalizedAmounts, NormalizedTotalAmounts} from "../src/CrossChainBorrowLendStructs.sol";
 import {ExposedCrossChainBorrowLend} from "./helpers/ExposedCrossChainBorrowLend.sol";
 import {MyERC20} from "./helpers/MyERC20.sol";
 import "forge-std/Test.sol";
@@ -150,7 +151,7 @@ contract CrossChainBorrowLendTest is Test {
 
         // check denormalized deposit and borrowed. should be equal
         {
-            NormalizedAmounts memory amounts = borrowLendContract
+            NormalizedTotalAmounts memory amounts = borrowLendContract
                 .normalizedAmounts();
             uint256 accruedDepositedInterest = borrowLendContract
                 .denormalizeAmount(

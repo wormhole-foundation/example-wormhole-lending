@@ -29,21 +29,22 @@ contract CrossChainBorrowLend is
         bytes32 borrowingAssetPythId_,
         uint256 repayGracePeriod_
     ) {
-        // REVIEW: set owner for only owner methods if desireable
+        // REVIEW: set owner for only owner methods if desired
 
         // wormhole
         state.wormholeContractAddress = wormholeContractAddress_;
         state.consistencyLevel = consistencyLevel_;
 
-        state.mockPythAddress = mockPythAddress_;
-
+        // target chain info
         state.targetChainId = targetChainId_;
         state.targetContractAddress = targetContractAddress_;
 
+        // collateral params
         state.collateralAssetAddress = collateralAsset_;
         state.collateralizationRatio = collateralizationRatio_;
         state.collateralizationRatioPrecision = 1e18; // fixed
 
+        // borrowing asset address
         state.borrowingAssetAddress = borrowingAsset_;
 
         // interest rate parameters
@@ -56,7 +57,8 @@ contract CrossChainBorrowLend is
         state.interestAccrualIndexPrecision = 1e18;
         state.interestAccrualIndex = state.interestAccrualIndexPrecision;
 
-        // pyth asset IDs
+        // pyth oracle address and asset IDs
+        state.mockPythAddress = mockPythAddress_;
         state.collateralAssetPythId = collateralAssetPythId_;
         state.borrowingAssetPythId = borrowingAssetPythId_;
 
@@ -75,7 +77,7 @@ contract CrossChainBorrowLend is
             amount,
             collateralInterestAccrualIndex()
         );
-        state.accountAssets[_msgSender()].deposited += normalizedAmount;
+        state.accountAssets[_msgSender()].sourceDeposited += normalizedAmount;
         state.totalAssets.deposited += normalizedAmount;
 
         SafeERC20.safeTransferFrom(
@@ -103,7 +105,7 @@ contract CrossChainBorrowLend is
             amount,
             collateralInterestAccrualIndex()
         );
-        state.accountAssets[_msgSender()].deposited -= normalizedAmount;
+        state.accountAssets[_msgSender()].sourceDeposited -= normalizedAmount;
         state.totalAssets.deposited -= normalizedAmount;
 
         // transfer the tokens to the caller
@@ -118,7 +120,7 @@ contract CrossChainBorrowLend is
 
         // make sure the account has closed all borrowed positions
         require(
-            normalizedAmounts.borrowed == 0,
+            normalizedAmounts.targetBorrowed == 0,
             "account has outstanding loans"
         );
 
@@ -126,8 +128,8 @@ contract CrossChainBorrowLend is
         updateInterestAccrualIndex();
 
         // update state for supplier
-        uint256 normalizedAmount = normalizedAmounts.deposited;
-        state.accountAssets[_msgSender()].deposited = 0;
+        uint256 normalizedAmount = normalizedAmounts.sourceDeposited;
+        state.accountAssets[_msgSender()].sourceDeposited = 0;
         state.totalAssets.deposited -= normalizedAmount;
 
         // transfer the tokens to the caller
@@ -206,7 +208,7 @@ contract CrossChainBorrowLend is
         // update state for borrower
         uint256 borrowedIndex = borrowedInterestAccrualIndex();
         uint256 normalizedAmount = normalizeAmount(amount, borrowedIndex);
-        state.accountAssets[_msgSender()].borrowed += normalizedAmount;
+        state.accountAssets[_msgSender()].targetBorrowed += normalizedAmount;
         state.totalAssets.borrowed += normalizedAmount;
 
         // construct wormhole message
@@ -224,7 +226,7 @@ contract CrossChainBorrowLend is
                     borrowAmount: amount,
                     totalNormalizedBorrowAmount: state
                         .accountAssets[_msgSender()]
-                        .borrowed,
+                        .targetBorrowed,
                     interestAccrualIndex: borrowedIndex
                 })
             )
@@ -287,8 +289,8 @@ contract CrossChainBorrowLend is
             // save the total normalized borrow amount for repayments
             state.totalAssets.borrowed +=
                 params.totalNormalizedBorrowAmount -
-                state.accountAssets[params.header.borrower].borrowed;
-            state.accountAssets[params.header.borrower].borrowed = params
+                state.accountAssets[params.header.borrower].sourceBorrowed;
+            state.accountAssets[params.header.borrower].sourceBorrowed = params
                 .totalNormalizedBorrowAmount;
 
             // params.borrowAmount == 0 means that there was a repayment
@@ -347,7 +349,7 @@ contract CrossChainBorrowLend is
         );
         state
             .accountAssets[params.header.borrower]
-            .borrowed -= normalizedAmount;
+            .targetBorrowed -= normalizedAmount;
         state.totalAssets.borrowed -= normalizedAmount;
     }
 
@@ -376,12 +378,12 @@ contract CrossChainBorrowLend is
 
         // confirm that the caller has loans to pay back
         require(
-            normalizedAmount <= normalizedAmounts.borrowed,
+            normalizedAmount <= normalizedAmounts.sourceBorrowed,
             "loan payment too large"
         );
 
         // update state on this contract
-        state.accountAssets[_msgSender()].borrowed -= normalizedAmount;
+        state.accountAssets[_msgSender()].sourceBorrowed -= normalizedAmount;
         state.totalAssets.borrowed -= normalizedAmount;
 
         // transfer to this contract
@@ -433,8 +435,8 @@ contract CrossChainBorrowLend is
         uint256 index = borrowedInterestAccrualIndex();
 
         // update state on the contract
-        uint256 normalizedAmount = normalizedAmounts.borrowed;
-        state.accountAssets[_msgSender()].borrowed = 0;
+        uint256 normalizedAmount = normalizedAmounts.sourceBorrowed;
+        state.accountAssets[_msgSender()].sourceBorrowed = 0;
         state.totalAssets.borrowed -= normalizedAmount;
 
         // transfer to this contract
@@ -500,6 +502,7 @@ contract CrossChainBorrowLend is
 
         // see if the loan is repaid in full
         if (params.paidInFull == 1) {
+            // REVIEW: do we care about getting the VAA in time?
             if (
                 params.repayTimestamp + state.repayGracePeriod <=
                 block.timestamp
@@ -509,7 +512,7 @@ contract CrossChainBorrowLend is
                     params.repayAmount,
                     params.targetInterestAccrualIndex
                 );
-                state.accountAssets[params.header.borrower].borrowed = 0;
+                state.accountAssets[params.header.borrower].targetBorrowed = 0;
                 state.totalAssets.borrowed -= normalizedAmount;
             } else {
                 uint256 normalizedAmount = normalizeAmount(
@@ -518,7 +521,7 @@ contract CrossChainBorrowLend is
                 );
                 state
                     .accountAssets[params.header.borrower]
-                    .borrowed -= normalizedAmount;
+                    .targetBorrowed -= normalizedAmount;
                 state.totalAssets.borrowed -= normalizedAmount;
 
                 // Send a wormhole message again since he did not repay in full
@@ -528,14 +531,14 @@ contract CrossChainBorrowLend is
                         BorrowMessage({
                             header: MessageHeader({
                                 payloadID: uint8(1),
-                                borrower: _msgSender(),
+                                borrower: params.header.borrower,
                                 collateralAddress: state.collateralAssetAddress,
                                 borrowAddress: state.borrowingAssetAddress
                             }),
                             borrowAmount: 0, // special value to indicate failed repay in full
                             totalNormalizedBorrowAmount: state
-                                .accountAssets[_msgSender()]
-                                .borrowed,
+                                .accountAssets[params.header.borrower]
+                                .targetBorrowed,
                             interestAccrualIndex: index
                         })
                     )
@@ -549,23 +552,23 @@ contract CrossChainBorrowLend is
             );
             state
                 .accountAssets[params.header.borrower]
-                .borrowed -= normalizedAmount;
+                .targetBorrowed -= normalizedAmount;
             state.totalAssets.borrowed -= normalizedAmount;
         }
     }
 
     /**
      @notice `initiateLiquidationOnTargetChain` has not been implemented yet.
-     
+
      This function should determine if a particular position is undercollateralized
      by querying the `accountAssets` state variable for the passed account. Calculate
      the health of the account.
-     
+
      If an account is undercollateralized, this method should generate a Wormhole
      message sent to the target chain by the caller. The caller will invoke the
      `completeRepayOnBehalf` method on the target chain and pass the signed Wormhole
      message as an argument.
-     
+
      If the account has not yet paid the loan back by the time the Wormhole message
      arrives on the target chain, `completeRepayOnBehalf` will accept funds from the
      caller, and generate another Wormhole messsage to be delivered to the source chain.
