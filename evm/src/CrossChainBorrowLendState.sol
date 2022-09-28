@@ -10,7 +10,7 @@ contract CrossChainBorrowLendStorage {
         uint8 consistencyLevel;
         uint16 targetChainId;
         // precision variables
-        uint32 collateralizationRatioPrecision;
+        uint256 collateralizationRatioPrecision;
         uint256 interestRatePrecision;
         // mock pyth price oracle
         address mockPythAddress;

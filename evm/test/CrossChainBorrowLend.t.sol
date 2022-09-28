@@ -2,15 +2,16 @@
 
 pragma solidity ^0.8.0;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {NormalizedAmounts} from "../src/CrossChainBorrowLendStructs.sol";
 import {ExposedCrossChainBorrowLend} from "./helpers/ExposedCrossChainBorrowLend.sol";
+import {MyERC20} from "./helpers/MyERC20.sol";
 import "forge-std/Test.sol";
 
 import "forge-std/console.sol";
 
 contract CrossChainBorrowLendTest is Test {
-    ERC20 collateralToken;
+    MyERC20 collateralToken;
+    MyERC20 borrowedAssetToken;
     ExposedCrossChainBorrowLend borrowLendContract;
 
     bytes32 collateralAssetPythId;
@@ -22,11 +23,8 @@ contract CrossChainBorrowLendTest is Test {
         address mockPythAddress = msg.sender;
         bytes32 targetContractAddress = 0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef;
 
-        collateralToken = new ERC20("USDC", "USDC");
-
-        // pretend borrowingAsset is the same token (with the same address)
-        // on the target chain
-        address borrowingAssetAddress = address(collateralToken);
+        collateralToken = new MyERC20("WBNB", "WBNB", 18);
+        borrowedAssetToken = new MyERC20("USDC", "USDC", 6);
 
         // 80%
         collateralizationRatio = 0.8e18;
@@ -41,7 +39,7 @@ contract CrossChainBorrowLendTest is Test {
             address(collateralToken), // collateralAsset
             collateralAssetPythId,
             collateralizationRatio,
-            borrowingAssetAddress,
+            address(borrowedAssetToken),
             borrowingAssetPythId,
             5 * 60 // gracePeriod (5 minutes)
         );
@@ -91,6 +89,10 @@ contract CrossChainBorrowLendTest is Test {
                 "interestProportion != expected (computed)"
             );
         }
+
+        // clear
+        borrowLendContract.HACKED_setTotalAssetsDeposited(0);
+        borrowLendContract.HACKED_setTotalAssetsBorrowed(0);
     }
 
     function testUpdateInterestAccrualIndex() public {
@@ -165,5 +167,75 @@ contract CrossChainBorrowLendTest is Test {
                 "accruedDepositedInterest != accruedBorrowedInterest"
             );
         }
+
+        // clear
+        borrowLendContract.HACKED_setTotalAssetsDeposited(0);
+        borrowLendContract.HACKED_setTotalAssetsBorrowed(0);
+    }
+
+    function testMaxAllowedToWithdraw() public {
+        uint64 collateralPrice = 400; // WBNB
+        uint64 borrowAssetPrice = 1; // USDC
+
+        uint256 deposited = 1e18; // 1 WBNB (18 decimals)
+        borrowLendContract.HACKED_setAccountAssetsDeposited(
+            msg.sender,
+            deposited
+        );
+
+        uint256 borrowed = 100e6; // 100 USDC (6 decimals)
+        borrowLendContract.HACKED_setAccountAssetsBorrowed(
+            msg.sender,
+            borrowed
+        );
+
+        uint256 maxAllowed = borrowLendContract
+            .EXPOSED_maxAllowedToWithdrawWithPrices(
+                msg.sender,
+                collateralPrice,
+                borrowAssetPrice
+            );
+
+        // expect 0.6875e18 (0.6875 WBNB)
+        {
+            require(maxAllowed == 0.6875e18, "maxAllowed != expected");
+        }
+
+        // clear
+        borrowLendContract.HACKED_setAccountAssetsDeposited(msg.sender, 0);
+        borrowLendContract.HACKED_setAccountAssetsBorrowed(msg.sender, 0);
+    }
+
+    function testMaxAllowedToBorrow() public {
+        uint64 collateralPrice = 400; // WBNB
+        uint64 borrowAssetPrice = 1; // USDC
+
+        uint256 deposited = 1e18; // 1 WBNB (18 decimals)
+        borrowLendContract.HACKED_setAccountAssetsDeposited(
+            msg.sender,
+            deposited
+        );
+
+        uint256 borrowed = 100e6; // 100 USDC (6 decimals)
+        borrowLendContract.HACKED_setAccountAssetsBorrowed(
+            msg.sender,
+            borrowed
+        );
+
+        uint256 maxAllowed = borrowLendContract
+            .EXPOSED_maxAllowedToBorrowWithPrices(
+                msg.sender,
+                collateralPrice,
+                borrowAssetPrice
+            );
+
+        // expect 220e6 (220 USDC)
+        {
+            require(maxAllowed == 220e6, "maxAllowed != expected");
+        }
+
+        // clear
+        borrowLendContract.HACKED_setAccountAssetsDeposited(msg.sender, 0);
+        borrowLendContract.HACKED_setAccountAssetsBorrowed(msg.sender, 0);
     }
 }

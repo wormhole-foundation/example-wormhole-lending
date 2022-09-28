@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import {NormalizedAmounts} from "../../src/CrossChainBorrowLendStructs.sol";
 import {CrossChainBorrowLend} from "../../src/CrossChainBorrowLend.sol";
 import "forge-std/Test.sol";
 
@@ -51,6 +52,40 @@ contract ExposedCrossChainBorrowLend is CrossChainBorrowLend {
         return updateInterestAccrualIndex();
     }
 
+    function EXPOSED_maxAllowedToBorrowWithPrices(
+        address account,
+        uint64 collateralPrice,
+        uint64 borrowAssetPrice
+    ) external view returns (uint256) {
+        return
+            maxAllowedToBorrowWithPrices(
+                account,
+                collateralPrice,
+                borrowAssetPrice
+            );
+    }
+
+    function EXPOSED_maxAllowedToWithdrawWithPrices(
+        address account,
+        uint64 collateralPrice,
+        uint64 borrowAssetPrice
+    ) external view returns (uint256) {
+        return
+            maxAllowedToWithdrawWithPrices(
+                account,
+                collateralPrice,
+                borrowAssetPrice
+            );
+    }
+
+    function EXPOSED_accountAssets(address account)
+        external
+        view
+        returns (NormalizedAmounts memory)
+    {
+        return state.accountAssets[account];
+    }
+
     function HACKED_setTotalAssetsDeposited(uint256 amount) external {
         state.totalAssets.deposited = amount;
     }
@@ -61,5 +96,17 @@ contract ExposedCrossChainBorrowLend is CrossChainBorrowLend {
 
     function HACKED_setLastActivityBlockTimestamp(uint256 timestamp) external {
         state.lastActivityBlockTimestamp = timestamp;
+    }
+
+    function HACKED_setAccountAssetsDeposited(address account, uint256 amount)
+        external
+    {
+        state.accountAssets[account].deposited = amount;
+    }
+
+    function HACKED_setAccountAssetsBorrowed(address account, uint256 amount)
+        external
+    {
+        state.accountAssets[account].borrowed = amount;
     }
 }

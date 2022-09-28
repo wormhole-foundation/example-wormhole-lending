@@ -108,17 +108,15 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
         return state.totalAssets;
     }
 
-    function maxAllowedToBorrow(address account) public view returns (uint256) {
+    function maxAllowedToBorrowWithPrices(
+        address account,
+        uint64 collateralPrice,
+        uint64 borrowAssetPrice
+    ) internal view returns (uint256) {
         // For EVMs, same private key will be used for borrowing-lending activity.
         // When introducing other chains (e.g. Cosmos), need to do wallet registration
         // so we can access a map of a non-EVM address based on this EVM borrower
         NormalizedAmounts memory normalized = state.accountAssets[account];
-
-        // fetch asset prices
-        (
-            uint64 collateralPriceInUSD,
-            uint64 borrowPriceInUSD
-        ) = getOraclePrices();
 
         // denormalize
         uint256 denormalizedDeposited = denormalizeAmount(
@@ -133,25 +131,30 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
         return
             (denormalizedDeposited *
                 state.collateralizationRatio *
-                collateralPriceInUSD *
+                collateralPrice *
                 10**borrowTokenDecimals()) /
             (state.collateralizationRatioPrecision *
-                borrowPriceInUSD *
+                borrowAssetPrice *
                 10**collateralTokenDecimals()) -
             denormalizedBorrowed;
     }
 
-    function maxAllowedToWithdraw(address account)
-        public
-        view
-        returns (uint256)
-    {
-        // Need to calculate how much someone can withdraw
-        (
-            uint64 collateralPriceInUSD,
-            uint64 borrowPriceInUSD
-        ) = getOraclePrices();
+    function maxAllowedToBorrow(address account) public view returns (uint256) {
+        // fetch asset prices
+        (uint64 collateralPrice, uint64 borrowAssetPrice) = getOraclePrices();
+        return
+            maxAllowedToBorrowWithPrices(
+                account,
+                collateralPrice,
+                borrowAssetPrice
+            );
+    }
 
+    function maxAllowedToWithdrawWithPrices(
+        address account,
+        uint64 collateralPrice,
+        uint64 borrowAssetPrice
+    ) internal view returns (uint256) {
         // For EVMs, same private key will be used for borrowing-lending activity.
         // When introducing other chains (e.g. Cosmos), need to do wallet registration
         // so we can access a map of a non-EVM address based on this EVM borrower
@@ -166,14 +169,29 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
             normalized.borrowed,
             borrowedInterestAccrualIndex()
         );
+
         return
             denormalizedDeposited -
             (denormalizedBorrowed *
                 state.collateralizationRatioPrecision *
-                borrowPriceInUSD *
+                borrowAssetPrice *
                 10**collateralTokenDecimals()) /
             (state.collateralizationRatio *
-                collateralPriceInUSD *
+                collateralPrice *
                 10**borrowTokenDecimals());
+    }
+
+    function maxAllowedToWithdraw(address account)
+        public
+        view
+        returns (uint256)
+    {
+        (uint64 collateralPrice, uint64 borrowAssetPrice) = getOraclePrices();
+        return
+            maxAllowedToWithdrawWithPrices(
+                account,
+                collateralPrice,
+                borrowAssetPrice
+            );
     }
 }

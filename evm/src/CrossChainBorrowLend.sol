@@ -42,7 +42,7 @@ contract CrossChainBorrowLend is
 
         state.collateralAssetAddress = collateralAsset_;
         state.collateralizationRatio = collateralizationRatio_;
-        state.collateralizationRatioPrecision = 1e8; // fixed
+        state.collateralizationRatioPrecision = 1e18; // fixed
 
         state.borrowingAssetAddress = borrowingAsset_;
 
