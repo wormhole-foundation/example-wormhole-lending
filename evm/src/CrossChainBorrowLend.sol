@@ -115,7 +115,7 @@ contract CrossChainBorrowLend is
         SafeERC20.safeTransfer(
             collateralToken(),
             _msgSender(),
-            amount;
+            amount
         );
     }
 
@@ -132,7 +132,7 @@ contract CrossChainBorrowLend is
         updateInterestAccrualIndex();
 
         // update state for supplier
-        uint256 normalizedAmount = normalizedAmounts.deposit;
+        uint256 normalizedAmount = normalizedAmounts.deposited;
         state.accountAssets[_msgSender()].deposited = 0;
         state.totalAssets.deposited -= normalizedAmount;
 
@@ -140,7 +140,7 @@ contract CrossChainBorrowLend is
         SafeERC20.safeTransfer(
             collateralToken(),
             _msgSender(),
-            denormalizeAmount(normalizedAmount, index);
+            denormalizeAmount(normalizedAmount, interestAccrualIndex())
         );
     }
 
