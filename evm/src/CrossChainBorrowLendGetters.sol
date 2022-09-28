@@ -57,8 +57,8 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
         );
     }
 
-    function collateralPriceIndex() internal view returns (uint256) {
-        return state.collateralPriceIndex;
+    function interestAccrualIndex() internal view returns (uint256) {
+        return state.interestAccrualIndex;
     }
 
     function mockPyth() internal view returns (IMockPyth) {
@@ -69,23 +69,27 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
         return state.totalAssets.deposited - state.totalAssets.borrowed;
     }
 
-    function denormalizeAmount(uint256 normalizedAmount)
+    function denormalizeAmount(uint256 normalizedAmount, uint256 interestAccrualIndex_)
         internal
         view
         returns (uint256)
     {
         return
-            (normalizedAmount * collateralPriceIndex()) /
-            state.collateralPriceIndexPrecision;
+            (normalizedAmount * interestAccrualIndex_) /
+            state.interestAccrualIndexPrecision;
     }
 
-    function normalizeAmount(uint256 denormalizedAmount)
+    function normalizeAmount(uint256 denormalizedAmount, uint256 interestAccrualIndex_)
         internal
         view
         returns (uint256)
     {
         return
-            (denormalizedAmount * state.collateralPriceIndexPrecision) /
-            collateralPriceIndex();
+            (denormalizedAmount * state.interestAccrualIndexPrecision) /
+            interestAccrualIndex_;
+    }
+
+    function messageHashConsumed(bytes32 hash) public view returns (bool) {
+        return state.consumedMessages[hash];
     }
 }

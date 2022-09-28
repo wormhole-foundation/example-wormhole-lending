@@ -32,7 +32,8 @@ contract CrossChainBorrowLendMessages {
                 uint8(1), // payloadID
                 encodeMessageHeader(message.header),
                 message.borrowAmount,
-                message.totalNormalizedBorrowAmount
+                message.totalNormalizedBorrowAmount,
+                message.interestAccrualIndex
             );
     }
 
@@ -45,7 +46,8 @@ contract CrossChainBorrowLendMessages {
             abi.encodePacked(
                 uint8(2), // payloadID
                 encodeMessageHeader(message.header),
-                message.borrowAmount
+                message.borrowAmount,
+                message.sourceInterestAccrualIndex
             );
     }
 
@@ -98,6 +100,8 @@ contract CrossChainBorrowLendMessages {
             serialized.slice(index, index += 61)
         );
         params.borrowAmount = serialized.toUint256(index += 32);
+        params.totalNormalizedBorrowAmount = serialized.toUint256(index += 32);
+        params.interestAccrualIndex = serialized.toUint256(index += 32);
 
         require(params.header.payloadID == 1, "invalid message");
         require(index == serialized.length, "index != serialized.length");
@@ -115,6 +119,7 @@ contract CrossChainBorrowLendMessages {
             serialized.slice(index, index += 61)
         );
         params.borrowAmount = serialized.toUint256(index += 32);
+        params.sourceInterestAccrualIndex = serialized.toUint256(index += 32);
 
         require(params.header.payloadID == 2, "invalid message");
         require(index == serialized.length, "index != serialized.length");

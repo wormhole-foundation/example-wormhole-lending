@@ -51,8 +51,8 @@ contract CrossChainBorrowLend is
 
         // Price index of 1 with the current precision is 1e18
         // since this is the precision of our value.
-        state.collateralPriceIndexPrecision = 1e18;
-        state.collateralPriceIndex = 1e18;
+        state.interestAccrualIndexPrecision = 1e18;
+        state.interestAccrualIndex = 1e18;
 
         // pyth asset IDs
         state.collateralAssetPythId = collateralAssetPythId_;
@@ -63,10 +63,10 @@ contract CrossChainBorrowLend is
         require(amount > 0, "nothing to deposit");
 
         // update current price index
-        updateCollateralPriceIndex();
+        updateInterestAccrualIndex();
 
         // update state for supplier
-        uint256 normalizedAmount = normalizeAmount(amount);
+        uint256 normalizedAmount = normalizeAmount(amount, interestAccrualIndex());
         state.accountAssets[_msgSender()].deposited += normalizedAmount;
         state.totalAssets.deposited += normalizedAmount;
 
@@ -94,7 +94,7 @@ contract CrossChainBorrowLend is
             60;
     }
 
-    function updateCollateralPriceIndex() internal {
+    function updateInterestAccrualIndex() internal {
         // TODO: change to block.number?
         uint256 secondsElapsed = block.timestamp -
             state.lastActivityBlockTimestamp;
@@ -105,8 +105,8 @@ contract CrossChainBorrowLend is
         }
         state.lastActivityBlockTimestamp = block.timestamp;
 
-        state.collateralPriceIndex =
-            (state.collateralPriceIndex *
+        state.interestAccrualIndex +=
+            (state.interestAccrualIndex *
                 computeInterestProportion(
                     secondsElapsed,
                     state.interestRateModel.rateIntercept,
@@ -132,10 +132,14 @@ contract CrossChainBorrowLend is
         ) = getOraclePrices();
 
         // update current price index
-        updateCollateralPriceIndex();
+        updateInterestAccrualIndex();
+
+        // cache the interestAccrualIndex value to save gas
+        uint256 index = interestAccrualIndex();
 
         uint256 maxAllowedToBorrow = (denormalizeAmount(
-            normalizedAmounts.deposited
+            normalizedAmounts.deposited,
+            index
         ) *
             state.collateralizationRatio *
             collateralAssetPriceInUSD *
@@ -143,11 +147,11 @@ contract CrossChainBorrowLend is
             (state.collateralizationRatioPrecision *
                 borrowAssetPriceInUSD *
                 10**collateralTokenDecimals()) -
-            denormalizeAmount(normalizedAmounts.borrowed);
+            denormalizeAmount(normalizedAmounts.borrowed, index);
         require(amount < maxAllowedToBorrow, "amount >= maxAllowedToBorrow");
 
         // update state for borrower
-        uint256 normalizedAmount = normalizeAmount(amount);
+        uint256 normalizedAmount = normalizeAmount(amount, index);
         state.accountAssets[_msgSender()].borrowed += normalizedAmount;
         state.totalAssets.borrowed += normalizedAmount;
 
@@ -164,7 +168,8 @@ contract CrossChainBorrowLend is
                 BorrowMessage({
                     header: header,
                     borrowAmount: amount,
-                    totalNormalizedBorrowAmount: normalizedAmount
+                    totalNormalizedBorrowAmount: normalizedAmount,
+                    interestAccrualIndex: index
                 })
             )
         );
@@ -174,6 +179,7 @@ contract CrossChainBorrowLend is
         public
         returns (uint64 sequence)
     {
+        // parse and verify the wormhole BorrowMessage
         (
             IWormhole.VM memory parsed,
             bool valid,
@@ -185,21 +191,22 @@ contract CrossChainBorrowLend is
         require(verifyEmitter(parsed), "invalid emitter");
 
         // completed (replay protection)
+        require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
 
-        // decode
+        // decode borrow message
         BorrowMessage memory params = decodeBorrowMessage(parsed.payload);
 
         // correct assets?
         require(verifyAssetMetaFromBorrow(params), "invalid asset metadata");
 
-        // TODO: check if we can release funds and transfer to borrower
-        if (params.borrowAmount < denormalizeAmount(normalizedLiquidity())) {
-            // construct wormhole message
+        // make sure this contract has enough assets to fund the borrow
+        if (params.borrowAmount > denormalizeAmount(normalizedLiquidity(), interestAccrualIndex())) {
+            // construct RevertBorrow wormhole message
             // switch the borrow and collateral addresses for the target chain
             MessageHeader memory header = MessageHeader({
                 payloadID: uint8(2),
-                borrower: _msgSender(),
+                borrower: params.header.borrower,
                 collateralAddress: state.borrowingAssetAddress,
                 borrowAddress: state.collateralAssetAddress
             });
@@ -208,33 +215,67 @@ contract CrossChainBorrowLend is
                 encodeRevertBorrowMessage(
                     RevertBorrowMessage({
                         header: header,
-                        borrowAmount: params.borrowAmount
+                        borrowAmount: params.borrowAmount,
+                        sourceInterestAccrualIndex: params.interestAccrualIndex
                     })
                 )
             );
         } else {
             // update current price index
-            updateCollateralPriceIndex();
+            updateInterestAccrualIndex();
 
             // update state for borrower
-            uint256 normalizedAmount = normalizeAmount(params.borrowAmount);
+            uint256 normalizedAmount = normalizeAmount(params.borrowAmount, interestAccrualIndex());
             state.totalAssets.deposited -= normalizedAmount;
 
             // save the total normalized borrow amount for repayments
-            state.accountAssets[_msgSender()].borrowed = params
+            state.accountAssets[params.header.borrower].borrowed = params
                 .totalNormalizedBorrowAmount;
 
             // finally transfer
             SafeERC20.safeTransferFrom(
                 collateralToken(),
                 address(this),
-                _msgSender(),
+                params.header.borrower,
                 params.borrowAmount
             );
 
-            // no wormhole message. zero == success
-            sequence = 0;
+            // no wormhole message, return the default value: zero == success
         }
+    }
+
+    function completeRevertBorrow(bytes calldata encodedVm) public {
+        // parse and verify the wormhole RevertBorrowMessage
+        (
+            IWormhole.VM memory parsed,
+            bool valid,
+            string memory reason
+        ) = wormhole().parseAndVerifyVM(encodedVm);
+        require(valid, reason);
+
+        // verify emitter
+        require(verifyEmitter(parsed), "invalid emitter");
+
+        // completed (replay protection)
+        require(!messageHashConsumed(parsed.hash), "message already consumed");
+        consumeMessageHash(parsed.hash);
+
+        // decode borrow message
+        RevertBorrowMessage memory params = decodeRevertBorrowMessage(parsed.payload);
+
+        // verify asset meta
+        require(
+            state.collateralAssetAddress == params.header.collateralAddress &&
+            state.borrowingAssetAddress == params.header.borrowAddress,
+            "invalid asset metadata"
+        );
+
+        // update state for borrower
+        // Normalize the borrowAmount by the original interestAccrualIndex (encoded in the BorrowMessage)
+        // to revert the inteded borrow amount.
+        uint256 normalizedAmount = normalizeAmount(params.borrowAmount, params.sourceInterestAccrualIndex);
+        state.accountAssets[params.header.borrower].borrowed -= normalizedAmount;
+        state.totalAssets.borrowed -= normalizedAmount;
     }
 
     function repay(uint256 amount) public returns (uint64 sequence) {
@@ -277,6 +318,7 @@ contract CrossChainBorrowLend is
         require(verifyEmitter(parsed), "invalid emitter");
 
         // completed (replay protection)
+        require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
 
         // decode

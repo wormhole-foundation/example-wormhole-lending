@@ -21,12 +21,14 @@ struct BorrowMessage {
     MessageHeader header;
     uint256 borrowAmount;
     uint256 totalNormalizedBorrowAmount;
+    uint256 interestAccrualIndex;
 }
 
 struct RevertBorrowMessage {
     // payloadID = 2
     MessageHeader header;
     uint256 borrowAmount;
+    uint256 sourceInterestAccrualIndex;
 }
 
 struct RepayMessage {

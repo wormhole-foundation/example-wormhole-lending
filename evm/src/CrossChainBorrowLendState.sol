@@ -20,8 +20,8 @@ contract CrossChainBorrowLendStorage {
         bytes32 collateralAssetPythId;
         uint256 collateralizationRatio;
         address borrowingAssetAddress;
-        uint256 collateralPriceIndex;
-        uint256 collateralPriceIndexPrecision;
+        uint256 interestAccrualIndex;
+        uint256 interestAccrualIndexPrecision;
         uint256 lastActivityBlockTimestamp;
         NormalizedAmounts totalAssets;
         mapping(address => NormalizedAmounts) accountAssets;
