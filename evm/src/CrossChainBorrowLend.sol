@@ -89,30 +89,20 @@ contract CrossChainBorrowLend is
     function removeCollateral(uint256 amount) public nonReentrant {
         require(amount > 0, "nothing to withdraw");
 
-        // fetch the account information for the caller
-        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
-            _msgSender()
-        ];
-
-        // Need to calculate how much someone can withdraw
-        (
-            uint64 collateralAssetPriceInUSD,
-            uint64 borrowAssetPriceInUSD
-        ) = getOraclePrices();
-
         // update current price index
         updateInterestAccrualIndex();
 
-        // cache the interestAccrualIndex value to save gas
-        uint256 index = collateralInterestAccrualIndex();
-
-        // compute the max amount allowed to withdraw
-        uint256 maxAllowedToBorrow = 0.69e18; // add equation
-
-        require(amount < maxAllowedToBorrow, "amount >= maxAllowedToWithdraw");
+        // Check if user has enough to withdraw from the contract
+        require(
+            amount < maxAllowedToWithdraw(_msgSender()),
+            "amount >= maxAllowedToWithdraw(msg.sender)"
+        );
 
         // update state for supplier
-        uint256 normalizedAmount = normalizeAmount(amount, index);
+        uint256 normalizedAmount = normalizeAmount(
+            amount,
+            collateralInterestAccrualIndex()
+        );
         state.accountAssets[_msgSender()].deposited -= normalizedAmount;
         state.totalAssets.deposited -= normalizedAmount;
 
@@ -204,40 +194,17 @@ contract CrossChainBorrowLend is
     function initiateBorrow(uint256 amount) public returns (uint64 sequence) {
         require(amount > 0, "nothing to borrow");
 
-        // For EVMs, same private key will be used for borrowing-lending activity.
-        // When introducing other chains (e.g. Cosmos), need to do wallet registration
-        // so we can access a map of a non-EVM address based on this EVM borrower
-        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
-            _msgSender()
-        ];
-
-        // Need to calculate how much someone can borrow
-        (
-            uint64 collateralAssetPriceInUSD,
-            uint64 borrowAssetPriceInUSD
-        ) = getOraclePrices();
-
         // update current price index
         updateInterestAccrualIndex();
 
-        // cache the interestAccrualIndex value to save gas
-        uint256 collateralIndex = borrowedInterestAccrualIndex();
-        uint256 borrowedIndex = borrowedInterestAccrualIndex();
-
-        uint256 maxAllowedToBorrow = (denormalizeAmount(
-            normalizedAmounts.deposited,
-            collateralIndex
-        ) *
-            state.collateralizationRatio *
-            collateralAssetPriceInUSD *
-            10**borrowTokenDecimals()) /
-            (state.collateralizationRatioPrecision *
-                borrowAssetPriceInUSD *
-                10**collateralTokenDecimals()) -
-            denormalizeAmount(normalizedAmounts.borrowed, borrowedIndex);
-        require(amount < maxAllowedToBorrow, "amount >= maxAllowedToBorrow");
+        // Check if user has enough to borrow
+        require(
+            amount < maxAllowedToBorrow(_msgSender()),
+            "amount >= maxAllowedToBorrow(msg.sender)"
+        );
 
         // update state for borrower
+        uint256 borrowedIndex = borrowedInterestAccrualIndex();
         uint256 normalizedAmount = normalizeAmount(amount, borrowedIndex);
         state.accountAssets[_msgSender()].borrowed += normalizedAmount;
         state.totalAssets.borrowed += normalizedAmount;
@@ -317,16 +284,6 @@ contract CrossChainBorrowLend is
                 )
             );
         } else {
-            // update current price index
-            updateInterestAccrualIndex();
-
-            // update state for borrower
-            uint256 normalizedAmount = normalizeAmount(
-                params.borrowAmount,
-                borrowedInterestAccrualIndex()
-            );
-            //state.totalAssets.borrowed += normalizedAmount;
-
             // save the total normalized borrow amount for repayments
             state.totalAssets.borrowed +=
                 params.totalNormalizedBorrowAmount -

@@ -107,4 +107,73 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
     {
         return state.totalAssets;
     }
+
+    function maxAllowedToBorrow(address account) public view returns (uint256) {
+        // For EVMs, same private key will be used for borrowing-lending activity.
+        // When introducing other chains (e.g. Cosmos), need to do wallet registration
+        // so we can access a map of a non-EVM address based on this EVM borrower
+        NormalizedAmounts memory normalized = state.accountAssets[account];
+
+        // fetch asset prices
+        (
+            uint64 collateralPriceInUSD,
+            uint64 borrowPriceInUSD
+        ) = getOraclePrices();
+
+        // denormalize
+        uint256 denormalizedDeposited = denormalizeAmount(
+            normalized.deposited,
+            collateralInterestAccrualIndex()
+        );
+        uint256 denormalizedBorrowed = denormalizeAmount(
+            normalized.borrowed,
+            borrowedInterestAccrualIndex()
+        );
+
+        return
+            (denormalizedDeposited *
+                state.collateralizationRatio *
+                collateralPriceInUSD *
+                10**borrowTokenDecimals()) /
+            (state.collateralizationRatioPrecision *
+                borrowPriceInUSD *
+                10**collateralTokenDecimals()) -
+            denormalizedBorrowed;
+    }
+
+    function maxAllowedToWithdraw(address account)
+        public
+        view
+        returns (uint256)
+    {
+        // Need to calculate how much someone can withdraw
+        (
+            uint64 collateralPriceInUSD,
+            uint64 borrowPriceInUSD
+        ) = getOraclePrices();
+
+        // For EVMs, same private key will be used for borrowing-lending activity.
+        // When introducing other chains (e.g. Cosmos), need to do wallet registration
+        // so we can access a map of a non-EVM address based on this EVM borrower
+        NormalizedAmounts memory normalized = state.accountAssets[account];
+
+        // denormalize
+        uint256 denormalizedDeposited = denormalizeAmount(
+            normalized.deposited,
+            collateralInterestAccrualIndex()
+        );
+        uint256 denormalizedBorrowed = denormalizeAmount(
+            normalized.borrowed,
+            borrowedInterestAccrualIndex()
+        );
+        return
+            denormalizedDeposited -
+            (denormalizedBorrowed *
+                state.collateralizationRatioPrecision *
+                borrowPriceInUSD *
+                10**collateralTokenDecimals()) /
+            (state.collateralizationRatio *
+                collateralPriceInUSD *
+                10**borrowTokenDecimals());
+    }
 }
