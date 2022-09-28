@@ -57,7 +57,20 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
         );
     }
 
-    function interestAccrualIndex() internal view returns (uint256) {
+    function collateralInterestAccrualIndex() public view returns (uint256) {
+        uint256 deposited = state.totalAssets.deposited;
+        uint256 precision = state.interestAccrualIndexPrecision;
+        if (deposited == 0) {
+            return precision;
+        }
+        return
+            precision +
+            (state.totalAssets.borrowed *
+                (state.interestAccrualIndex - precision)) /
+            deposited;
+    }
+
+    function borrowedInterestAccrualIndex() public view returns (uint256) {
         return state.interestAccrualIndex;
     }
 
@@ -69,21 +82,19 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
         return state.totalAssets.deposited - state.totalAssets.borrowed;
     }
 
-    function denormalizeAmount(uint256 normalizedAmount, uint256 interestAccrualIndex_)
-        internal
-        view
-        returns (uint256)
-    {
+    function denormalizeAmount(
+        uint256 normalizedAmount,
+        uint256 interestAccrualIndex_
+    ) public view returns (uint256) {
         return
             (normalizedAmount * interestAccrualIndex_) /
             state.interestAccrualIndexPrecision;
     }
 
-    function normalizeAmount(uint256 denormalizedAmount, uint256 interestAccrualIndex_)
-        internal
-        view
-        returns (uint256)
-    {
+    function normalizeAmount(
+        uint256 denormalizedAmount,
+        uint256 interestAccrualIndex_
+    ) public view returns (uint256) {
         return
             (denormalizedAmount * state.interestAccrualIndexPrecision) /
             interestAccrualIndex_;
@@ -91,5 +102,13 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
 
     function messageHashConsumed(bytes32 hash) public view returns (bool) {
         return state.consumedMessages[hash];
+    }
+
+    function normalizedAmounts()
+        public
+        view
+        returns (NormalizedAmounts memory)
+    {
+        return state.totalAssets;
     }
 }

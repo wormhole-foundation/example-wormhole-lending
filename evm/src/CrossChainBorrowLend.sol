@@ -52,7 +52,7 @@ contract CrossChainBorrowLend is
         // Price index of 1 with the current precision is 1e18
         // since this is the precision of our value.
         state.interestAccrualIndexPrecision = 1e18;
-        state.interestAccrualIndex = 1e18;
+        state.interestAccrualIndex = state.interestAccrualIndexPrecision;
 
         // pyth asset IDs
         state.collateralAssetPythId = collateralAssetPythId_;
@@ -66,7 +66,10 @@ contract CrossChainBorrowLend is
         updateInterestAccrualIndex();
 
         // update state for supplier
-        uint256 normalizedAmount = normalizeAmount(amount, interestAccrualIndex());
+        uint256 normalizedAmount = normalizeAmount(
+            amount,
+            collateralInterestAccrualIndex()
+        );
         state.accountAssets[_msgSender()].deposited += normalizedAmount;
         state.totalAssets.deposited += normalizedAmount;
 
@@ -83,11 +86,15 @@ contract CrossChainBorrowLend is
         uint256 intercept,
         uint256 coefficient
     ) internal view returns (uint256) {
+        uint256 deposited = state.totalAssets.deposited;
+        if (deposited == 0) {
+            return 0;
+        }
         return
             (secondsElapsed *
                 (intercept +
                     (coefficient * state.totalAssets.borrowed) /
-                    state.totalAssets.deposited)) /
+                    deposited)) /
             365 /
             24 /
             60 /
@@ -103,6 +110,15 @@ contract CrossChainBorrowLend is
             // nothing to do
             return;
         }
+
+        // Should not hit, but just here in case someone
+        // tries to update the interest when there is nothing
+        // deposited.
+        uint256 deposited = state.totalAssets.deposited;
+        if (deposited == 0) {
+            return;
+        }
+
         state.lastActivityBlockTimestamp = block.timestamp;
 
         state.interestAccrualIndex +=
@@ -135,11 +151,12 @@ contract CrossChainBorrowLend is
         updateInterestAccrualIndex();
 
         // cache the interestAccrualIndex value to save gas
-        uint256 index = interestAccrualIndex();
+        uint256 collateralIndex = borrowedInterestAccrualIndex();
+        uint256 borrowedIndex = borrowedInterestAccrualIndex();
 
         uint256 maxAllowedToBorrow = (denormalizeAmount(
             normalizedAmounts.deposited,
-            index
+            collateralIndex
         ) *
             state.collateralizationRatio *
             collateralAssetPriceInUSD *
@@ -147,11 +164,11 @@ contract CrossChainBorrowLend is
             (state.collateralizationRatioPrecision *
                 borrowAssetPriceInUSD *
                 10**collateralTokenDecimals()) -
-            denormalizeAmount(normalizedAmounts.borrowed, index);
+            denormalizeAmount(normalizedAmounts.borrowed, borrowedIndex);
         require(amount < maxAllowedToBorrow, "amount >= maxAllowedToBorrow");
 
         // update state for borrower
-        uint256 normalizedAmount = normalizeAmount(amount, index);
+        uint256 normalizedAmount = normalizeAmount(amount, borrowedIndex);
         state.accountAssets[_msgSender()].borrowed += normalizedAmount;
         state.totalAssets.borrowed += normalizedAmount;
 
@@ -169,7 +186,7 @@ contract CrossChainBorrowLend is
                     header: header,
                     borrowAmount: amount,
                     totalNormalizedBorrowAmount: normalizedAmount,
-                    interestAccrualIndex: index
+                    interestAccrualIndex: borrowedIndex
                 })
             )
         );
@@ -201,7 +218,13 @@ contract CrossChainBorrowLend is
         require(verifyAssetMetaFromBorrow(params), "invalid asset metadata");
 
         // make sure this contract has enough assets to fund the borrow
-        if (params.borrowAmount > denormalizeAmount(normalizedLiquidity(), interestAccrualIndex())) {
+        if (
+            params.borrowAmount >
+            denormalizeAmount(
+                normalizedLiquidity(),
+                borrowedInterestAccrualIndex()
+            )
+        ) {
             // construct RevertBorrow wormhole message
             // switch the borrow and collateral addresses for the target chain
             MessageHeader memory header = MessageHeader({
@@ -225,7 +248,10 @@ contract CrossChainBorrowLend is
             updateInterestAccrualIndex();
 
             // update state for borrower
-            uint256 normalizedAmount = normalizeAmount(params.borrowAmount, interestAccrualIndex());
+            uint256 normalizedAmount = normalizeAmount(
+                params.borrowAmount,
+                borrowedInterestAccrualIndex()
+            );
             state.totalAssets.deposited -= normalizedAmount;
 
             // save the total normalized borrow amount for repayments
@@ -261,20 +287,27 @@ contract CrossChainBorrowLend is
         consumeMessageHash(parsed.hash);
 
         // decode borrow message
-        RevertBorrowMessage memory params = decodeRevertBorrowMessage(parsed.payload);
+        RevertBorrowMessage memory params = decodeRevertBorrowMessage(
+            parsed.payload
+        );
 
         // verify asset meta
         require(
             state.collateralAssetAddress == params.header.collateralAddress &&
-            state.borrowingAssetAddress == params.header.borrowAddress,
+                state.borrowingAssetAddress == params.header.borrowAddress,
             "invalid asset metadata"
         );
 
         // update state for borrower
         // Normalize the borrowAmount by the original interestAccrualIndex (encoded in the BorrowMessage)
         // to revert the inteded borrow amount.
-        uint256 normalizedAmount = normalizeAmount(params.borrowAmount, params.sourceInterestAccrualIndex);
-        state.accountAssets[params.header.borrower].borrowed -= normalizedAmount;
+        uint256 normalizedAmount = normalizeAmount(
+            params.borrowAmount,
+            params.sourceInterestAccrualIndex
+        );
+        state
+            .accountAssets[params.header.borrower]
+            .borrowed -= normalizedAmount;
         state.totalAssets.borrowed -= normalizedAmount;
     }
 
