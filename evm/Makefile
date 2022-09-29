@@ -6,9 +6,9 @@ all: build
 dependencies: forge_dependencies venus_dependencies wormhole_dependencies
 
 .PHONY: forge_dependencies
-forge_dependencies: forge-std
+forge_dependencies: lib/forge-std
 
-forge-std:
+lib/forge-std:
 	forge install foundry-rs/forge-std --no-git
 
 .PHONY: venus_dependencies
