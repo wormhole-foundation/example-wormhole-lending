@@ -63,6 +63,7 @@ contract CrossChainBorrowLendTest is Test {
         uint256 deposited = 100e6; // 100 USDC (6 decimals)
         borrowLendContract.HACKED_setTotalAssetsDeposited(deposited);
 
+        // fake borrow some amount
         uint256 borrowed = 50e6; // 50 USDC (6 decimals)
         borrowLendContract.HACKED_setTotalAssetsBorrowed(borrowed);
 
@@ -103,17 +104,18 @@ contract CrossChainBorrowLendTest is Test {
             block.timestamp
         );
 
-        // warp to 1 year in the future
-        vm.warp(365 * 24 * 60 * 60);
-
         // fake supply some amount
         uint256 deposited = 200e6; // 200 USDC (6 decimals)
         borrowLendContract.HACKED_setTotalAssetsDeposited(deposited);
 
+        // fake borrow some amount
         uint256 borrowed = 20e6; // 20 USDC (6 decimals)
         borrowLendContract.HACKED_setTotalAssetsBorrowed(borrowed);
 
-        // update
+        // warp to 1 year in the future
+        vm.warp(365 * 24 * 60 * 60);
+
+        // trigger accrual
         borrowLendContract.EXPOSED_updateInterestAccrualIndex();
 
         {
@@ -132,19 +134,18 @@ contract CrossChainBorrowLendTest is Test {
         // warp to 2 years in the future
         vm.warp(2 * 365 * 24 * 60 * 60);
 
-        // update again
+        // trigger accrual again
         borrowLendContract.EXPOSED_updateInterestAccrualIndex();
 
         {
-            // expect using the correct value (1.02 * 1.02e18 = 1.0404e18)
+            // expect using the correct value (1.04e18)
             require(
-                borrowLendContract.borrowedInterestAccrualIndex() == 1.0404e18,
+                borrowLendContract.borrowedInterestAccrualIndex() == 1.04e18,
                 "borrowedInterestAccrualIndex() != expected (second iteration)"
             );
-            // expect using the correct value (1.002 * 1.002e18 = 1.004004e18)
+            // expect using the correct value (1.004e18)
             require(
-                borrowLendContract.collateralInterestAccrualIndex() ==
-                    1.00404e18,
+                borrowLendContract.collateralInterestAccrualIndex() == 1.004e18,
                 "collateralInterestAccrualIndex() != expected (second iteration)"
             );
         }

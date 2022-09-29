@@ -183,14 +183,11 @@ contract CrossChainBorrowLend is
 
         state.lastActivityBlockTimestamp = block.timestamp;
 
-        state.interestAccrualIndex +=
-            (state.interestAccrualIndex *
-                computeInterestProportion(
-                    secondsElapsed,
-                    state.interestRateModel.rateIntercept,
-                    state.interestRateModel.rateCoefficientA
-                )) /
-            state.interestRateModel.ratePrecision;
+        state.interestAccrualIndex += computeInterestProportion(
+            secondsElapsed,
+            state.interestRateModel.rateIntercept,
+            state.interestRateModel.rateCoefficientA
+        );
     }
 
     function initiateBorrow(uint256 amount) public returns (uint64 sequence) {
