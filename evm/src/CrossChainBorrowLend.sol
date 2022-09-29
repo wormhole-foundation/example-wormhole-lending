@@ -54,8 +54,12 @@ contract CrossChainBorrowLend is
 
         // Price index of 1 with the current precision is 1e18
         // since this is the precision of our value.
-        state.interestAccrualIndexPrecision = 1e18;
-        state.interestAccrualIndex = state.interestAccrualIndexPrecision;
+        uint256 precision = 1e18;
+        state.interestAccrualIndexPrecision = precision;
+        state.interestAccrualIndex.source.deposited = precision;
+        state.interestAccrualIndex.source.borrowed = precision;
+        state.interestAccrualIndex.target.deposited = precision;
+        state.interestAccrualIndex.target.borrowed = precision;
 
         // pyth oracle address and asset IDs
         state.mockPythAddress = mockPythAddress_;
@@ -70,15 +74,15 @@ contract CrossChainBorrowLend is
         require(amount > 0, "nothing to deposit");
 
         // update current price index
-        updateInterestAccrualIndex();
+        updateSourceInterestAccrualIndex();
 
         // update state for supplier
         uint256 normalizedAmount = normalizeAmount(
             amount,
-            collateralInterestAccrualIndex()
+            sourceCollateralInterestAccrualIndex()
         );
-        state.accountAssets[_msgSender()].sourceDeposited += normalizedAmount;
-        state.totalAssets.deposited += normalizedAmount;
+        state.accountAssets[_msgSender()].source.deposited += normalizedAmount;
+        state.totalAssets.source.deposited += normalizedAmount;
 
         SafeERC20.safeTransferFrom(
             collateralToken(),
@@ -92,7 +96,7 @@ contract CrossChainBorrowLend is
         require(amount > 0, "nothing to withdraw");
 
         // update current price index
-        updateInterestAccrualIndex();
+        updateSourceInterestAccrualIndex();
 
         // Check if user has enough to withdraw from the contract
         require(
@@ -103,10 +107,10 @@ contract CrossChainBorrowLend is
         // update state for supplier
         uint256 normalizedAmount = normalizeAmount(
             amount,
-            collateralInterestAccrualIndex()
+            sourceCollateralInterestAccrualIndex()
         );
-        state.accountAssets[_msgSender()].sourceDeposited -= normalizedAmount;
-        state.totalAssets.deposited -= normalizedAmount;
+        state.accountAssets[_msgSender()].source.deposited -= normalizedAmount;
+        state.totalAssets.source.deposited -= normalizedAmount;
 
         // transfer the tokens to the caller
         SafeERC20.safeTransfer(collateralToken(), _msgSender(), amount);
@@ -114,23 +118,18 @@ contract CrossChainBorrowLend is
 
     function removeCollateralInFull() public nonReentrant {
         // fetch the account information for the caller
-        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
-            _msgSender()
-        ];
+        SourceTargetUints memory account = state.accountAssets[_msgSender()];
 
         // make sure the account has closed all borrowed positions
-        require(
-            normalizedAmounts.targetBorrowed == 0,
-            "account has outstanding loans"
-        );
+        require(account.target.borrowed == 0, "account has outstanding loans");
 
         // update current price index
-        updateInterestAccrualIndex();
+        updateSourceInterestAccrualIndex();
 
         // update state for supplier
-        uint256 normalizedAmount = normalizedAmounts.sourceDeposited;
-        state.accountAssets[_msgSender()].sourceDeposited = 0;
-        state.totalAssets.deposited -= normalizedAmount;
+        uint256 normalizedAmount = account.source.deposited;
+        state.accountAssets[_msgSender()].source.deposited = 0;
+        state.totalAssets.source.deposited -= normalizedAmount;
 
         // transfer the tokens to the caller
         SafeERC20.safeTransfer(
@@ -138,32 +137,61 @@ contract CrossChainBorrowLend is
             _msgSender(),
             denormalizeAmount(
                 normalizedAmount,
-                collateralInterestAccrualIndex()
+                sourceCollateralInterestAccrualIndex()
             )
         );
     }
 
-    function computeInterestProportion(
+    function computeSourceInterestFactor(
         uint256 secondsElapsed,
         uint256 intercept,
         uint256 coefficient
     ) internal view returns (uint256) {
-        uint256 deposited = state.totalAssets.deposited;
+        return
+            _computeInterestFactor(
+                secondsElapsed,
+                intercept,
+                coefficient,
+                state.totalAssets.source.deposited,
+                state.totalAssets.source.borrowed
+            );
+    }
+
+    function computeTargetInterestFactor(
+        uint256 secondsElapsed,
+        uint256 intercept,
+        uint256 coefficient
+    ) internal view returns (uint256) {
+        return
+            _computeInterestFactor(
+                secondsElapsed,
+                intercept,
+                coefficient,
+                state.totalAssets.target.deposited,
+                state.totalAssets.target.borrowed
+            );
+    }
+
+    function _computeInterestFactor(
+        uint256 secondsElapsed,
+        uint256 intercept,
+        uint256 coefficient,
+        uint256 deposited,
+        uint256 borrowed
+    ) internal pure returns (uint256) {
         if (deposited == 0) {
             return 0;
         }
         return
             (secondsElapsed *
-                (intercept +
-                    (coefficient * state.totalAssets.borrowed) /
-                    deposited)) /
+                (intercept + (coefficient * borrowed) / deposited)) /
             365 /
             24 /
             60 /
             60;
     }
 
-    function updateInterestAccrualIndex() internal {
+    function updateSourceInterestAccrualIndex() internal {
         // TODO: change to block.number?
         uint256 secondsElapsed = block.timestamp -
             state.lastActivityBlockTimestamp;
@@ -176,25 +204,58 @@ contract CrossChainBorrowLend is
         // Should not hit, but just here in case someone
         // tries to update the interest when there is nothing
         // deposited.
-        uint256 deposited = state.totalAssets.deposited;
+        uint256 deposited = state.totalAssets.source.deposited;
         if (deposited == 0) {
             return;
         }
 
         state.lastActivityBlockTimestamp = block.timestamp;
-
-        state.interestAccrualIndex += computeInterestProportion(
+        uint256 interestFactor = computeSourceInterestFactor(
             secondsElapsed,
             state.interestRateModel.rateIntercept,
             state.interestRateModel.rateCoefficientA
         );
+        state.interestAccrualIndex.source.borrowed += interestFactor;
+        state.interestAccrualIndex.source.deposited +=
+            (interestFactor * state.totalAssets.source.borrowed) /
+            deposited;
+    }
+
+    function updateTargetInterestAccrualIndex() internal {
+        // TODO: change to block.number?
+        uint256 secondsElapsed = block.timestamp -
+            state.lastActivityBlockTimestamp;
+
+        if (secondsElapsed == 0) {
+            // nothing to do
+            return;
+        }
+
+        // Should not hit, but just here in case someone
+        // tries to update the interest when there is nothing
+        // deposited.
+        uint256 deposited = state.totalAssets.target.deposited;
+        if (deposited == 0) {
+            return;
+        }
+
+        state.lastActivityBlockTimestamp = block.timestamp;
+        uint256 interestFactor = computeTargetInterestFactor(
+            secondsElapsed,
+            state.interestRateModel.rateIntercept,
+            state.interestRateModel.rateCoefficientA
+        );
+        state.interestAccrualIndex.target.borrowed += interestFactor;
+        state.interestAccrualIndex.target.deposited +=
+            (interestFactor * state.totalAssets.target.borrowed) /
+            deposited;
     }
 
     function initiateBorrow(uint256 amount) public returns (uint64 sequence) {
         require(amount > 0, "nothing to borrow");
 
         // update current price index
-        updateInterestAccrualIndex();
+        updateTargetInterestAccrualIndex();
 
         // Check if user has enough to borrow
         require(
@@ -203,10 +264,10 @@ contract CrossChainBorrowLend is
         );
 
         // update state for borrower
-        uint256 borrowedIndex = borrowedInterestAccrualIndex();
+        uint256 borrowedIndex = targetBorrowedInterestAccrualIndex();
         uint256 normalizedAmount = normalizeAmount(amount, borrowedIndex);
-        state.accountAssets[_msgSender()].targetBorrowed += normalizedAmount;
-        state.totalAssets.borrowed += normalizedAmount;
+        state.accountAssets[_msgSender()].target.borrowed += normalizedAmount;
+        state.totalAssets.target.borrowed += normalizedAmount;
 
         // construct wormhole message
         MessageHeader memory header = MessageHeader({
@@ -223,7 +284,8 @@ contract CrossChainBorrowLend is
                     borrowAmount: amount,
                     totalNormalizedBorrowAmount: state
                         .accountAssets[_msgSender()]
-                        .targetBorrowed,
+                        .target
+                        .borrowed,
                     interestAccrualIndex: borrowedIndex
                 })
             )
@@ -252,23 +314,26 @@ contract CrossChainBorrowLend is
 
         // decode borrow message
         BorrowMessage memory params = decodeBorrowMessage(parsed.payload);
+        address borrower = params.header.borrower;
 
         // correct assets?
         require(verifyAssetMetaFromBorrow(params), "invalid asset metadata");
 
+        // update current price index
+        updateSourceInterestAccrualIndex();
+
         // make sure this contract has enough assets to fund the borrow
         if (
-            params.borrowAmount >
-            denormalizeAmount(
-                normalizedLiquidity(),
-                borrowedInterestAccrualIndex()
-            )
+            normalizeAmount(
+                params.borrowAmount,
+                sourceBorrowedInterestAccrualIndex()
+            ) > sourceLiquidity()
         ) {
             // construct RevertBorrow wormhole message
             // switch the borrow and collateral addresses for the target chain
             MessageHeader memory header = MessageHeader({
                 payloadID: uint8(2),
-                borrower: params.header.borrower,
+                borrower: borrower,
                 collateralAddress: state.borrowingAssetAddress,
                 borrowAddress: state.collateralAssetAddress
             });
@@ -284,10 +349,10 @@ contract CrossChainBorrowLend is
             );
         } else {
             // save the total normalized borrow amount for repayments
-            state.totalAssets.borrowed +=
+            state.totalAssets.source.borrowed +=
                 params.totalNormalizedBorrowAmount -
-                state.accountAssets[params.header.borrower].sourceBorrowed;
-            state.accountAssets[params.header.borrower].sourceBorrowed = params
+                state.accountAssets[borrower].source.borrowed;
+            state.accountAssets[borrower].source.borrowed = params
                 .totalNormalizedBorrowAmount;
 
             // params.borrowAmount == 0 means that there was a repayment
@@ -299,7 +364,7 @@ contract CrossChainBorrowLend is
                 SafeERC20.safeTransferFrom(
                     collateralToken(),
                     address(this),
-                    params.header.borrower,
+                    borrower,
                     params.borrowAmount
                 );
             }
@@ -346,8 +411,9 @@ contract CrossChainBorrowLend is
         );
         state
             .accountAssets[params.header.borrower]
-            .targetBorrowed -= normalizedAmount;
-        state.totalAssets.borrowed -= normalizedAmount;
+            .target
+            .borrowed -= normalizedAmount;
+        state.totalAssets.target.borrowed -= normalizedAmount;
     }
 
     function initiateRepay(uint256 amount)
@@ -360,28 +426,26 @@ contract CrossChainBorrowLend is
         // For EVMs, same private key will be used for borrowing-lending activity.
         // When introducing other chains (e.g. Cosmos), need to do wallet registration
         // so we can access a map of a non-EVM address based on this EVM borrower
-        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
-            _msgSender()
-        ];
+        SourceTargetUints memory account = state.accountAssets[_msgSender()];
 
         // update the index
-        updateInterestAccrualIndex();
+        updateSourceInterestAccrualIndex();
 
         // cache the index to save gas
-        uint256 index = borrowedInterestAccrualIndex();
+        uint256 borrowedIndex = sourceBorrowedInterestAccrualIndex();
 
         // save the normalized amount
-        uint256 normalizedAmount = normalizeAmount(amount, index);
+        uint256 normalizedAmount = normalizeAmount(amount, borrowedIndex);
 
         // confirm that the caller has loans to pay back
         require(
-            normalizedAmount <= normalizedAmounts.sourceBorrowed,
+            normalizedAmount <= account.source.borrowed,
             "loan payment too large"
         );
 
         // update state on this contract
-        state.accountAssets[_msgSender()].sourceBorrowed -= normalizedAmount;
-        state.totalAssets.borrowed -= normalizedAmount;
+        state.accountAssets[_msgSender()].source.borrowed -= normalizedAmount;
+        state.totalAssets.source.borrowed -= normalizedAmount;
 
         // transfer to this contract
         SafeERC20.safeTransferFrom(
@@ -405,7 +469,7 @@ contract CrossChainBorrowLend is
                 RepayMessage({
                     header: header,
                     repayAmount: amount,
-                    targetInterestAccrualIndex: index,
+                    targetInterestAccrualIndex: borrowedIndex,
                     repayTimestamp: block.timestamp,
                     paidInFull: 0
                 })
@@ -421,27 +485,25 @@ contract CrossChainBorrowLend is
         // For EVMs, same private key will be used for borrowing-lending activity.
         // When introducing other chains (e.g. Cosmos), need to do wallet registration
         // so we can access a map of a non-EVM address based on this EVM borrower
-        NormalizedAmounts memory normalizedAmounts = state.accountAssets[
-            _msgSender()
-        ];
+        SourceTargetUints memory account = state.accountAssets[_msgSender()];
 
         // update the index
-        updateInterestAccrualIndex();
+        updateSourceInterestAccrualIndex();
 
         // cache the index to save gas
-        uint256 index = borrowedInterestAccrualIndex();
+        uint256 borrowedIndex = sourceBorrowedInterestAccrualIndex();
 
         // update state on the contract
-        uint256 normalizedAmount = normalizedAmounts.sourceBorrowed;
-        state.accountAssets[_msgSender()].sourceBorrowed = 0;
-        state.totalAssets.borrowed -= normalizedAmount;
+        uint256 normalizedAmount = account.source.borrowed;
+        state.accountAssets[_msgSender()].source.borrowed = 0;
+        state.totalAssets.source.borrowed -= normalizedAmount;
 
         // transfer to this contract
         SafeERC20.safeTransferFrom(
             borrowToken(),
             _msgSender(),
             address(this),
-            denormalizeAmount(normalizedAmount, index)
+            denormalizeAmount(normalizedAmount, borrowedIndex)
         );
 
         // construct wormhole message
@@ -457,8 +519,11 @@ contract CrossChainBorrowLend is
             encodeRepayMessage(
                 RepayMessage({
                     header: header,
-                    repayAmount: denormalizeAmount(normalizedAmount, index),
-                    targetInterestAccrualIndex: index,
+                    repayAmount: denormalizeAmount(
+                        normalizedAmount,
+                        borrowedIndex
+                    ),
+                    targetInterestAccrualIndex: borrowedIndex,
                     repayTimestamp: block.timestamp,
                     paidInFull: 1
                 })
@@ -486,13 +551,14 @@ contract CrossChainBorrowLend is
         consumeMessageHash(parsed.hash);
 
         // update the index
-        updateInterestAccrualIndex();
+        updateTargetInterestAccrualIndex();
 
         // cache the index to save gas
-        uint256 index = borrowedInterestAccrualIndex();
+        uint256 borrowedIndex = targetBorrowedInterestAccrualIndex();
 
         // decode the RepayMessage
         RepayMessage memory params = decodeRepayMessage(parsed.payload);
+        address borrower = params.header.borrower;
 
         // correct assets?
         require(verifyAssetMetaFromRepay(params), "invalid asset metadata");
@@ -509,17 +575,18 @@ contract CrossChainBorrowLend is
                     params.repayAmount,
                     params.targetInterestAccrualIndex
                 );
-                state.accountAssets[params.header.borrower].targetBorrowed = 0;
-                state.totalAssets.borrowed -= normalizedAmount;
+                state.accountAssets[borrower].target.borrowed = 0;
+                state.totalAssets.target.borrowed -= normalizedAmount;
             } else {
                 uint256 normalizedAmount = normalizeAmount(
                     params.repayAmount,
-                    index
+                    borrowedIndex
                 );
                 state
-                    .accountAssets[params.header.borrower]
-                    .targetBorrowed -= normalizedAmount;
-                state.totalAssets.borrowed -= normalizedAmount;
+                    .accountAssets[borrower]
+                    .target
+                    .borrowed -= normalizedAmount;
+                state.totalAssets.target.borrowed -= normalizedAmount;
 
                 // Send a wormhole message again since he did not repay in full
                 // (due to repaying outside of the grace period)
@@ -528,15 +595,16 @@ contract CrossChainBorrowLend is
                         BorrowMessage({
                             header: MessageHeader({
                                 payloadID: uint8(1),
-                                borrower: params.header.borrower,
+                                borrower: borrower,
                                 collateralAddress: state.collateralAssetAddress,
                                 borrowAddress: state.borrowingAssetAddress
                             }),
                             borrowAmount: 0, // special value to indicate failed repay in full
                             totalNormalizedBorrowAmount: state
-                                .accountAssets[params.header.borrower]
-                                .targetBorrowed,
-                            interestAccrualIndex: index
+                                .accountAssets[borrower]
+                                .target
+                                .borrowed,
+                            interestAccrualIndex: borrowedIndex
                         })
                     )
                 );
@@ -547,10 +615,8 @@ contract CrossChainBorrowLend is
                 params.repayAmount,
                 params.targetInterestAccrualIndex
             );
-            state
-                .accountAssets[params.header.borrower]
-                .targetBorrowed -= normalizedAmount;
-            state.totalAssets.borrowed -= normalizedAmount;
+            state.accountAssets[borrower].target.borrowed -= normalizedAmount;
+            state.totalAssets.target.borrowed -= normalizedAmount;
         }
     }
 

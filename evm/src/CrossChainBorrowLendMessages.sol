@@ -77,6 +77,20 @@ contract CrossChainBorrowLendMessages {
             );
     }
 
+    function encodeDepositChangeMessage(DepositChangeMessage memory message)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(
+                uint8(5), // payloadID
+                encodeMessageHeader(message.header),
+                uint8(message.depositType),
+                message.amount
+            );
+    }
+
     function decodeMessageHeader(bytes memory serialized)
         internal
         pure
@@ -163,6 +177,33 @@ contract CrossChainBorrowLendMessages {
         // TODO: deserialize the LiquidationIntentMessage when implemented
 
         require(params.header.payloadID == 4, "invalid message");
+        require(index == serialized.length, "index != serialized.length");
+    }
+
+    function decodeDepositChangeMessage(bytes memory serialized)
+        internal
+        pure
+        returns (DepositChangeMessage memory params)
+    {
+        uint256 index = 0;
+
+        // parse the message header
+        params.header = decodeMessageHeader(
+            serialized.slice(index, index += 61)
+        );
+
+        // handle DepositType enum value
+        uint8 depositTypeValue = serialized.toUint8(index += 1);
+        if (depositTypeValue == 1) {
+            params.depositType = DepositType.Add;
+        } else if (depositTypeValue == 2) {
+            params.depositType = DepositType.Remove;
+        } else {
+            revert("unrecognized deposit type");
+        }
+        params.amount = serialized.toUint256(index += 32);
+
+        require(params.header.payloadID == 5, "invalid message");
         require(index == serialized.length, "index != serialized.length");
     }
 }
