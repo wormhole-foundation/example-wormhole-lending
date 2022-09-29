@@ -4,7 +4,8 @@ pragma solidity ^0.8.0;
 enum DepositType {
     None,
     Add,
-    Remove
+    Remove,
+    RemoveFull
 }
 
 struct DepositedBorrowedUints {
@@ -19,8 +20,8 @@ struct SourceTargetUints {
 
 struct MessageHeader {
     uint8 payloadID;
-    // address of the borrower
-    address borrower;
+    // address of the sender
+    address sender;
     // collateral info
     address collateralAddress; // for verification
     // borrow info

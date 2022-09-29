@@ -16,7 +16,7 @@ contract CrossChainBorrowLendMessages {
     {
         return
             abi.encodePacked(
-                header.borrower,
+                header.sender,
                 header.collateralAddress,
                 header.borrowAddress
             );
@@ -100,7 +100,7 @@ contract CrossChainBorrowLendMessages {
 
         // parse the header
         header.payloadID = serialized.toUint8(index += 1);
-        header.borrower = serialized.toAddress(index += 20);
+        header.sender = serialized.toAddress(index += 20);
         header.collateralAddress = serialized.toAddress(index += 20);
         header.borrowAddress = serialized.toAddress(index += 20);
     }
@@ -194,11 +194,14 @@ contract CrossChainBorrowLendMessages {
 
         // handle DepositType enum value
         uint8 depositTypeValue = serialized.toUint8(index += 1);
-        if (depositTypeValue == 1) {
+        if (depositTypeValue == uint8(DepositType.Add)) {
             params.depositType = DepositType.Add;
-        } else if (depositTypeValue == 2) {
+        } else if (depositTypeValue == uint8(DepositType.Remove)) {
             params.depositType = DepositType.Remove;
-        } else {
+        } else if (depositTypeValue == uint8(DepositType.RemoveFull)) {
+            params.depositType = DepositType.RemoveFull;
+        }
+        else {
             revert("unrecognized deposit type");
         }
         params.amount = serialized.toUint256(index += 32);

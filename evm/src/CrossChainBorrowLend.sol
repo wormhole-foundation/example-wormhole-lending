@@ -70,7 +70,7 @@ contract CrossChainBorrowLend is
         state.repayGracePeriod = repayGracePeriod_;
     }
 
-    function addCollateral(uint256 amount) public nonReentrant {
+    function addCollateral(uint256 amount) public nonReentrant returns (uint64 sequence) {
         require(amount > 0, "nothing to deposit");
 
         // update current price index
@@ -90,9 +90,27 @@ contract CrossChainBorrowLend is
             address(this),
             amount
         );
+
+        // construct wormhole message
+        MessageHeader memory header = MessageHeader({
+            payloadID: uint8(5),
+            sender: _msgSender(),
+            collateralAddress: state.collateralAssetAddress,
+            borrowAddress: state.borrowingAssetAddress
+        });
+
+        sequence = sendWormholeMessage(
+            encodeDepositChangeMessage(
+                DepositChangeMessage({
+                    header: header,
+                    depositType: DepositType.Add,
+                    amount: normalizeAmount(amount, sourceCollateralInterestAccrualIndex())
+                })
+            )
+        );
     }
 
-    function removeCollateral(uint256 amount) public nonReentrant {
+    function removeCollateral(uint256 amount) public nonReentrant returns (uint64 sequence) {
         require(amount > 0, "nothing to withdraw");
 
         // update current price index
@@ -114,9 +132,27 @@ contract CrossChainBorrowLend is
 
         // transfer the tokens to the caller
         SafeERC20.safeTransfer(collateralToken(), _msgSender(), amount);
+
+        // construct wormhole message
+        MessageHeader memory header = MessageHeader({
+            payloadID: uint8(5),
+            sender: _msgSender(),
+            collateralAddress: state.collateralAssetAddress,
+            borrowAddress: state.borrowingAssetAddress
+        });
+
+        sequence = sendWormholeMessage(
+            encodeDepositChangeMessage(
+                DepositChangeMessage({
+                    header: header,
+                    depositType: DepositType.Remove,
+                    amount: normalizedAmount
+                })
+            )
+        );
     }
 
-    function removeCollateralInFull() public nonReentrant {
+    function removeCollateralInFull() public nonReentrant returns (uint64 sequence) {
         // fetch the account information for the caller
         SourceTargetUints memory account = state.accountAssets[_msgSender()];
 
@@ -140,6 +176,69 @@ contract CrossChainBorrowLend is
                 sourceCollateralInterestAccrualIndex()
             )
         );
+
+        // construct wormhole message
+        MessageHeader memory header = MessageHeader({
+            payloadID: uint8(5),
+            sender: _msgSender(),
+            collateralAddress: state.collateralAssetAddress,
+            borrowAddress: state.borrowingAssetAddress
+        });
+
+        sequence = sendWormholeMessage(
+            encodeDepositChangeMessage(
+                DepositChangeMessage({
+                    header: header,
+                    depositType: DepositType.RemoveFull,
+                    amount: normalizedAmount
+                })
+            )
+        );
+    }
+
+    function completeCollateralChange(bytes memory encodedVm) public {
+        // parse and verify the wormhole BorrowMessage
+        (
+            IWormhole.VM memory parsed,
+            bool valid,
+            string memory reason
+        ) = wormhole().parseAndVerifyVM(encodedVm);
+        require(valid, reason);
+
+        // verify emitter
+        require(verifyEmitter(parsed), "invalid emitter");
+
+        // completed (replay protection)
+        // also serves as reentrancy protection
+        require(!messageHashConsumed(parsed.hash), "message already consumed");
+        consumeMessageHash(parsed.hash);
+
+        // decode deposit change message
+        DepositChangeMessage memory params = decodeDepositChangeMessage(parsed.payload);
+        address depositor = params.header.sender;
+
+        // correct assets?
+        require(
+            params.header.collateralAddress == state.borrowingAssetAddress &&
+            params.header.borrowAddress == state.collateralAssetAddress,
+            "invalid asset metadata"
+        );
+
+        // update current price index
+        updateTargetInterestAccrualIndex();
+
+        // update this contracts state to reflect the deposit change
+        if (params.depositType == DepositType.Add) {
+            state.totalAssets.target.deposited += params.amount;
+            state.accountAssets[depositor].target.deposited += params.amount;
+        } else if (params.depositType == DepositType.Remove) {
+            state.totalAssets.target.deposited -= params.amount;
+            state.accountAssets[depositor].target.deposited -= params.amount;
+        } else if (params.depositType == DepositType.RemoveFull) {
+            // fetch the deposit amount from state
+            state.totalAssets.target.deposited -= state.accountAssets[depositor].target.deposited;
+            state.accountAssets[depositor].target.deposited = 0;
+        }
     }
 
     function computeSourceInterestFactor(
@@ -222,7 +321,6 @@ contract CrossChainBorrowLend is
     }
 
     function updateTargetInterestAccrualIndex() internal {
-        // TODO: change to block.number?
         uint256 secondsElapsed = block.timestamp -
             state.lastActivityBlockTimestamp;
 
@@ -272,7 +370,7 @@ contract CrossChainBorrowLend is
         // construct wormhole message
         MessageHeader memory header = MessageHeader({
             payloadID: uint8(1),
-            borrower: _msgSender(),
+            sender: _msgSender(),
             collateralAddress: state.collateralAssetAddress,
             borrowAddress: state.borrowingAssetAddress
         });
@@ -314,7 +412,7 @@ contract CrossChainBorrowLend is
 
         // decode borrow message
         BorrowMessage memory params = decodeBorrowMessage(parsed.payload);
-        address borrower = params.header.borrower;
+        address borrower = params.header.sender;
 
         // correct assets?
         require(verifyAssetMetaFromBorrow(params), "invalid asset metadata");
@@ -333,7 +431,7 @@ contract CrossChainBorrowLend is
             // switch the borrow and collateral addresses for the target chain
             MessageHeader memory header = MessageHeader({
                 payloadID: uint8(2),
-                borrower: borrower,
+                sender: borrower,
                 collateralAddress: state.borrowingAssetAddress,
                 borrowAddress: state.collateralAssetAddress
             });
@@ -410,7 +508,7 @@ contract CrossChainBorrowLend is
             params.sourceInterestAccrualIndex
         );
         state
-            .accountAssets[params.header.borrower]
+            .accountAssets[params.header.sender]
             .target
             .borrowed -= normalizedAmount;
         state.totalAssets.target.borrowed -= normalizedAmount;
@@ -458,7 +556,7 @@ contract CrossChainBorrowLend is
         // construct wormhole message
         MessageHeader memory header = MessageHeader({
             payloadID: uint8(3),
-            borrower: _msgSender(),
+            sender: _msgSender(),
             collateralAddress: state.borrowingAssetAddress,
             borrowAddress: state.collateralAssetAddress
         });
@@ -509,7 +607,7 @@ contract CrossChainBorrowLend is
         // construct wormhole message
         MessageHeader memory header = MessageHeader({
             payloadID: uint8(3),
-            borrower: _msgSender(),
+            sender: _msgSender(),
             collateralAddress: state.borrowingAssetAddress,
             borrowAddress: state.collateralAssetAddress
         });
@@ -558,7 +656,7 @@ contract CrossChainBorrowLend is
 
         // decode the RepayMessage
         RepayMessage memory params = decodeRepayMessage(parsed.payload);
-        address borrower = params.header.borrower;
+        address borrower = params.header.sender;
 
         // correct assets?
         require(verifyAssetMetaFromRepay(params), "invalid asset metadata");
@@ -595,7 +693,7 @@ contract CrossChainBorrowLend is
                         BorrowMessage({
                             header: MessageHeader({
                                 payloadID: uint8(1),
-                                borrower: borrower,
+                                sender: borrower,
                                 collateralAddress: state.collateralAssetAddress,
                                 borrowAddress: state.borrowingAssetAddress
                             }),
