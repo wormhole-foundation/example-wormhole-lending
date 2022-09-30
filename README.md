@@ -21,6 +21,10 @@ Implement a proof-of-concept, non-production example that allows:
 - Deposit collateral from chainA and borrow tokens from chainB.
 - Repay the borrowed loan (plus interest) on chainB and receive their collateral on chainA.
 
+**Lenders**
+- Deposit native assets on any chain.
+- Redeem deposit (plus interest) on the chain they deposited on.
+
 ## Non-Goals
 ---
 
@@ -77,40 +81,40 @@ Borrow Message
 ```
 uint8 payloadID                         // payloadID = 1
 addreww borrower                        // address of borrower
-address collaterAddress                 // collateral information
+address collateralAddress               // collateral information
 address borrowAddress                   // borrow information
 uint256 borrowAmount                    // amount borrowed
-uint256 totalNoramlizedBorrowAmount     // amount borrowed normalized to ___
-uint256 interestAccuralIndex            // 
+uint256 totalNoramlizedBorrowAmount     // amount borrowed normalized to the interest accrued
+uint256 interestAccuralIndex            // interest accural on chain that collateral is deposited on
 ```
 
 Revert Borrow Message
 ```
 uint8 payloadID                         // payloadID = 2
 addreww borrower                        // address of borrower
-address collaterAddress                 // collateral information
+address collateralAddress               // collateral information
 address borrowAddress                   // borrow information
 uint256 borrowAmount                    // amount borrowed
-uint256 sourceInterestAccuralIndex      //
+uint256 sourceInterestAccuralIndex      // interest accural on chain that collateral is despoited on
 ```
 
 Repay Message
 ```
 uint8 payloadID                         // payloadID = 3
 addreww borrower                        // address of borrower
-address collaterAddress                 // collateral information
+address collateralAddress               // collateral information
 address borrowAddress                   // borrow information
 uint256 repayAmount                     // amount of collateral to repay
-uint256 targetIterestAccuralIndex       //
+uint256 targetInterestAccuralIndex      // interest accural on chain that loan is taken on
 uint256 repayTimestamp                  // time of repayment transaction
-uint8 paidInFull                        //
+uint8 paidInFull                        // numeric toggle indicating if a loan is repaid in full
 ```
 
 Liquidation Intent Message
 ```
 uint8 payloadID                         // payloadID = 4
 addreww borrower                        // address of borrower
-address collaterAddress                 // collateral information
+address collateralAddress               // collateral information
 address borrowAddress                   // borrow information
 // TODO: add necesssary variables
 ```
