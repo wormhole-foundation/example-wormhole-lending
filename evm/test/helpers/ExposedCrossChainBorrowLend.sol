@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {NormalizedAmounts} from "../../src/CrossChainBorrowLendStructs.sol";
+import "../../src/CrossChainBorrowLendStructs.sol";
 import {CrossChainBorrowLend} from "../../src/CrossChainBorrowLend.sol";
 import "forge-std/Test.sol";
 
@@ -39,17 +39,30 @@ contract ExposedCrossChainBorrowLend is CrossChainBorrowLend {
         // nothing else
     }
 
-    function EXPOSED_computeInterestProportion(
+    function EXPOSED_computeSourceInterestFactor(
         uint256 secondsElapsed,
         uint256 intercept,
         uint256 coefficient
     ) external view returns (uint256) {
         return
-            computeInterestProportion(secondsElapsed, intercept, coefficient);
+            computeSourceInterestFactor(secondsElapsed, intercept, coefficient);
     }
 
-    function EXPOSED_updateInterestAccrualIndex() external {
-        return updateInterestAccrualIndex();
+    function EXPOSED_computeTargetInterestFactor(
+        uint256 secondsElapsed,
+        uint256 intercept,
+        uint256 coefficient
+    ) external view returns (uint256) {
+        return
+            computeTargetInterestFactor(secondsElapsed, intercept, coefficient);
+    }
+
+    function EXPOSED_updateSourceInterestAccrualIndex() external {
+        return updateSourceInterestAccrualIndex();
+    }
+
+    function EXPOSED_updateTargetInterestAccrualIndex() external {
+        return updateTargetInterestAccrualIndex();
     }
 
     function EXPOSED_maxAllowedToBorrowWithPrices(
@@ -81,32 +94,35 @@ contract ExposedCrossChainBorrowLend is CrossChainBorrowLend {
     function EXPOSED_accountAssets(address account)
         external
         view
-        returns (NormalizedAmounts memory)
+        returns (SourceTargetUints memory)
     {
         return state.accountAssets[account];
     }
 
-    function HACKED_setTotalAssetsDeposited(uint256 amount) external {
-        state.totalAssets.deposited = amount;
+    function HACKED_setAccountAssets(
+        address account,
+        uint256 sourceDeposited,
+        uint256 sourceBorrowed,
+        uint256 targetDeposited,
+        uint256 targetBorrowed
+    ) public {
+        // account
+        state.accountAssets[account].source.deposited = sourceDeposited;
+        state.accountAssets[account].source.borrowed = sourceBorrowed;
+        state.accountAssets[account].target.deposited = targetDeposited;
+        state.accountAssets[account].target.borrowed = targetBorrowed;
+        // total
+        state.totalAssets.source.deposited = sourceDeposited;
+        state.totalAssets.source.borrowed = sourceBorrowed;
+        state.totalAssets.target.deposited = targetDeposited;
+        state.totalAssets.target.borrowed = targetBorrowed;
     }
 
-    function HACKED_setTotalAssetsBorrowed(uint256 amount) external {
-        state.totalAssets.borrowed = amount;
+    function HACKED_resetAccountAssets(address account) public {
+        HACKED_setAccountAssets(account, 0, 0, 0, 0);
     }
 
-    function HACKED_setLastActivityBlockTimestamp(uint256 timestamp) external {
+    function HACKED_setLastActivityBlockTimestamp(uint256 timestamp) public {
         state.lastActivityBlockTimestamp = timestamp;
-    }
-
-    function HACKED_setAccountAssetsDeposited(address account, uint256 amount)
-        external
-    {
-        state.accountAssets[account].sourceDeposited = amount;
-    }
-
-    function HACKED_setAccountAssetsBorrowed(address account, uint256 amount)
-        external
-    {
-        state.accountAssets[account].targetBorrowed = amount;
     }
 }

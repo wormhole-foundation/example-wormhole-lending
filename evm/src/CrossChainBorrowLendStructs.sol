@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+enum DepositType {
+    None,
+    Add,
+    Remove,
+    RemoveFull
+}
+
 struct DepositedBorrowedUints {
     uint256 deposited;
     uint256 borrowed;
 }
 
-struct NormalizedTotalAmounts {
-    uint256 deposited;
-    uint256 borrowed;
-}
-
-struct NormalizedAmounts {
-    uint256 sourceDeposited;
-    uint256 sourceBorrowed;
-    uint256 targetDeposited;
-    uint256 targetBorrowed;
+struct SourceTargetUints {
+    DepositedBorrowedUints source;
+    DepositedBorrowedUints target;
 }
 
 struct MessageHeader {
     uint8 payloadID;
-    // address of the borrower
-    address borrower;
+    // address of the sender
+    address sender;
     // collateral info
     address collateralAddress; // for verification
     // borrow info
@@ -58,9 +58,17 @@ struct LiquidationIntentMessage {
     // TODO: add necessary variables
 }
 
+struct DepositChangeMessage {
+    // payloadID = 5
+    MessageHeader header;
+    DepositType depositType;
+    uint256 amount;
+}
+
 struct InterestRateModel {
     uint64 ratePrecision;
     uint64 rateIntercept;
     uint64 rateCoefficientA;
     // TODO: add more complexity for example?
+    uint64 reserveFactor;
 }

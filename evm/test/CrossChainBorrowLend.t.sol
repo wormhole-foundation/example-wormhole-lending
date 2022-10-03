@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {NormalizedAmounts, NormalizedTotalAmounts} from "../src/CrossChainBorrowLendStructs.sol";
+import "../src/CrossChainBorrowLendStructs.sol";
 import {ExposedCrossChainBorrowLend} from "./helpers/ExposedCrossChainBorrowLend.sol";
 import {MyERC20} from "./helpers/MyERC20.sol";
 import "forge-std/Test.sol";
@@ -46,7 +46,7 @@ contract CrossChainBorrowLendTest is Test {
         );
     }
 
-    function testComputeInterestProportion() public {
+    function testSourceComputeInterestFactor() public {
         // start from zero
         vm.warp(0);
         uint256 timeStart = block.timestamp;
@@ -59,75 +59,125 @@ contract CrossChainBorrowLendTest is Test {
         uint256 intercept = 0.02e18; // 2% starting rate
         uint256 coefficient = 0.001e18; // increase 10 basis points per 1% borrowed
 
-        // fake supply some amount
-        uint256 deposited = 100e6; // 100 USDC (6 decimals)
-        borrowLendContract.HACKED_setTotalAssetsDeposited(deposited);
-
-        // fake borrow some amount
-        uint256 borrowed = 50e6; // 50 USDC (6 decimals)
-        borrowLendContract.HACKED_setTotalAssetsBorrowed(borrowed);
-
-        // we expect the interest accrued equal to the intercept
-        uint256 interestProportion = borrowLendContract
-            .EXPOSED_computeInterestProportion(
-                secondsElapsed,
-                intercept,
-                coefficient
-            );
+        // set state for test
+        uint256 sourceDeposited = 1e18; // 1 WBNB (18 decimals)
+        uint256 sourceBorrowed = 0.5e18; // 0.5 WBNB (18 decimals)
+        borrowLendContract.HACKED_setAccountAssets(
+            msg.sender,
+            sourceDeposited,
+            sourceBorrowed,
+            0, // targetDeposited
+            0 // targetBorrowed
+        );
 
         // expect using the correct value (0.0205e18)
         {
             require(
-                interestProportion == 0.0205e18,
-                "interestProportion != expected"
+                borrowLendContract.EXPOSED_computeSourceInterestFactor(
+                    secondsElapsed,
+                    intercept,
+                    coefficient
+                ) == 0.0205e18,
+                "computeSourceInterestFactor(...) != expected"
             );
-        }
-
-        // expect using calculation
-        {
-            uint256 expected = intercept + (coefficient * borrowed) / deposited;
             require(
-                interestProportion == expected,
-                "interestProportion != expected (computed)"
+                borrowLendContract.EXPOSED_computeTargetInterestFactor(
+                    secondsElapsed,
+                    intercept,
+                    coefficient
+                ) == 0,
+                "computeTargetInterestFactor(...) != expected"
             );
         }
 
         // clear
-        borrowLendContract.HACKED_setTotalAssetsDeposited(0);
-        borrowLendContract.HACKED_setTotalAssetsBorrowed(0);
+        borrowLendContract.HACKED_resetAccountAssets(msg.sender);
     }
 
-    function testUpdateInterestAccrualIndex() public {
+    function testTargetComputeInterestFactor() public {
+        // start from zero
+        vm.warp(0);
+        uint256 timeStart = block.timestamp;
+
+        // warp to 1 year in the future
+        vm.warp(365 * 24 * 60 * 60);
+        uint256 secondsElapsed = block.timestamp - timeStart;
+
+        // accrue interest with intercept and coefficient
+        uint256 intercept = 0.02e18; // 2% starting rate
+        uint256 coefficient = 0.001e18; // increase 10 basis points per 1% borrowed
+
+        // set state for test
+        uint256 targetDeposited = 100e6; // 100 USDC (6 decimals)
+        uint256 targetBorrowed = 50e6; // 50 USDC (6 decimals)
+        borrowLendContract.HACKED_setAccountAssets(
+            msg.sender,
+            0, // sourceDeposited
+            0, // sourceBorrowed
+            targetDeposited,
+            targetBorrowed
+        );
+
+        // expect using the correct value (0.0205e18)
+        {
+            require(
+                borrowLendContract.EXPOSED_computeSourceInterestFactor(
+                    secondsElapsed,
+                    intercept,
+                    coefficient
+                ) == 0,
+                "computeSourceInterestFactor(...) != expected"
+            );
+            require(
+                borrowLendContract.EXPOSED_computeTargetInterestFactor(
+                    secondsElapsed,
+                    intercept,
+                    coefficient
+                ) == 0.0205e18,
+                "computeTargetInterestFactor(...) != expected"
+            );
+        }
+
+        // clear
+        borrowLendContract.HACKED_resetAccountAssets(msg.sender);
+    }
+
+    function testUpdateSourceInterestAccrualIndex() public {
         // start from zero
         vm.warp(0);
         borrowLendContract.HACKED_setLastActivityBlockTimestamp(
             block.timestamp
         );
 
-        // fake supply some amount
-        uint256 deposited = 200e6; // 200 USDC (6 decimals)
-        borrowLendContract.HACKED_setTotalAssetsDeposited(deposited);
-
-        // fake borrow some amount
-        uint256 borrowed = 20e6; // 20 USDC (6 decimals)
-        borrowLendContract.HACKED_setTotalAssetsBorrowed(borrowed);
+        // set state for test
+        uint256 sourceDeposited = 200e18; // 200 WBNB (18 decimals)
+        uint256 sourceBorrowed = 20e18; // 20 WBNB (18 decimals)
+        borrowLendContract.HACKED_setAccountAssets(
+            msg.sender,
+            sourceDeposited,
+            sourceBorrowed,
+            0, // targetDeposited
+            0 // targetBorrowed
+        );
 
         // warp to 1 year in the future
         vm.warp(365 * 24 * 60 * 60);
 
         // trigger accrual
-        borrowLendContract.EXPOSED_updateInterestAccrualIndex();
+        borrowLendContract.EXPOSED_updateSourceInterestAccrualIndex();
 
         {
             // expect using the correct value (1.02e18)
             require(
-                borrowLendContract.borrowedInterestAccrualIndex() == 1.02e18,
-                "borrowedInterestAccrualIndex() != expected (first iteration)"
+                borrowLendContract.sourceBorrowedInterestAccrualIndex() ==
+                    1.02e18,
+                "sourceBorrowedInterestAccrualIndex() != expected (first iteration)"
             );
             // expect using the correct value (1.002e18)
             require(
-                borrowLendContract.collateralInterestAccrualIndex() == 1.002e18,
-                "collateralInterestAccrualIndex() != expected (first iteration)"
+                borrowLendContract.sourceCollateralInterestAccrualIndex() ==
+                    1.002e18,
+                "sourceBollateralInterestAccrualIndex() != expected (first iteration)"
             );
         }
 
@@ -135,35 +185,38 @@ contract CrossChainBorrowLendTest is Test {
         vm.warp(2 * 365 * 24 * 60 * 60);
 
         // trigger accrual again
-        borrowLendContract.EXPOSED_updateInterestAccrualIndex();
+        borrowLendContract.EXPOSED_updateSourceInterestAccrualIndex();
 
         {
             // expect using the correct value (1.04e18)
             require(
-                borrowLendContract.borrowedInterestAccrualIndex() == 1.04e18,
-                "borrowedInterestAccrualIndex() != expected (second iteration)"
+                borrowLendContract.sourceBorrowedInterestAccrualIndex() ==
+                    1.04e18,
+                "sourceBorrowedInterestAccrualIndex() != expected (second iteration)"
             );
             // expect using the correct value (1.004e18)
             require(
-                borrowLendContract.collateralInterestAccrualIndex() == 1.004e18,
-                "collateralInterestAccrualIndex() != expected (second iteration)"
+                borrowLendContract.sourceCollateralInterestAccrualIndex() ==
+                    1.004e18,
+                "sourceCollateralInterestAccrualIndex() != expected (second iteration)"
             );
         }
 
         // check denormalized deposit and borrowed. should be equal
         {
-            NormalizedTotalAmounts memory amounts = borrowLendContract
-                .normalizedAmounts();
+            DepositedBorrowedUints memory amounts = borrowLendContract
+                .normalizedAmounts()
+                .source;
             uint256 accruedDepositedInterest = borrowLendContract
                 .denormalizeAmount(
                     amounts.deposited,
-                    borrowLendContract.collateralInterestAccrualIndex()
-                ) - deposited;
+                    borrowLendContract.sourceCollateralInterestAccrualIndex()
+                ) - sourceDeposited;
             uint256 accruedBorrowedInterest = borrowLendContract
                 .denormalizeAmount(
                     amounts.borrowed,
-                    borrowLendContract.borrowedInterestAccrualIndex()
-                ) - borrowed;
+                    borrowLendContract.sourceBorrowedInterestAccrualIndex()
+                ) - sourceBorrowed;
             require(
                 accruedDepositedInterest == accruedBorrowedInterest,
                 "accruedDepositedInterest != accruedBorrowedInterest"
@@ -171,24 +224,106 @@ contract CrossChainBorrowLendTest is Test {
         }
 
         // clear
-        borrowLendContract.HACKED_setTotalAssetsDeposited(0);
-        borrowLendContract.HACKED_setTotalAssetsBorrowed(0);
+        borrowLendContract.HACKED_resetAccountAssets(msg.sender);
+    }
+
+    function testUpdateTargetInterestAccrualIndex() public {
+        // start from zero
+        vm.warp(0);
+        borrowLendContract.HACKED_setLastActivityBlockTimestamp(
+            block.timestamp
+        );
+
+        // set state for test
+        uint256 targetDeposited = 200e6; // 200 USDC (6 decimals)
+        uint256 targetBorrowed = 20e6; // 20 USDC (6 decimals)
+        borrowLendContract.HACKED_setAccountAssets(
+            msg.sender,
+            0, // sourceDeposited
+            0, // sourceBorrowed
+            targetDeposited,
+            targetBorrowed
+        );
+
+        // warp to 1 year in the future
+        vm.warp(365 * 24 * 60 * 60);
+
+        // trigger accrual
+        borrowLendContract.EXPOSED_updateTargetInterestAccrualIndex();
+
+        {
+            // expect using the correct value (1.02e18)
+            require(
+                borrowLendContract.targetBorrowedInterestAccrualIndex() ==
+                    1.02e18,
+                "targetBorrowedInterestAccrualIndex() != expected (first iteration)"
+            );
+            // expect using the correct value (1.002e18)
+            require(
+                borrowLendContract.targetCollateralInterestAccrualIndex() ==
+                    1.002e18,
+                "targetCollateralInterestAccrualIndex() != expected (first iteration)"
+            );
+        }
+
+        // warp to 2 years in the future
+        vm.warp(2 * 365 * 24 * 60 * 60);
+
+        // trigger accrual again
+        borrowLendContract.EXPOSED_updateTargetInterestAccrualIndex();
+
+        {
+            // expect using the correct value (1.04e18)
+            require(
+                borrowLendContract.targetBorrowedInterestAccrualIndex() ==
+                    1.04e18,
+                "targetBorrowedInterestAccrualIndex() != expected (second iteration)"
+            );
+            // expect using the correct value (1.004e18)
+            require(
+                borrowLendContract.targetCollateralInterestAccrualIndex() ==
+                    1.004e18,
+                "targetCollateralInterestAccrualIndex() != expected (second iteration)"
+            );
+        }
+
+        // check denormalized deposit and borrowed. should be equal
+        {
+            DepositedBorrowedUints memory amounts = borrowLendContract
+                .normalizedAmounts()
+                .target;
+            uint256 accruedDepositedInterest = borrowLendContract
+                .denormalizeAmount(
+                    amounts.deposited,
+                    borrowLendContract.sourceCollateralInterestAccrualIndex()
+                ) - targetDeposited;
+            uint256 accruedBorrowedInterest = borrowLendContract
+                .denormalizeAmount(
+                    amounts.borrowed,
+                    borrowLendContract.sourceBorrowedInterestAccrualIndex()
+                ) - targetBorrowed;
+            require(
+                accruedDepositedInterest == accruedBorrowedInterest,
+                "accruedDepositedInterest != accruedBorrowedInterest"
+            );
+        }
+
+        // clear
+        borrowLendContract.HACKED_resetAccountAssets(msg.sender);
     }
 
     function testMaxAllowedToWithdraw() public {
         uint64 collateralPrice = 400; // WBNB
         uint64 borrowAssetPrice = 1; // USDC
 
-        uint256 deposited = 1e18; // 1 WBNB (18 decimals)
-        borrowLendContract.HACKED_setAccountAssetsDeposited(
+        uint256 sourceDeposited = 1e18; // 1 WBNB (18 decimals)
+        uint256 targetBorrowed = 100e6; // 100 USDC (6 decimals)
+        borrowLendContract.HACKED_setAccountAssets(
             msg.sender,
-            deposited
-        );
-
-        uint256 borrowed = 100e6; // 100 USDC (6 decimals)
-        borrowLendContract.HACKED_setAccountAssetsBorrowed(
-            msg.sender,
-            borrowed
+            sourceDeposited,
+            0, // sourceBorrowed
+            0, // targetDeposited
+            targetBorrowed
         );
 
         uint256 maxAllowed = borrowLendContract
@@ -204,24 +339,21 @@ contract CrossChainBorrowLendTest is Test {
         }
 
         // clear
-        borrowLendContract.HACKED_setAccountAssetsDeposited(msg.sender, 0);
-        borrowLendContract.HACKED_setAccountAssetsBorrowed(msg.sender, 0);
+        borrowLendContract.HACKED_resetAccountAssets(msg.sender);
     }
 
     function testMaxAllowedToBorrow() public {
         uint64 collateralPrice = 400; // WBNB
         uint64 borrowAssetPrice = 1; // USDC
 
-        uint256 deposited = 1e18; // 1 WBNB (18 decimals)
-        borrowLendContract.HACKED_setAccountAssetsDeposited(
+        uint256 sourceDeposited = 1e18; // 1 WBNB (18 decimals)
+        uint256 targetBorrowed = 100e6; // 100 USDC (6 decimals)
+        borrowLendContract.HACKED_setAccountAssets(
             msg.sender,
-            deposited
-        );
-
-        uint256 borrowed = 100e6; // 100 USDC (6 decimals)
-        borrowLendContract.HACKED_setAccountAssetsBorrowed(
-            msg.sender,
-            borrowed
+            sourceDeposited,
+            0, // sourceBorrowed
+            0, // targetDeposited
+            targetBorrowed
         );
 
         uint256 maxAllowed = borrowLendContract
@@ -237,7 +369,6 @@ contract CrossChainBorrowLendTest is Test {
         }
 
         // clear
-        borrowLendContract.HACKED_setAccountAssetsDeposited(msg.sender, 0);
-        borrowLendContract.HACKED_setAccountAssetsBorrowed(msg.sender, 0);
+        borrowLendContract.HACKED_resetAccountAssets(msg.sender);
     }
 }

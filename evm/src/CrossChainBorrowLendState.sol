@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {NormalizedAmounts, NormalizedTotalAmounts, InterestRateModel} from "./CrossChainBorrowLendStructs.sol";
+import "./CrossChainBorrowLendStructs.sol";
 
 contract CrossChainBorrowLendStorage {
     struct State {
@@ -20,12 +20,12 @@ contract CrossChainBorrowLendStorage {
         bytes32 collateralAssetPythId;
         uint256 collateralizationRatio;
         address borrowingAssetAddress;
-        uint256 interestAccrualIndex;
+        SourceTargetUints interestAccrualIndex;
         uint256 interestAccrualIndexPrecision;
         uint256 lastActivityBlockTimestamp;
-        NormalizedTotalAmounts totalAssets;
+        SourceTargetUints totalAssets;
         uint256 repayGracePeriod;
-        mapping(address => NormalizedAmounts) accountAssets;
+        mapping(address => SourceTargetUints) accountAssets;
         bytes32 borrowingAssetPythId;
         mapping(bytes32 => bool) consumedMessages;
         InterestRateModel interestRateModel;

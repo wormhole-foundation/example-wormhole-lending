@@ -53,29 +53,46 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
         );
     }
 
-    function collateralInterestAccrualIndex() public view returns (uint256) {
-        uint256 deposited = state.totalAssets.deposited;
-        uint256 precision = state.interestAccrualIndexPrecision;
-        if (deposited == 0) {
-            return precision;
-        }
-        return
-            precision +
-            (state.totalAssets.borrowed *
-                (state.interestAccrualIndex - precision)) /
-            deposited;
+    function sourceCollateralInterestAccrualIndex()
+        public
+        view
+        returns (uint256)
+    {
+        return state.interestAccrualIndex.source.deposited;
     }
 
-    function borrowedInterestAccrualIndex() public view returns (uint256) {
-        return state.interestAccrualIndex;
+    function targetCollateralInterestAccrualIndex()
+        public
+        view
+        returns (uint256)
+    {
+        return state.interestAccrualIndex.target.deposited;
+    }
+
+    function sourceBorrowedInterestAccrualIndex()
+        public
+        view
+        returns (uint256)
+    {
+        return state.interestAccrualIndex.source.borrowed;
+    }
+
+    function targetBorrowedInterestAccrualIndex()
+        public
+        view
+        returns (uint256)
+    {
+        return state.interestAccrualIndex.target.borrowed;
     }
 
     function mockPyth() internal view returns (IMockPyth) {
         return IMockPyth(state.mockPythAddress);
     }
 
-    function normalizedLiquidity() internal view returns (uint256) {
-        return state.totalAssets.deposited - state.totalAssets.borrowed;
+    function sourceLiquidity() internal view returns (uint256) {
+        return
+            state.totalAssets.source.deposited -
+            state.totalAssets.source.borrowed;
     }
 
     function denormalizeAmount(
@@ -103,7 +120,7 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
     function normalizedAmounts()
         public
         view
-        returns (NormalizedTotalAmounts memory)
+        returns (SourceTargetUints memory)
     {
         return state.totalAssets;
     }
@@ -116,16 +133,16 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
         // For EVMs, same private key will be used for borrowing-lending activity.
         // When introducing other chains (e.g. Cosmos), need to do wallet registration
         // so we can access a map of a non-EVM address based on this EVM borrower
-        NormalizedAmounts memory normalized = state.accountAssets[account];
+        SourceTargetUints memory normalized = state.accountAssets[account];
 
         // denormalize
         uint256 denormalizedDeposited = denormalizeAmount(
-            normalized.sourceDeposited,
-            collateralInterestAccrualIndex()
+            normalized.source.deposited,
+            sourceCollateralInterestAccrualIndex()
         );
         uint256 denormalizedBorrowed = denormalizeAmount(
-            normalized.targetBorrowed,
-            borrowedInterestAccrualIndex()
+            normalized.target.borrowed,
+            targetBorrowedInterestAccrualIndex()
         );
 
         return
@@ -158,16 +175,16 @@ contract CrossChainBorrowLendGetters is Context, CrossChainBorrowLendState {
         // For EVMs, same private key will be used for borrowing-lending activity.
         // When introducing other chains (e.g. Cosmos), need to do wallet registration
         // so we can access a map of a non-EVM address based on this EVM borrower
-        NormalizedAmounts memory normalized = state.accountAssets[account];
+        SourceTargetUints memory normalized = state.accountAssets[account];
 
         // denormalize
         uint256 denormalizedDeposited = denormalizeAmount(
-            normalized.sourceDeposited,
-            collateralInterestAccrualIndex()
+            normalized.source.deposited,
+            sourceCollateralInterestAccrualIndex()
         );
         uint256 denormalizedBorrowed = denormalizeAmount(
-            normalized.targetBorrowed,
-            borrowedInterestAccrualIndex()
+            normalized.target.borrowed,
+            targetBorrowedInterestAccrualIndex()
         );
 
         return
