@@ -16,11 +16,19 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         setTokenBridge(tokenBridge_);
     }
 
-    function depositCollateral(address token, uint256 amount) public {
-        emit EventDepositCollateral(msg.sender, token, amount);
-    }
+    function completeDeposit(bytes calldata encodedMessage) public {}
 
-    function withdrawCollateral() public {}
+    function completeWithdraw(bytes calldata encodedMessage) public {}
+
+    function completeBorrow(bytes calldata encodedMessage) public {}
+
+    function completeRepay(bytes calldata encodedMessage) public {}
+
+    function completeLiquidation(bytes calldata encdoedMessage) public {}
+
+    function repay() public {}
+
+    function liquidate(address vault, address[] memory tokens) public {}
 
     function sendWormholeMessage(bytes memory payload)
         internal

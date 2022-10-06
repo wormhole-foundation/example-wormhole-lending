@@ -11,13 +11,13 @@ contract SpokeStorage {
     struct State {
         Provider provider;
 
-        /// contract deployer
+        // contract deployer
         address owner;
 
-        /// number of confirmations for wormhole messages
+        // number of confirmations for wormhole messages
         uint8 consistencyLevel;
 
-        /// @dev storage gap
+        // @dev storage gap
         uint256[50] ______gap;
     }
 }
