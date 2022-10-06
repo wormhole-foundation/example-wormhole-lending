@@ -15,7 +15,7 @@ contract HubStorage {
 
     struct State {
         Provider provider;
-
+        
         // contract deployer
         address owner;
 
@@ -39,7 +39,7 @@ contract HubStorage {
 
         // token => pythIDs
         mapping(address => bytes32) pythIds;
-
+        
         // storage gap
         uint256[50] ______gap;
     }
