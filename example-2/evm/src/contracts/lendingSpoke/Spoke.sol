@@ -16,7 +16,19 @@ contract Spoke is SpokeSetters, SpokeGetters, SpokeStructs, SpokeMessages {
         setTokenBridge(tokenBridge_);
     }
 
-    function redeemBorrowedTokens(bytes memory encodedVM) public {}
+    function depositCollateral() public returns (uint64) {}
+
+    function withdrawCollateral() public returns (uint64) {}
+
+    function borrow() public returns (uint64) {}
+
+    function repay() public returns (uint64) {}
+
+    function liquidate(
+        address vault,
+        LiquidationRepay[] memory repay,
+        LiquidationReceipt[] memory receipt
+    ) public returns (uint64) {}
 
     function sendWormholeMessage(bytes memory payload)
         internal
