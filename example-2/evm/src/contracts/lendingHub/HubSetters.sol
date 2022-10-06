@@ -19,4 +19,8 @@ contract HubSetters is HubState {
     function setTokenBridge(address tokenBridgeAddress) internal {
         _state.provider.tokenBridge = tokenBridgeAddress;
     }
+
+    function setPyth(address pythAddress) internal {
+        _state.provider.pyth = pythAddress;
+    }
 }
