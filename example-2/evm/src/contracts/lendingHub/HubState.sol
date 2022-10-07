@@ -25,6 +25,9 @@ contract HubStorage {
         // allowlist for tokens
         address[] allowList;
 
+        // allowlist for spoke contracts
+        mapping(uint16 => address) spokeContracts;
+
         // address => AssetInfo
         mapping(address => HubStructs.AssetInfo) assetInfos;
 
@@ -39,6 +42,9 @@ contract HubStorage {
 
         // token => pythIDs
         mapping(address => bytes32) pythIds;
+
+        // wormhole message hashes
+        mapping(bytes32 => bool) consumedMessages;
         
         // storage gap
         uint256[50] ______gap;
