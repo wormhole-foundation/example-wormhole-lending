@@ -32,5 +32,9 @@ contract HubSetters is HubState {
         _state.spokeContracts[chainId] = spokeContractAddress;
     }
 
+    function consumeMessageHash(bytes32 vmHash) internal {
+        _state.consumedMessages[vmHash] = true;
+    }
+
 
 }

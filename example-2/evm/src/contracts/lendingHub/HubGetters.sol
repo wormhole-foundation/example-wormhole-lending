@@ -32,4 +32,24 @@ contract HubGetters is HubState, Context {
     function getSpokeContract(uint16 chainId) internal view returns (address) {
         return _state.spokeContracts[chainId];
     }
+
+    function messageHashConsumed(bytes32 vmHash) internal view returns (bool) {
+        return _state.consumedMessages[vmHash];
+    }
+
+    function getWormholePayload(bytes calldata encodedMessage) internal view returns (bytes) {
+        (
+            IWormhole.VM memory parsed,
+            bool valid,
+            string memory reason
+        ) = wormhole().parseAndVerifyVM(encodedMessage);
+        require(valid, reason);
+
+        require(verifyEmitter(parsed), "invalid emitter");
+
+        require(!messageHashConsumed(parsed.hash), "message already confused");
+        consumeMessageHash(parsed.hash);
+
+        return parsed.payload;
+    } 
 }
