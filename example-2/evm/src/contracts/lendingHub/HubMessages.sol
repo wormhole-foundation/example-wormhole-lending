@@ -19,7 +19,7 @@ contract HubMessages {
             );
     }
 
-    function encodeDepositMessage(HubStructs.DepositMessage memory message)
+    function encodeRegisterSpokeMessage(HubStructs.RegisterSpokeMessage memory message)
         internal
         pure
         returns (bytes memory)
@@ -28,13 +28,12 @@ contract HubMessages {
             abi.encodePacked(
                 uint8(1), // payloadID
                 encodeMessageHeader(message.header),
-                message.assetAddresses.length,
-                message.assetAddresses,
-                message.assetAmounts
+                message.chainId,
+                message.spokeContractAddress
             );
     }
 
-    function encodeWithdrawMessage(HubStructs.WithdrawMessage memory message)
+    function encodeDepositMessage(HubStructs.DepositMessage memory message)
         internal
         pure
         returns (bytes memory)
@@ -49,7 +48,7 @@ contract HubMessages {
             );
     }
 
-    function encodeBorrowMessage(HubStructs.BorrowMessage memory message)
+    function encodeWithdrawMessage(HubStructs.WithdrawMessage memory message)
         internal
         pure
         returns (bytes memory)
@@ -64,7 +63,7 @@ contract HubMessages {
             );
     }
 
-    function encodeRepayMessage(HubStructs.RepayMessage memory message)
+    function encodeBorrowMessage(HubStructs.BorrowMessage memory message)
         internal
         pure
         returns (bytes memory)
@@ -79,7 +78,7 @@ contract HubMessages {
             );
     }
 
-    function encodeLiquidationMessage(HubStructs.LiquidationMessage memory message)
+    function encodeRepayMessage(HubStructs.RepayMessage memory message)
         internal
         pure
         returns (bytes memory)
@@ -87,6 +86,21 @@ contract HubMessages {
         return
             abi.encodePacked(
                 uint8(5), // payloadID
+                encodeMessageHeader(message.header),
+                message.assetAddresses.length,
+                message.assetAddresses,
+                message.assetAmounts
+            );
+    }
+
+    function encodeLiquidationMessage(HubStructs.LiquidationMessage memory message)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(
+                uint8(6), // payloadID
                 encodeMessageHeader(message.header),
                 message.vault,
                 message.assetRepayAddresses.length,
@@ -113,6 +127,24 @@ contract HubMessages {
 
     }
 
+    function decodeRegisterSpokeMessage(bytes memory serialized)
+        internal
+        pure
+        returns (HubStructs.RegisterSpokeMessage memory params)
+    {
+        uint256 index = 0;
+
+        // parse the message header
+        params.header = decodeMessageHeader(
+            serialized.slice(index, index + 21)
+        );
+        index += 21;
+        params.chainId = serialized.toUint16(index);
+        index += 2;
+        params.spokeContractAddress = serialized.toAddress(index);
+
+    }
+
     function decodeDepositMessage(bytes memory serialized)
         internal
         pure
@@ -124,7 +156,7 @@ contract HubMessages {
         params.header = decodeMessageHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 1, "invalid message");
+        require(params.header.payloadID == 2, "invalid message");
         index += 21;
         uint32 length = serialized.toUint32(index);
         index += 4;
@@ -158,7 +190,7 @@ contract HubMessages {
         params.header = decodeMessageHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 2, "invalid message");
+        require(params.header.payloadID == 3, "invalid message");
         index += 21;
         uint32 length = serialized.toUint32(index);
         index += 4;
@@ -191,7 +223,7 @@ contract HubMessages {
         params.header = decodeMessageHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 3, "invalid message");
+        require(params.header.payloadID == 4, "invalid message");
         index += 21;
         uint32 length = serialized.toUint32(index);
         index += 4;
@@ -224,7 +256,7 @@ contract HubMessages {
         params.header = decodeMessageHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 4, "invalid message");
+        require(params.header.payloadID == 5, "invalid message");
         index += 21;
         uint32 length = serialized.toUint32(index);
         index += 4;
@@ -257,7 +289,7 @@ contract HubMessages {
         params.header = decodeMessageHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 5, "invalid message");
+        require(params.header.payloadID == 6, "invalid message");
         index += 21;
         
         // repay section of the message

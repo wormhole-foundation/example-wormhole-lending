@@ -23,4 +23,10 @@ contract HubSetters is HubState {
     function setPyth(address pythAddress) internal {
         _state.provider.pyth = pythAddress;
     }
+
+    function setConsistencyLevel(uint8 consistencyLevel) internal {
+        _state.consistencyLevel = consistencyLevel;
+    }
+
+
 }

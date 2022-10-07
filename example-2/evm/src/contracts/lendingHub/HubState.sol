@@ -25,6 +25,9 @@ contract HubStorage {
         // allowlist for tokens
         address[] allowList;
 
+        // allowlist for spoke contracts
+        mapping(uint16 => address) spokeContracts;
+
         // address => AssetInfo
         mapping(address => HubStructs.AssetInfo) assetInfos;
 

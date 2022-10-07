@@ -9,11 +9,19 @@ import "./HubMessages.sol";
 import "./HubGetters.sol";
 
 contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
-    constructor(uint16 chainId_, address wormhole_, address tokenBridge_) {
+    constructor(uint16 chainId_, address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
         setOwner(_msgSender());
         setChainId(chainId_);
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
+        setPyth(mockPythAddress_);
+
+        setConsistencyLevel(consistencyLevel_);
+
+    }
+
+    function completeRegisterSpoke(bytes calldata encodedMessage) public {
+        
     }
 
     function completeDeposit(bytes calldata encodedMessage) public {}
