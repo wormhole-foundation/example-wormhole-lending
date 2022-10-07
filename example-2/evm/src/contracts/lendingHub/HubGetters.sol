@@ -28,4 +28,8 @@ contract HubGetters is HubState, Context {
     function consistencyLevel() internal view returns (uint8) {
         return _state.consistencyLevel;
     }
+
+    function getSpokeContract(uint16 chainId) internal view returns (address) {
+        return _state.spokeContracts[chainId];
+    }
 }

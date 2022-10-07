@@ -22,13 +22,14 @@ contract HubStructs {
         uint8 payloadID;
         // address of the sender
         address sender;
+        // chain information
+        uint16 chainId;
         // collateral info
     }
 
     struct RegisterSpokeMessage {
         // payloadId = 1
         MessageHeader header;
-        uint16 chainId;
         address spokeContractAddress;
     }
 
