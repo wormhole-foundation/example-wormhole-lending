@@ -4,3 +4,4 @@ node_modules
 out
 venus-protocol
 wormhole
+../../.vscode

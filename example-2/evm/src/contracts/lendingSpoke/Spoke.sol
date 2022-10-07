@@ -16,6 +16,8 @@ contract Spoke is SpokeSetters, SpokeGetters, SpokeStructs, SpokeMessages {
         setTokenBridge(tokenBridge_);
     }
 
+    function registerOnHub() public returns (uint64) {}
+
     function depositCollateral() public returns (uint64) {}
 
     function withdrawCollateral() public returns (uint64) {}
