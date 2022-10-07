@@ -21,7 +21,9 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
     }
 
     function completeRegisterSpoke(bytes calldata encodedMessage) public {
-        
+        require(msg.sender == owner());
+        RegisterSpokeMessage memory params = decodeRegisterSpokeMessage(encodedMessage);
+        registerSpokeContract(params.chainId, params.spokeContractAddress);
     }
 
     function completeDeposit(bytes calldata encodedMessage) public {}

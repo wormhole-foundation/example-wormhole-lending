@@ -28,5 +28,9 @@ contract HubSetters is HubState {
         _state.consistencyLevel = consistencyLevel;
     }
 
+    function registerSpokeContract(uint16 chainId, address spokeContractAddress) internal {
+        _state.spokeContracts[chainId] = spokeContractAddress;
+    }
+
 
 }
