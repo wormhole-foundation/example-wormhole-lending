@@ -23,4 +23,18 @@ contract HubSetters is HubState {
     function setPyth(address pythAddress) internal {
         _state.provider.pyth = pythAddress;
     }
+
+    function setConsistencyLevel(uint8 consistencyLevel) internal {
+        _state.consistencyLevel = consistencyLevel;
+    }
+
+    function registerSpokeContract(uint16 chainId, address spokeContractAddress) internal {
+        _state.spokeContracts[chainId] = spokeContractAddress;
+    }
+
+    function consumeMessageHash(bytes32 vmHash) internal {
+        _state.consumedMessages[vmHash] = true;
+    }
+
+
 }

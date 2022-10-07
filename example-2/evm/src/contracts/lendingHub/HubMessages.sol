@@ -28,6 +28,7 @@ contract HubMessages {
             abi.encodePacked(
                 uint8(1), // payloadID
                 encodeMessageHeader(message.header),
+                message.assetAddresses.length,
                 message.assetAddresses,
                 message.assetAmounts
             );
@@ -89,9 +90,9 @@ contract HubMessages {
                 encodeMessageHeader(message.header),
                 message.vault,
                 message.assetRepayAddresses.length,
-                message.assetReceiptAddresses.length,
                 message.assetRepayAddresses,
                 message.assetRepayAmounts,
+                message.assetReceiptAddresses.length,
                 message.assetReceiptAddresses,
                 message.assetReceiptAmounts
             );
@@ -130,7 +131,7 @@ contract HubMessages {
 
         // parse the asset addresses
         address[] memory assetAddresses = new address[](length);
-        for(uint i=0; i<n; i++){
+        for(uint i=0; i<length; i++){
             assetAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
@@ -138,23 +139,11 @@ contract HubMessages {
         
         // parse the asset amounts
         uint256[] memory assetAmounts = new uint256[](length);
-        for(uint i=0; i<n; i++){
+        for(uint i=0; i<length; i++){
             assetAmounts[i] = serialized.toUint256(index);
             index += 32;
         }
         params.assetAmounts = assetAmounts;
-
-
-        /*
-        params.borrowAmount = serialized.toUint256(index += 32);
-        params.totalNormalizedBorrowAmount = serialized.toUint256(index += 32);
-        params.interestAccrualIndex = serialized.toUint256(index += 32);
-
-        require(params.header.payloadID == 1, "invalid message");
-        require(index == serialized.length, "index != serialized.length");
-        require(assetAddresses.length == length, "Asset addresses length is incorrect");
-        */
-
     }
 
     
@@ -176,7 +165,7 @@ contract HubMessages {
 
         // parse the asset addresses
         address[] memory assetAddresses = new address[](length);
-        for(uint i=0; i<n; i++){
+        for(uint i=0; i<length; i++){
             assetAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
@@ -184,7 +173,7 @@ contract HubMessages {
         
         // parse the asset amounts
         uint256[] memory assetAmounts = new uint256[](length);
-        for(uint i=0; i<n; i++){
+        for(uint i=0; i<length; i++){
             assetAmounts[i] = serialized.toUint256(index);
             index += 32;
         }
@@ -209,7 +198,7 @@ contract HubMessages {
 
         // parse the asset addresses
         address[] memory assetAddresses = new address[](length);
-        for(uint i=0; i<n; i++){
+        for(uint i=0; i<length; i++){
             assetAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
@@ -217,7 +206,7 @@ contract HubMessages {
         
         // parse the asset amounts
         uint256[] memory assetAmounts = new uint256[](length);
-        for(uint i=0; i<n; i++){
+        for(uint i=0; i<length; i++){
             assetAmounts[i] = serialized.toUint256(index);
             index += 32;
         }
@@ -242,7 +231,7 @@ contract HubMessages {
 
         // parse the asset addresses
         address[] memory assetAddresses = new address[](length);
-        for(uint i=0; i<n; i++){
+        for(uint i=0; i<length; i++){
             assetAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
@@ -250,7 +239,7 @@ contract HubMessages {
         
         // parse the asset amounts
         uint256[] memory assetAmounts = new uint256[](length);
-        for(uint i=0; i<n; i++){
+        for(uint i=0; i<length; i++){
             assetAmounts[i] = serialized.toUint256(index);
             index += 32;
         }
@@ -276,20 +265,20 @@ contract HubMessages {
         index += 4;
 
         // parse the repay asset addresses
-        address[] memory repayAssetAddresses = new address[](length);
-        for(uint i=0; i<n; i++){
-            repayAssetAddresses[i] = serialized.toAddress(index);
+        address[] memory assetRepayAddresses = new address[](repayLength);
+        for(uint i=0; i<repayLength; i++){
+            assetRepayAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
-        params.repayAssetAddresses = repayAssetAddresses;
+        params.assetRepayAddresses = assetRepayAddresses;
         
         // parse the repay asset amounts
-        uint256[] memory repayAssetAmounts = new uint256[](length);
-        for(uint i=0; i<n; i++){
-            repayAssetAmounts[i] = serialized.toUint256(index);
+        uint256[] memory assetRepayAmounts = new uint256[](repayLength);
+        for(uint i=0; i<repayLength; i++){
+            assetRepayAmounts[i] = serialized.toUint256(index);
             index += 32;
         }
-        params.repayAssetAmounts = repayAssetAmounts;
+        params.assetRepayAmounts = assetRepayAmounts;
         
         
         // receipt section of the message
@@ -297,20 +286,20 @@ contract HubMessages {
         index += 4;
 
         // parse the receipt asset addresses
-        address[] memory receiptAssetAddresses = new address[](length);
-        for(uint i=0; i<n; i++){
-            receiptAssetAddresses[i] = serialized.toAddress(index);
+        address[] memory assetReceiptAddresses = new address[](receiptLength);
+        for(uint i=0; i<receiptLength; i++){
+            assetReceiptAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
-        params.receiptAssetAddresses = receiptAssetAddresses;
+        params.assetReceiptAddresses = assetReceiptAddresses;
         
         // parse the receipt asset amounts
-        uint256[] memory receiptAssetAmounts = new uint256[](length);
-        for(uint i=0; i<n; i++){
-            receiptAssetAmounts[i] = serialized.toUint256(index);
+        uint256[] memory assetReceiptAmounts = new uint256[](receiptLength);
+        for(uint i=0; i<receiptLength; i++){
+            assetReceiptAmounts[i] = serialized.toUint256(index);
             index += 32;
         }
-        params.receiptAssetAmounts = receiptAssetAmounts;
+        params.assetReceiptAmounts = assetReceiptAmounts;
     }
 
 
