@@ -105,9 +105,11 @@ contract HubMessages {
         uint256 index = 0;
 
         // parse the header
+
         header.payloadID = serialized.toUint8(index);
         index += 1;
         header.sender = serialized.toAddress(index);
+
     }
 
     function decodeDepositMessage(bytes memory serialized)
@@ -142,7 +144,7 @@ contract HubMessages {
         }
         params.assetAmounts = assetAmounts;
 
-        
+
         /*
         params.borrowAmount = serialized.toUint256(index += 32);
         params.totalNormalizedBorrowAmount = serialized.toUint256(index += 32);
@@ -154,6 +156,7 @@ contract HubMessages {
         */
 
     }
+
     
     function decodeWithdrawMessage(bytes memory serialized)
         internal
@@ -309,6 +312,7 @@ contract HubMessages {
         }
         params.receiptAssetAmounts = receiptAssetAmounts;
     }
+
 
 
 }
