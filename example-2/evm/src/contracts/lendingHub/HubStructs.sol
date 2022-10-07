@@ -8,7 +8,7 @@ contract HubStructs {
     }
 
     struct AccrualIndices {
-        uint256 deposted;
+        uint256 deposited;
         uint256 borrowed;
         uint256 lastBlock;
     }
@@ -17,4 +17,51 @@ contract HubStructs {
         uint256 collateralizationRatio;
         uint256 reserveFactor;
     }
+
+    struct MessageHeader {
+        uint8 payloadID;
+        // address of the sender
+        address sender;
+        // collateral info
+    }
+
+    struct DepositMessage {
+        // payloadId = 1
+        MessageHeader header;
+        address[] assetAddresses;
+        uint256[] assetAmounts;
+    }
+
+    struct WithdrawMessage {
+        // payloadId = 2
+        MessageHeader header;
+        address[] assetAddresses;
+        uint256[] assetAmounts;
+    }
+
+    struct BorrowMessage {
+        // payloadId = 3
+        MessageHeader header;
+        address[] assetAddresses;
+        uint256[] assetAmounts;
+    }
+
+    struct RepayMessage {
+        // payloadId = 4
+        MessageHeader header;
+        address[] assetAddresses;
+        uint256[] assetAmounts;
+    }
+
+    struct LiquidationMessage {
+        // payloadId = 5
+        MessageHeader header;
+        address vault; // address to liquidate
+        address[] assetRepayAddresses;
+        uint256[] assetRepayAmounts;
+        address[] assetReceiptAddresses;
+        uint256[] assetReceiptAmounts;
+    }
+
+
 }
