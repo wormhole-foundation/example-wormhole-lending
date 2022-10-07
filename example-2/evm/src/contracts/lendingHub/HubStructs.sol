@@ -22,47 +22,39 @@ contract HubStructs {
         uint8 payloadID;
         // address of the sender
         address sender;
-        // chain information
-        uint16 chainId;
         // collateral info
     }
 
-    struct RegisterSpokeMessage {
-        // payloadId = 1
-        MessageHeader header;
-        address spokeContractAddress;
-    }
-
     struct DepositMessage {
-        // payloadId = 2
+        // payloadId = 1
         MessageHeader header;
         address[] assetAddresses;
         uint256[] assetAmounts;
     }
 
     struct WithdrawMessage {
-        // payloadId = 3
+        // payloadId = 2
         MessageHeader header;
         address[] assetAddresses;
         uint256[] assetAmounts;
     }
 
     struct BorrowMessage {
-        // payloadId = 4
+        // payloadId = 3
         MessageHeader header;
         address[] assetAddresses;
         uint256[] assetAmounts;
     }
 
     struct RepayMessage {
-        // payloadId = 5
+        // payloadId = 4
         MessageHeader header;
         address[] assetAddresses;
         uint256[] assetAmounts;
     }
 
     struct LiquidationMessage {
-        // payloadId = 6
+        // payloadId = 5
         MessageHeader header;
         address vault; // address to liquidate
         address[] assetRepayAddresses;
