@@ -9,9 +9,8 @@ import "./HubMessages.sol";
 import "./HubGetters.sol";
 
 contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
-    constructor(uint16 chainId_, address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
+    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
         setOwner(_msgSender());
-        setChainId(chainId_);
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
         setPyth(mockPythAddress_);
@@ -25,8 +24,8 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         registerSpokeContract(chainId, spokeContractAddress);
     }
 
-    function verifySenderIsSpoke(uint16 chainId, address sender) internal {
-        require(getSpokeContract(chainId) == sender);
+    function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
+        require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
 
     function completeDeposit(bytes calldata encodedMessage) public {
@@ -55,4 +54,22 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
             consistencyLevel()
         );
     }
+
+    function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
+        (
+            IWormhole.VM memory parsed,
+            bool valid,
+            string memory reason
+        ) = wormhole().parseAndVerifyVM(encodedMessage);
+        require(valid, reason);
+
+        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(bytes20(parsed.emitterAddress))));
+
+        require(!messageHashConsumed(parsed.hash), "message already confused");
+        consumeMessageHash(parsed.hash);
+
+        return parsed.payload;
+    } 
+
+    
 }
