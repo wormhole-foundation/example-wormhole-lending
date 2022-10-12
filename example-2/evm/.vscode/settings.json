@@ -1,0 +1,4 @@
+{
+    "solidity.defaultCompiler": "localNodeModule",
+    "solidity.packageDefaultDependenciesDirectory": "lib"
+}

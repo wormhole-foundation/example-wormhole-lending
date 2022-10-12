@@ -28,7 +28,7 @@ contract HubMessages {
             abi.encodePacked(
                 uint8(1), // payloadID
                 encodeMessageHeader(message.header),
-                message.assetAddresses.length,
+                uint32(message.assetAddresses.length),
                 message.assetAddresses,
                 message.assetAmounts
             );
@@ -43,7 +43,7 @@ contract HubMessages {
             abi.encodePacked(
                 uint8(2), // payloadID
                 encodeMessageHeader(message.header),
-                message.assetAddresses.length,
+                uint32(message.assetAddresses.length),
                 message.assetAddresses,
                 message.assetAmounts
             );
@@ -58,7 +58,7 @@ contract HubMessages {
             abi.encodePacked(
                 uint8(3), // payloadID
                 encodeMessageHeader(message.header),
-                message.assetAddresses.length,
+                uint32(message.assetAddresses.length),
                 message.assetAddresses,
                 message.assetAmounts
             );
@@ -73,7 +73,7 @@ contract HubMessages {
             abi.encodePacked(
                 uint8(4), // payloadID
                 encodeMessageHeader(message.header),
-                message.assetAddresses.length,
+                uint32(message.assetAddresses.length),
                 message.assetAddresses,
                 message.assetAmounts
             );
@@ -89,10 +89,10 @@ contract HubMessages {
                 uint8(5), // payloadID
                 encodeMessageHeader(message.header),
                 message.vault,
-                message.assetRepayAddresses.length,
+                uint32(message.assetRepayAddresses.length),
                 message.assetRepayAddresses,
                 message.assetRepayAmounts,
-                message.assetReceiptAddresses.length,
+                uint32(message.assetReceiptAddresses.length),
                 message.assetReceiptAddresses,
                 message.assetReceiptAmounts
             );
@@ -131,7 +131,9 @@ contract HubMessages {
 
         // parse the asset addresses
         address[] memory assetAddresses = new address[](length);
+      
         for(uint i=0; i<length; i++){
+            index += 12;
             assetAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
@@ -166,6 +168,7 @@ contract HubMessages {
         // parse the asset addresses
         address[] memory assetAddresses = new address[](length);
         for(uint i=0; i<length; i++){
+            index += 12;
             assetAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
@@ -199,6 +202,7 @@ contract HubMessages {
         // parse the asset addresses
         address[] memory assetAddresses = new address[](length);
         for(uint i=0; i<length; i++){
+            index += 12;
             assetAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
@@ -232,6 +236,7 @@ contract HubMessages {
         // parse the asset addresses
         address[] memory assetAddresses = new address[](length);
         for(uint i=0; i<length; i++){
+            index += 12;
             assetAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
@@ -267,6 +272,7 @@ contract HubMessages {
         // parse the repay asset addresses
         address[] memory assetRepayAddresses = new address[](repayLength);
         for(uint i=0; i<repayLength; i++){
+            index += 12;
             assetRepayAddresses[i] = serialized.toAddress(index);
             index += 20;
         }
@@ -288,6 +294,7 @@ contract HubMessages {
         // parse the receipt asset addresses
         address[] memory assetReceiptAddresses = new address[](receiptLength);
         for(uint i=0; i<receiptLength; i++){
+            index += 12;
             assetReceiptAddresses[i] = serialized.toAddress(index);
             index += 20;
         }

@@ -13,7 +13,7 @@ contract HubGetters is HubState, Context {
         return _state.owner;
     }
 
-    function chainId() public view returns (uint16) {
+    function getChainId() public view returns (uint16) {
         return _state.provider.chainId;
     }
 
