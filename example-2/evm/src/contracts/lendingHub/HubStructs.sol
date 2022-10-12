@@ -16,13 +16,27 @@ contract HubStructs {
     struct AssetInfo {
         uint256 collateralizationRatio;
         uint256 reserveFactor;
+        bytes32 pythId;
+        // pyth id info
+        bool isValue;
     }
+
+    struct InterestRateModel {
+        uint64 ratePrecision;
+        uint64 rateIntercept;
+        uint64 rateCoefficientA;
+        // TODO: add more complexity for example?
+        uint64 reserveFactor;
+    }
+
+
+
 
     struct MessageHeader {
         uint8 payloadID;
         // address of the sender
         address sender;
-        // collateral info
+        
     }
 
     struct DepositMessage {

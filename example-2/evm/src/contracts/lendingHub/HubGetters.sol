@@ -36,4 +36,36 @@ contract HubGetters is HubState, Context {
     function messageHashConsumed(bytes32 vmHash) internal view returns (bool) {
         return _state.consumedMessages[vmHash];
     }
+
+    function getAssetInfo(address assetAddress) internal view returns (HubStructs.AssetInfo) {
+        return _state.assetInfos[assetAddress];
+    }
+
+    function getLastActivityBlockTimestamp(address assetAddress) internal view returns (uint256) {
+        return _state.lastActivityBlockTimestamps[assetAddress];
+    }
+
+    function getTotalAssetsDeposited(address assetAddress) internal view returns (uint256) {
+        return _state.totalAssets[assetAddress].deposited;
+    }
+
+    function getTotalAssetsBorrowed(address assetAddress) internal view returns (uint256) {
+        return _state.totalAssets[assetAddress].borrowed;
+    }
+
+    function getInterestRateModel(address assetAddress) internal view returns (InterestRateModel) {
+        return _state.interestRateModels[assetAddress];
+    }
+
+    function getInterestAccrualIndices(address assetAddress) internal view returns (AccrualIndices) {
+        return _state.indices[assetAddress];
+    }
+
+    function getVaultAmounts(address vaultOwner, address assetAddress) internal view returns (VaultAmount) {
+        return _state.vault[vaultOwner][assetAddress];
+    } 
+
+    function getGlobalAmounts(address assetAddress) internal view returns (VaultAmount) {
+        return _state.totalAssets[assetAddress];
+    } 
 }

@@ -7,6 +7,7 @@ import "./HubSetters.sol";
 import "./HubStructs.sol";
 import "./HubMessages.sol";
 import "./HubGetters.sol";
+import "./HubErrors.sol";
 
 contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
     constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
@@ -19,6 +20,27 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
 
     }
 
+    function registerAsset(address assetAddress, uint256 collateralizationRatio, uint256 reserveFactor, bytes32 pythId) public {
+        require(msg.sender == owner());
+
+        // check if asset is already registered (potentially write a getter for the assetInfos map)
+        AssetInfo registered_info = getAssetInfo(assetAddress);
+        if (registered_info.isValue) {
+            // If not, update the 'allowList' array (write a setter for the allowList array)
+            allowAsset(assetAddress);
+
+            // update the asset info map
+            AssetInfo info = AssetInfo({
+                collaterizationRatio: collateralizationRatio,
+                reserveFactor: reserveFactor,
+                pythId: pythId,
+                isValue: true
+            });
+
+            registerAssetInfo(assetAddress, info);
+        }
+    }
+
     function registerSpoke(uint16 chainId, address spokeContractAddress) public {
         require(msg.sender == owner());
         registerSpokeContract(chainId, spokeContractAddress);
@@ -28,17 +50,154 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
 
-    function completeDeposit(bytes calldata encodedMessage) public {
-        
+    function computeSourceInterestFactor(
+        uint256 secondsElapsed, 
+        uint256 deposited, 
+        uint256 borrowed, 
+        InterestRateModel interestRateModel
+    ) internal view returns (uint256) {
+        if (deposited == 0) {
+            return 0;
+        }
+
+        return
+            (secondsElapsed * 
+                (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited)) /
+            365 /
+            24 /
+            60 /
+            60;
     }
 
-    function completeWithdraw(bytes calldata encodedMessage) public {}
+    function updateAccrualIndices(address[] assetAddresses) internal {
+        for(uint i=0; i<assetAddresses.length; i++){
+            address assetAddress = assetAddresses[i];
 
-    function completeBorrow(bytes calldata encodedMessage) public {}
+            uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
+            uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
 
-    function completeRepay(bytes calldata encodedMessage) public {}
+            uint256 deposited = getTotalAssetsDeposited(assetAddress);
+            uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
 
-    function completeLiquidation(bytes calldata encdoedMessage) public {}
+            setLastActivityBlockTimestamp(assetAddress, block.timestamp);
+
+            InterestRateModel interestRateModel = getInterestRateModel(assetAddress);
+
+            uint256 interestFactor = computeSourceInterestFactor(
+                secondsElapsed,
+                deposited,
+                borrowed,
+                interestRateModel
+            );
+
+            uint256 accrualIndices = getInterestAccrualIndices(assetAddress);
+            accrualIndices.borrowed += interestFactor;
+            accrualIndices.deposited += (interestFactor * borrowed) / deposited;
+            accrualIndices.lastBlock = block.timestamp;
+
+            setInterestAccrualIndex(assetAddress, accrualIndices);
+        }
+    }
+
+    function completeDeposit(bytes calldata encodedMessage) public {
+
+        DepositMessage memory params = decodeDepositMessage(getWormholePayload(encodedMessage));
+
+        address depositor = params.header.sender;
+
+        mapping(address => bool) observedAssets;
+
+        for(uint i=0; i<params.assetAddresses.length; i++){
+            address assetAddress = params.assetAddresses[i];
+            // check if asset address is allowed
+            AssetInfo registered_info = getAssetInfo(assetAddresses);
+            if (!registered_info.isValue){
+                revert UnregisteredAsset(assetAddresses);
+            }
+
+            // check if each address is unique
+            if (observedAssets[assetAddress]){
+                revert AlreadyObservedAsset(assetAddress);
+            }
+
+            observedAssets[assetAddress] = true;
+        }
+
+        // update the interest accrual indices
+        updateAccrualIndices(params.assetAddresses);
+
+        // for each asset, calculate the normalized amount (??) and store in the vault
+        // for each asset, update the global contract state
+        for(uint i=0; i<params.assetAddresses.length; i++){
+            VaultAmount vault = getVaultAmounts(depositor, params.assetAddress[i]);
+            VaultAmount globalAmounts = getGlobalAmounts(params.assetAddress[i]);
+
+            vault.deposited += params.assetAmounts[i];
+            globalAmounts.deposited += params.assetAmounts[i];
+
+            setVaultAmounts(depositor, params.assetAddresses[i], vault);
+            setGlobalAmounts(params.assetAddresses[i], globalAmounts);
+
+            // TODO: token transfers (do you need this here? you should probably just transfer tokens directly to the lending protocol via relayer)
+            
+        }        
+    }
+
+    function completeWithdraw(bytes calldata encodedMessage) public {
+
+        // TODO: want to recheck if withdraw is valid given up to date prices? bc the prices can move in the time for VAA to come
+
+        WithdrawMessage memory params = decodeWithdrawMessage(getWormholePayload(encodedMessage));
+
+        // NOTE: interest payment handled by normalization within this function
+
+        // TODO: for each asset, calculate the normalized amount that can be withdrawn, fail if not as much as requested
+
+        // TODO: update the contract state (assets withdrawn)
+
+        // TODO: token transfers (will fail if not enough tokens)
+
+    }
+
+    function completeBorrow(bytes calldata encodedMessage) public {
+        // TODO: check if borrow is valid given up to date prices?
+
+        // TODO: for each asset, calculate the normalized amount that can be borrowed, fail if not as much as requested
+
+        // TODO: update the contract state (assets borrowed)
+
+        // TODO: token transfers
+    }
+
+    function completeRepay(bytes calldata encodedMessage) public {
+        // TODO: for each asset check if allowed
+
+        // TODO: update the interest accrual indices
+
+        // TODO: for each asset, calculate the normalized amount and store in the vault
+
+
+        // TODO: update the contract state (assets deposited)
+
+        // TODO: token transfers (do you need this here? you should probably just transfer tokens directly to the lending protocol via relayer)
+    }
+
+    function completeLiquidation(bytes calldata encdoedMessage) public {
+        // TODO: for each repay asset check if allowed
+
+        // TODO: update the interest accrual indices
+
+        // TODO: for each repay asset, calculate the normalized amount and store in the vault
+
+        // TODO: for each receipt asset, calculate the normalized amount that can be removed, fail if not as much as requested
+
+        // TODO: do the Pyth math to figure out if vault still underwater and the requested amounts still valid
+
+        // TODO: update the contract state
+
+        // TODO: token transfers
+
+    }
 
     function repay() public {}
 

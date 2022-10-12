@@ -40,11 +40,14 @@ contract HubStorage {
         // interest accrual indices
         mapping(address => HubStructs.AccrualIndices) indices;
 
-        // token => pythIDs
-        mapping(address => bytes32) pythIds;
-
         // wormhole message hashes
         mapping(bytes32 => bool) consumedMessages;
+
+        // last timestamp for update
+        mapping(address => uint256) lastActivityBlockTimestamps;
+
+        // interest rate models
+        mapping(address => HubStructs.InterestRateModel) interestRateModels;
         
         // storage gap
         uint256[50] ______gap;
