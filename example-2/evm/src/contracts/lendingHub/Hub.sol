@@ -7,9 +7,8 @@ import "./HubSetters.sol";
 import "./HubStructs.sol";
 import "./HubMessages.sol";
 import "./HubGetters.sol";
-import "./HubErrors.sol";
 
-contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
+contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
     constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
@@ -17,10 +16,15 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         setPyth(mockPythAddress_);
 
         setConsistencyLevel(consistencyLevel_);
-
     }
 
-    function registerAsset(address assetAddress, uint256 collateralizationRatio, uint256 reserveFactor, bytes32 pythId, uint8 decimals) public {
+    function registerAsset(
+        address assetAddress,
+        uint256 collateralizationRatio,
+        uint256 reserveFactor,
+        bytes32 pythId,
+        uint8 decimals
+    ) public {
         require(msg.sender == owner());
 
         // check if asset is already registered (potentially write a getter for the assetInfos map)
@@ -52,26 +56,23 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
     }
 
     function computeSourceInterestFactor(
-        uint256 secondsElapsed, 
-        uint256 deposited, 
-        uint256 borrowed, 
+        uint256 secondsElapsed,
+        uint256 deposited,
+        uint256 borrowed,
         InterestRateModel interestRateModel
     ) internal view returns (uint256) {
         if (deposited == 0) {
             return 0;
         }
 
-        return
-            (secondsElapsed * 
-                (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited)) /
-            365 /
-            24 /
-            60 /
-            60;
+        return (
+            secondsElapsed
+                * (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited)
+        ) / 365 / 24 / 60 / 60;
     }
 
     function updateAccrualIndices(address[] assetAddresses) internal {
-        for(uint i=0; i<assetAddresses.length; i++){
+        for (uint256 i = 0; i < assetAddresses.length; i++) {
             address assetAddress = assetAddresses[i];
 
             uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
@@ -84,12 +85,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
 
             InterestRateModel interestRateModel = getInterestRateModel(assetAddress);
 
-            uint256 interestFactor = computeSourceInterestFactor(
-                secondsElapsed,
-                deposited,
-                borrowed,
-                interestRateModel
-            );
+            uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
 
             AccrualIndices accrualIndices = getInterestAccrualIndices(assetAddress);
             accrualIndices.borrowed += interestFactor;
@@ -101,48 +97,51 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
     }
 
     function completeDeposit(bytes calldata encodedMessage) public {
+        // DepositPayload memory params = decodeDepositPayload(getWormholePayload(encodedMessage));
+        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
 
-        DepositMessage memory params = decodeDepositMessage(getWormholePayload(encodedMessage));
+        DepositPayload memory params = decodeDepositPayload(vmPayload);
 
         address depositor = params.header.sender;
+        address assetAddress = params.assetAddress;
+        uint256 amount = params.assetAmount;
 
-        checkValidAddresses(params.assetAddresses);
+        address[] assetAddresses = new address[](1);
+        assetAddresses[0] = assetAddress;
+
+        // TODO: What to do if this fails?
+        checkValidAddresses([assetAddress]);
 
         // update the interest accrual indices
-        updateAccrualIndices(params.assetAddresses);
+        updateAccrualIndices([assetAddress]);
 
-        // for each asset, calculate the normalized amount and store in the vault
-        // for each asset, update the global contract state with normalized amount
-        for(uint i=0; i<params.assetAddresses.length; i++){
-            address assetAddress = params.assetAddresses[i];
-            uint256 amount = params.assetAmounts[i];
+        // calculate the normalized amount and store in the vault
+        // update the global contract state with normalized amount
 
-            VaultAmount vault = getVaultAmounts(depositor, assetAddress);
-            VaultAmount globalAmounts = getGlobalAmounts(assetAddress);
+        VaultAmount vault = getVaultAmounts(depositor, assetAddress);
+        VaultAmount globalAmounts = getGlobalAmounts(assetAddress);
 
-            AccrualIndices indices = getInterestAccrualIndices(assetAddresses);
+        AccrualIndices indices = getInterestAccrualIndices([assetAddress]);
 
-            uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
+        uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
 
-            vault.deposited += normalizedDeposit;
-            globalAmounts.deposited += normalizedDeposit; // params.assetAmounts[i];
+        vault.deposited += normalizedDeposit;
+        globalAmounts.deposited += normalizedDeposit; // params.assetAmounts[i];
 
-            setVaultAmounts(depositor, assetAddress, vault);
-            setGlobalAmounts(assetAddress, globalAmounts);
+        setVaultAmounts(depositor, assetAddress, vault);
+        setGlobalAmounts(assetAddress, globalAmounts);
 
-            // TODO: token transfers--directly mint to the lending protocol
-            SafeERC20.safeTransferFrom(
+        // TODO: token transfers--directly mint to the lending protocol
+        /*SafeERC20.safeTransferFrom(
                 params.assetAddresses[i],
                 ,
                 address(this),
                 params.assetAmounts[i]
-            );
-        }        
+            );*/
     }
 
     function completeWithdraw(bytes calldata encodedMessage) public {
-
-        WithdrawMessage memory params = decodeWithdrawMessage(getWormholePayload(encodedMessage));
+        WithdrawPayload memory params = decodeWithdrawPayload(getWormholePayload(encodedMessage));
 
         address borrower = params.header.sender;
 
@@ -150,7 +149,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
 
         // get prices for assets
         uint64[params.assetAddresses.length] prices;
-        for(uint i=0; i<params.assetAddresses.length; i++){
+        for (uint256 i = 0; i < params.assetAddresses.length; i++) {
             prices[i] = getOraclePrices(params.assetAddresses[i]);
         }
 
@@ -161,7 +160,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         updateAccrualIndices(params.assetAddresses);
 
         // for each asset update amounts for vault and global
-        for(uint i=0; i<params.assetAddresses.length; i++){
+        for (uint256 i = 0; i < params.assetAddresses.length; i++) {
             address assetAddress = params.assetAddresses[i];
             uint256 amount = params.assetAmounts[i];
 
@@ -175,12 +174,10 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
             VaultAmount globalAmounts = getGlobalAmounts(assetAddress);
             globalAmounts.borrowed += normalizedAmount;
         }
-        
 
         // NOTE: interest payment handled by normalization within this function
 
         // TODO: token transfers (will fail if not enough tokens)
-
     }
 
     function completeBorrow(bytes calldata encodedMessage) public {
@@ -194,8 +191,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
     }
 
     function completeRepay(bytes calldata encodedMessage) public {
-
-        RepayMessage memory params = decodeRepayMessage(getWormholePayload(encodedMessage));
+        RepayPayload memory params = decodeRepayPayload(getWormholePayload(encodedMessage));
 
         address repayer = params.header.sender;
 
@@ -205,7 +201,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         updateAccrualIndices(params.assetAddresses);
 
         // TODO: for each asset, calculate the normalized amount and store in the vault and global
-        for(uint i=0; i<params.assetAddresses.length; i++){
+        for (uint256 i = 0; i < params.assetAddresses.length; i++) {
             address assetAddress = params.assetAddresses[i];
             uint256 amount = params.assetAmounts[i];
 
@@ -220,14 +216,12 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
             globalAmounts.borrowed -= normalizedAmount;
         }
 
-
         // TODO: token transfers (do you need this here? you should probably just transfer tokens directly to the lending protocol via relayer)
     }
 
     // TODO: rename "completeLiquidation" to Liquidate bc all liqs from hub...
     function completeLiquidation(bytes calldata encodedMessage) public {
-
-        LiquidationMessage memory params = decodeLiquidationMessage(getWormholePayload(encodedMessage));
+        LiquidationPayload memory params = decodeLiquidationPayload(getWormholePayload(encodedMessage));
 
         address liquidator = params.header.sender;
         address vault = params.vault;
@@ -237,25 +231,33 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
 
         // get prices for assets used for repay
         uint64[params.assetRepayAddresses.length] pricesRepay;
-        for(uint i=0; i<params.assetAddresses.length; i++){
+        for (uint256 i = 0; i < params.assetAddresses.length; i++) {
             pricesRepay[i] = getOraclePrices(params.assetRepayAddresses[i]);
         }
         // get prices for assets received
         uint64[params.assetReceiptAddresses.length] pricesReceipt;
-        for(uint i=0; i<params.assetAddresses.length; i++){
+        for (uint256 i = 0; i < params.assetAddresses.length; i++) {
             pricesReceipt[i] = getOraclePrices(params.assetReceiptAddresses[i]);
         }
 
         // TODO: check if vault under water
         // TODO: check if this repayment is valid (i.e. notional_repaid < notional_received < notional_repaid * liquidation_bonus)
-        allowedToLiquidate(vault, params.assetRepayAddresses, params.assetRepayAmounts, pricesRepay, params.assetReceiptAddresses, params.assetReceiptAmounts, pricesReceipt);
+        allowedToLiquidate(
+            vault,
+            params.assetRepayAddresses,
+            params.assetRepayAmounts,
+            pricesRepay,
+            params.assetReceiptAddresses,
+            params.assetReceiptAmounts,
+            pricesReceipt
+        );
 
         // update the interest accrual indices
         updateAccrualIndices(params.assetRepayAddresses);
         updateAccrualIndices(params.assetReceiptAddresses);
 
         // for each repay asset update amounts for vault and global
-        for(uint i=0; i<params.assetRepayAddresses.length; i++){
+        for (uint256 i = 0; i < params.assetRepayAddresses.length; i++) {
             address assetAddress = params.assetRepayAddresses[i];
             uint256 amount = params.assetRepayAmounts[i];
 
@@ -267,7 +269,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         }
 
         // for each received asset update amounts for vault and global
-        for(uint i=0; i<params.assetReceiptAddresses.length; i++){
+        for (uint256 i = 0; i < params.assetReceiptAddresses.length; i++) {
             address assetAddress = params.assetReceiptAddresses[i];
             uint256 amount = params.assetReceiptAmounts[i];
 
@@ -278,34 +280,20 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
             // TODO: how to update state for global??
         }
 
-
-
-
-
-
-
-
-
-
         // TODO: for each repay asset check if allowed
 
         // TODO: update the interest accrual indices
 
         // TODO: for each repay asset, calculate the normalized amount and store in the vault
 
-
         // TODO: token transfers
-
     }
 
     function repay() public {}
 
     function liquidate(address vault, address[] memory tokens) public {}
 
-    function sendWormholeMessage(bytes memory payload)
-        internal
-        returns (uint64 sequence)
-    {
+    function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
         sequence = wormhole().publishMessage(
             0, // nonce
             payload,
@@ -314,11 +302,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
     }
 
     function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
-        (
-            IWormhole.VM memory parsed,
-            bool valid,
-            string memory reason
-        ) = wormhole().parseAndVerifyVM(encodedMessage);
+        (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);
 
         verifySenderIsSpoke(parsed.emitterChainId, address(uint160(bytes20(parsed.emitterAddress))));
@@ -327,7 +311,5 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         consumeMessageHash(parsed.hash);
 
         return parsed.payload;
-    } 
-
-    
+    }
 }

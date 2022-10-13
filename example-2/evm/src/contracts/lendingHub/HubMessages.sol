@@ -8,7 +8,7 @@ import "./HubStructs.sol";
 contract HubMessages {
     using BytesLib for bytes;
 
-    function encodeMessageHeader(HubStructs.MessageHeader memory header)
+    function encodePayloadHeader(HubStructs.PayloadHeader memory header)
         internal
         pure
         returns (bytes memory)
@@ -19,7 +19,7 @@ contract HubMessages {
             );
     }
 
-    function encodeDepositMessage(HubStructs.DepositMessage memory message)
+    function encodeDepositPayload(HubStructs.DepositPayload memory payload)
         internal
         pure
         returns (bytes memory)
@@ -27,14 +27,13 @@ contract HubMessages {
         return
             abi.encodePacked(
                 uint8(1), // payloadID
-                encodeMessageHeader(message.header),
-                message.assetAddresses.length,
-                message.assetAddresses,
-                message.assetAmounts
+                encodePayloadHeader(payload.header),
+                payload.assetAddress,
+                payload.assetAmount
             );
     }
 
-    function encodeWithdrawMessage(HubStructs.WithdrawMessage memory message)
+    function encodeWithdrawPayload(HubStructs.WithdrawPayload memory payload)
         internal
         pure
         returns (bytes memory)
@@ -42,14 +41,13 @@ contract HubMessages {
         return
             abi.encodePacked(
                 uint8(2), // payloadID
-                encodeMessageHeader(message.header),
-                message.assetAddresses.length,
-                message.assetAddresses,
-                message.assetAmounts
+                encodePayloadHeader(payload.header),
+                payload.assetAddress,
+                payload.assetAmount
             );
     }
 
-    function encodeBorrowMessage(HubStructs.BorrowMessage memory message)
+    function encodeBorrowPayload(HubStructs.BorrowPayload memory payload)
         internal
         pure
         returns (bytes memory)
@@ -57,14 +55,13 @@ contract HubMessages {
         return
             abi.encodePacked(
                 uint8(3), // payloadID
-                encodeMessageHeader(message.header),
-                message.assetAddresses.length,
-                message.assetAddresses,
-                message.assetAmounts
+                encodePayloadHeader(payload.header),
+                payload.assetAddress,
+                payload.assetAmount
             );
     }
 
-    function encodeRepayMessage(HubStructs.RepayMessage memory message)
+    function encodeRepayPayload(HubStructs.RepayPayload memory payload)
         internal
         pure
         returns (bytes memory)
@@ -72,14 +69,14 @@ contract HubMessages {
         return
             abi.encodePacked(
                 uint8(4), // payloadID
-                encodeMessageHeader(message.header),
-                message.assetAddresses.length,
-                message.assetAddresses,
-                message.assetAmounts
+                encodePayloadHeader(payload.header),
+                payload.assetAddress,
+                payload.assetAmount
             );
     }
 
-    function encodeLiquidationMessage(HubStructs.LiquidationMessage memory message)
+    /*
+    function encodeLiquidationPayload(HubStructs.LiquidationPayload memory payload)
         internal
         pure
         returns (bytes memory)
@@ -87,21 +84,22 @@ contract HubMessages {
         return
             abi.encodePacked(
                 uint8(5), // payloadID
-                encodeMessageHeader(message.header),
-                message.vault,
-                message.assetRepayAddresses.length,
-                message.assetRepayAddresses,
-                message.assetRepayAmounts,
-                message.assetReceiptAddresses.length,
-                message.assetReceiptAddresses,
-                message.assetReceiptAmounts
+                encodePayloadHeader(payload.header),
+                payload.vault,
+                payload.assetRepayAddresses.length,
+                payload.assetRepayAddresses,
+                payload.assetRepayAmounts,
+                payload.assetReceiptAddresses.length,
+                payload.assetReceiptAddresses,
+                payload.assetReceiptAmounts
             );
     }
+    */
 
-    function decodeMessageHeader(bytes memory serialized)
+    function decodePayloadHeader(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.MessageHeader memory header)
+        returns (HubStructs.PayloadHeader memory header)
     {
         uint256 index = 0;
 
@@ -113,154 +111,134 @@ contract HubMessages {
 
     }
 
-    function decodeDepositMessage(bytes memory serialized)
+    function decodeDepositPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.DepositMessage memory params)
+        returns (HubStructs.DepositPayload memory params)
     {
         uint256 index = 0;
 
-        // parse the message header
-        params.header = decodeMessageHeader(
+        // parse the payload header
+        params.header = decodePayloadHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 1, "invalid message");
+        require(params.header.payloadID == 1, "invalid payload");
         index += 21;
-        uint32 length = serialized.toUint32(index);
-        index += 4;
+       
+        // parse the asset address
+        address assetAddress = serialized.toAddress(index);
+        index += 20;
 
-        // parse the asset addresses
-        address[] memory assetAddresses = new address[](length);
-        for(uint i=0; i<length; i++){
-            assetAddresses[i] = serialized.toAddress(index);
-            index += 20;
-        }
-        params.assetAddresses = assetAddresses;
+        params.assetAddress = assetAddress;
         
-        // parse the asset amounts
-        uint256[] memory assetAmounts = new uint256[](length);
-        for(uint i=0; i<length; i++){
-            assetAmounts[i] = serialized.toUint256(index);
-            index += 32;
-        }
-        params.assetAmounts = assetAmounts;
+        // parse the asset amount
+        uint256 assetAmount = serialized.toUint256(index);
+        index += 32;
+        
+        params.assetAmount = assetAmount;
     }
 
     
-    function decodeWithdrawMessage(bytes memory serialized)
+    function decodeWithdrawPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.WithdrawMessage memory params)
+        returns (HubStructs.WithdrawPayload memory params)
     {
         uint256 index = 0;
 
-        // parse the message header
-        params.header = decodeMessageHeader(
+        // parse the payload header
+        params.header = decodePayloadHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 2, "invalid message");
+        require(params.header.payloadID == 2, "invalid payload");
         index += 21;
-        uint32 length = serialized.toUint32(index);
-        index += 4;
+       
 
-        // parse the asset addresses
-        address[] memory assetAddresses = new address[](length);
-        for(uint i=0; i<length; i++){
-            assetAddresses[i] = serialized.toAddress(index);
-            index += 20;
-        }
-        params.assetAddresses = assetAddresses;
+        // parse the asset address
+        address assetAddress = serialized.toAddress(index);
+        index += 20;
+
+        params.assetAddress = assetAddress;
         
-        // parse the asset amounts
-        uint256[] memory assetAmounts = new uint256[](length);
-        for(uint i=0; i<length; i++){
-            assetAmounts[i] = serialized.toUint256(index);
-            index += 32;
-        }
-        params.assetAmounts = assetAmounts;
+        // parse the asset amount
+        uint256 assetAmount = serialized.toUint256(index);
+        index += 32;
+        
+        params.assetAmount = assetAmount;
     }
     
-    function decodeBorrowMessage(bytes memory serialized)
+    function decodeBorrowPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.BorrowMessage memory params)
+        returns (HubStructs.BorrowPayload memory params)
     {
         uint256 index = 0;
 
-        // parse the message header
-        params.header = decodeMessageHeader(
+        // parse the payload header
+        params.header = decodePayloadHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 3, "invalid message");
+        require(params.header.payloadID == 3, "invalid payload");
         index += 21;
-        uint32 length = serialized.toUint32(index);
-        index += 4;
+       
 
-        // parse the asset addresses
-        address[] memory assetAddresses = new address[](length);
-        for(uint i=0; i<length; i++){
-            assetAddresses[i] = serialized.toAddress(index);
-            index += 20;
-        }
-        params.assetAddresses = assetAddresses;
+        // parse the asset address
+        address assetAddress = serialized.toAddress(index);
+        index += 20;
+
+        params.assetAddress = assetAddress;
         
-        // parse the asset amounts
-        uint256[] memory assetAmounts = new uint256[](length);
-        for(uint i=0; i<length; i++){
-            assetAmounts[i] = serialized.toUint256(index);
-            index += 32;
-        }
-        params.assetAmounts = assetAmounts;
+        // parse the asset amount
+        uint256 assetAmount = serialized.toUint256(index);
+        index += 32;
+        
+        params.assetAmount = assetAmount;
     }
     
-    function decodeRepayMessage(bytes memory serialized)
+    function decodeRepayPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.RepayMessage memory params)
+        returns (HubStructs.RepayPayload memory params)
     {
         uint256 index = 0;
 
-        // parse the message header
-        params.header = decodeMessageHeader(
+        // parse the payload header
+        params.header = decodePayloadHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 4, "invalid message");
+        require(params.header.payloadID == 4, "invalid payload");
         index += 21;
-        uint32 length = serialized.toUint32(index);
-        index += 4;
-
-        // parse the asset addresses
-        address[] memory assetAddresses = new address[](length);
-        for(uint i=0; i<length; i++){
-            assetAddresses[i] = serialized.toAddress(index);
-            index += 20;
-        }
-        params.assetAddresses = assetAddresses;
         
-        // parse the asset amounts
-        uint256[] memory assetAmounts = new uint256[](length);
-        for(uint i=0; i<length; i++){
-            assetAmounts[i] = serialized.toUint256(index);
-            index += 32;
-        }
-        params.assetAmounts = assetAmounts;
+
+        // parse the asset address
+        address assetAddress = serialized.toAddress(index);
+        index += 20;
+
+        params.assetAddress = assetAddress;
+        
+        // parse the asset amount
+        uint256 assetAmount = serialized.toUint256(index);
+        index += 32;
+        
+        params.assetAmount = assetAmount;
     }
     
-    function decodeLiquidationMessage(bytes memory serialized)
+    /*
+    function decodeLiquidationPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.LiquidationMessage memory params)
+        returns (HubStructs.LiquidationPayload memory params)
     {
         uint256 index = 0;
 
-        // parse the message header
-        params.header = decodeMessageHeader(
+        // parse the payload header
+        params.header = decodePayloadHeader(
             serialized.slice(index, index + 21)
         );
-        require(params.header.payloadID == 5, "invalid message");
+        require(params.header.payloadID == 5, "invalid payload");
         index += 21;
         
-        // repay section of the message
+        // repay section of the payload
         uint32 repayLength = serialized.toUint32(index);
         index += 4;
 
@@ -281,7 +259,7 @@ contract HubMessages {
         params.assetRepayAmounts = assetRepayAmounts;
         
         
-        // receipt section of the message
+        // receipt section of the payload
         uint32 receiptLength = serialized.toUint32(index);
         index += 4;
 
@@ -301,7 +279,7 @@ contract HubMessages {
         }
         params.assetReceiptAmounts = assetReceiptAmounts;
     }
-
+    */
 
 
 }

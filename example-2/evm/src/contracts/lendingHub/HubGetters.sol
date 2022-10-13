@@ -5,15 +5,16 @@ import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
-
+import "../../interfaces/IMockPyth.sol";
+import "./HubStructs.sol";
 import "./HubState.sol";
 
-contract HubGetters is HubState, Context {
+contract HubGetters is Context, HubStructs, HubState {
     function owner() public view returns (address) {
         return _state.owner;
     }
 
-    function chainId() public view returns (uint16) {
+    function getChainId() public view returns (uint16) {
         return _state.provider.chainId;
     }
 
@@ -35,6 +36,10 @@ contract HubGetters is HubState, Context {
 
     function getSpokeContract(uint16 chainId) internal view returns (address) {
         return _state.spokeContracts[chainId];
+    }
+
+     function mockPyth() internal view returns (IMockPyth) {
+        return IMockPyth(_state.mockPythAddress);
     }
 
     function messageHashConsumed(bytes32 vmHash) internal view returns (bool) {
@@ -105,19 +110,19 @@ contract HubGetters is HubState, Context {
 
             VaultAmount normalizedAmounts = getVaultAmounts(vaultOwner, assetAddress);
 
-            AccrualIndices indices = getInterestAccrualIndices(params.assetAddresses[i]);
+            AccrualIndices indices = getInterestAccrualIndices(assetAddress);
             
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
                     
-            effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
-            effectiveNotionalBorrowed += (denormalizedBorrowed + assetAmount) * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals);
+            effectiveNotionalDeposited += denormalizedDeposited * assetPrice / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += (denormalizedBorrowed + assetAmount) * assetInfo.collateralizationRatio * assetPrice / (10**assetInfo.decimals);
         }       
 
         return (effectiveNotionalDeposited >= effectiveNotionalBorrowed);
     }
 
-    function allowedToLiquidate(address vault, params.assetRepayAddresses, params.assetRepayAmounts, pricesRepay, params.assetReceiptAddresses, params.assetReceiptAmounts, pricesReceipt){
+    function allowedToLiquidate(address vault, address[] assetRepayAddresses, address[] assetRepayAmounts, uint64[] pricesRepay, address[] assetReceiptAddresses, uint256[] assetReceiptAmounts, uint64[] pricesReceipt) internal view returns (bool) {
         bool underwater = checkUnderwater(vault);
 
 
@@ -127,8 +132,8 @@ contract HubGetters is HubState, Context {
 
     function checkUnderwater(address vault) internal view returns (bool){
         address[] allowList = getAllowList();
-        uint256 notionalDeposited = 0;
-        uint256 notionalBorrowed = 0;
+        uint256 effectiveNotionalDeposited = 0;
+        uint256 effectiveNotionalBorrowed = 0;
 
         for(uint i=0; i<allowList.length; i++){
             address assetAddress = allowList[i];
@@ -145,21 +150,17 @@ contract HubGetters is HubState, Context {
         return (effectiveNotionalDeposited < effectiveNotionalBorrowed);
     }
 
-    function checkValidAddresses(address[] assetAddresses) {
+    function checkValidAddresses(address[] assetAddresses) internal view {
         mapping(address => bool) observedAssets;
 
         for(uint i=0; i<assetAddresses.length; i++){
             address assetAddress = assetAddresses[i];
             // check if asset address is allowed
             AssetInfo registered_info = getAssetInfo(assetAddress);
-            if (!registered_info.isValue){
-                revert UnregisteredAsset(assetAddress);
-            }
+            require(registered_info.isValue, "Unregistered asset");
 
             // check if each address is unique
-            if (observedAssets[assetAddress]){
-                revert AlreadyObservedAsset(assetAddress);
-            }
+            require(!observedAssets[assetAddress], "Repeated asset");
 
             observedAssets[assetAddress] = true;
         }
