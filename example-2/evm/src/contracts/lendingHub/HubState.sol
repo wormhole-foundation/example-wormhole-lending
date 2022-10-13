@@ -25,6 +25,9 @@ contract HubStorage is HubStructs {
         // allowlist for tokens
         address[] allowList;
 
+        // mock Pyth address
+        address mockPythAddress;
+
         // allowlist for spoke contracts
         mapping(uint16 => address) spokeContracts;
 

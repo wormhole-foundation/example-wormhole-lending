@@ -30,7 +30,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.consistencyLevel;
     }
 
-    function getAllowList() internal view returns (address[] storage) {
+    function getAllowList() internal view returns (address[] memory) {
         return _state.allowList;
     }
 
@@ -46,7 +46,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.consumedMessages[vmHash];
     }
 
-    function getAssetInfo(address assetAddress) internal view returns (AssetInfo storage) {
+    function getAssetInfo(address assetAddress) internal view returns (AssetInfo memory) {
         return _state.assetInfos[assetAddress];
     }
 
@@ -62,19 +62,19 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.totalAssets[assetAddress].borrowed;
     }
 
-    function getInterestRateModel(address assetAddress) internal view returns (InterestRateModel storage) {
+    function getInterestRateModel(address assetAddress) internal view returns (InterestRateModel memory) {
         return _state.interestRateModels[assetAddress];
     }
 
-    function getInterestAccrualIndices(address assetAddress) internal view returns (AccrualIndices storage) {
+    function getInterestAccrualIndices(address assetAddress) internal view returns (AccrualIndices memory) {
         return _state.indices[assetAddress];
     }
 
-    function getVaultAmounts(address vaultOwner, address assetAddress) internal view returns (VaultAmount storage) {
+    function getVaultAmounts(address vaultOwner, address assetAddress) internal view returns (VaultAmount memory) {
         return _state.vault[vaultOwner][assetAddress];
     } 
 
-    function getGlobalAmounts(address assetAddress) internal view returns (VaultAmount storage) {
+    function getGlobalAmounts(address assetAddress) internal view returns (VaultAmount memory) {
         return _state.totalAssets[assetAddress];
     }
 
@@ -87,7 +87,9 @@ contract HubGetters is Context, HubStructs, HubState {
     }
 
     function getOraclePrices(address assetAddress) internal view returns (uint64) {
-        IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetAddress);
+        AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+
+        IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetInfo.pythId);
 
         // sanity check the price feeds
         require(feed.price.price > 0, "negative prices detected");
@@ -98,31 +100,39 @@ contract HubGetters is Context, HubStructs, HubState {
     }
 
     // TODO: cycle through all assets in the vault
-    function allowedToWithdraw(address vaultOwner, address[] calldata assetAddresses, address[] calldata assetAmounts, uint64[] calldata prices) internal view returns (bool) {       
+    function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
-        for(uint i=0; i<assetAddresses.length; i++) {
-            address assetAddress = assetAddresses[i];
-            uint256 assetAmount = assetAmounts[i];
-            uint256 assetPrice = prices[i];
-            AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+        address[] memory allowList = getAllowList();
 
-            VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, assetAddress);
+        for(uint i=0; i<allowList.length; i++) {
+            address asset = allowList[i];
 
-            AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+            uint64 price = getOraclePrices(asset);
+            
+            AssetInfo memory assetInfo = getAssetInfo(asset);
+
+            VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, asset);
+
+            AccrualIndices memory indices = getInterestAccrualIndices(asset);
             
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
-                    
-            effectiveNotionalDeposited += denormalizedDeposited * assetPrice / (10**assetInfo.decimals);
-            effectiveNotionalBorrowed += (denormalizedBorrowed + assetAmount) * assetInfo.collateralizationRatio * assetPrice / (10**assetInfo.decimals);
+
+            effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += (denormalizedBorrowed + assetAmount) * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals);
+        
+            if(asset == assetAddress){
+                require(assetAmount <= denormalizedDeposited, "Not enough deposited to withdraw");
+                effectiveNotionalDeposited -= assetAmount * price / (10**assetInfo.decimals);
+            }
         }       
 
         return (effectiveNotionalDeposited >= effectiveNotionalBorrowed);
     }
 
-    function allowedToLiquidate(address vault, address[] calldata assetRepayAddresses, address[] calldata assetRepayAmounts, uint64[] pricesRepay, address[] calldata assetReceiptAddresses, uint256[] calldata assetReceiptAmounts, uint64[] calldata pricesReceipt) internal view returns (bool) {
+    function allowedToLiquidate(address vault, address[] memory assetRepayAddresses, address[] memory assetRepayAmounts, uint64[] memory pricesRepay, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts, uint64[] memory pricesReceipt) internal view returns (bool) {
         bool underwater = checkUnderwater(vault);
 
 
@@ -167,9 +177,9 @@ contract HubGetters is Context, HubStructs, HubState {
             require(registered_info.isValue, "Unregistered asset");
 
             // check if each address is unique
-            require(!observedAssets[assetAddress], "Repeated asset");
+            // require(!observedAssets[assetAddress], "Repeated asset");
 
-            observedAssets[assetAddress] = true;
+            // observedAssets[assetAddress] = true;
         }
     }*/
 }

@@ -278,8 +278,8 @@ contract HubMessages is HubStructs {
             index += 32;
         }
         params.assetReceiptAmounts = assetReceiptAmounts;
-    }
-    */
+    }*/    
 
 
 }
+

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./HubState.sol";
 import "./HubStructs.sol";
 
-contract HubSetters is HubState {
+contract HubSetters is HubStructs, HubState {
     function setOwner(address owner) internal {
         _state.owner = owner;
     }
@@ -33,7 +33,7 @@ contract HubSetters is HubState {
         _state.spokeContracts[chainId] = spokeContractAddress;
     }
 
-    function registerAssetInfo(address assetAddress, HubStructs.AssetInfo calldata info) internal {
+    function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
         _state.assetInfos[assetAddress] = info;
     }
 
@@ -49,15 +49,15 @@ contract HubSetters is HubState {
         _state.lastActivityBlockTimestamps[assetAddress] = blockTimestamp;
     }
 
-    function setInterestAccrualIndices(address assetAddress, HubStructs.AccrualIndices calldata indices) internal {
+    function setInterestAccrualIndices(address assetAddress, AccrualIndices memory indices) internal {
         _state.indices[assetAddress] = indices;
     }
 
-    function setVaultAmounts(address vaultOwner, address assetAddress, HubStructs.VaultAmount calldata vaultAmount) internal {
+    function setVaultAmounts(address vaultOwner, address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.vault[vaultOwner][assetAddress] = vaultAmount;
     } 
 
-    function setGlobalAmounts(address assetAddress, HubStructs.VaultAmount calldata vaultAmount) internal {
+    function setGlobalAmounts(address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.totalAssets[assetAddress] = vaultAmount;
     } 
 }
