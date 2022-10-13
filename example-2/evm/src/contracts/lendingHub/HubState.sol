@@ -49,6 +49,9 @@ contract HubStorage {
         // interest rate models
         mapping(address => HubStructs.InterestRateModel) interestRateModels;
         
+        // interest accrual rate precision level
+        uint256 interestAccrualIndexPrecision;
+
         // storage gap
         uint256[50] ______gap;
     }

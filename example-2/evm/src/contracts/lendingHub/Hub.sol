@@ -20,7 +20,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
 
     }
 
-    function registerAsset(address assetAddress, uint256 collateralizationRatio, uint256 reserveFactor, bytes32 pythId) public {
+    function registerAsset(address assetAddress, uint256 collateralizationRatio, uint256 reserveFactor, bytes32 pythId, uint8 decimals) public {
         require(msg.sender == owner());
 
         // check if asset is already registered (potentially write a getter for the assetInfos map)
@@ -34,6 +34,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
                 collaterizationRatio: collateralizationRatio,
                 reserveFactor: reserveFactor,
                 pythId: pythId,
+                decimals: decimals,
                 isValue: true
             });
 
@@ -90,7 +91,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
                 interestRateModel
             );
 
-            uint256 accrualIndices = getInterestAccrualIndices(assetAddress);
+            AccrualIndices accrualIndices = getInterestAccrualIndices(assetAddress);
             accrualIndices.borrowed += interestFactor;
             accrualIndices.deposited += (interestFactor * borrowed) / deposited;
             accrualIndices.lastBlock = block.timestamp;
@@ -105,55 +106,73 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
 
         address depositor = params.header.sender;
 
-        mapping(address => bool) observedAssets;
-
-        for(uint i=0; i<params.assetAddresses.length; i++){
-            address assetAddress = params.assetAddresses[i];
-            // check if asset address is allowed
-            AssetInfo registered_info = getAssetInfo(assetAddresses);
-            if (!registered_info.isValue){
-                revert UnregisteredAsset(assetAddresses);
-            }
-
-            // check if each address is unique
-            if (observedAssets[assetAddress]){
-                revert AlreadyObservedAsset(assetAddress);
-            }
-
-            observedAssets[assetAddress] = true;
-        }
+        checkValidAddresses(params.assetAddresses);
 
         // update the interest accrual indices
         updateAccrualIndices(params.assetAddresses);
 
-        // for each asset, calculate the normalized amount (??) and store in the vault
-        // for each asset, update the global contract state
+        // for each asset, calculate the normalized amount and store in the vault
+        // for each asset, update the global contract state with normalized amount (??)
         for(uint i=0; i<params.assetAddresses.length; i++){
             VaultAmount vault = getVaultAmounts(depositor, params.assetAddress[i]);
             VaultAmount globalAmounts = getGlobalAmounts(params.assetAddress[i]);
 
-            vault.deposited += params.assetAmounts[i];
-            globalAmounts.deposited += params.assetAmounts[i];
+            AccrualIndices indices = getInterestAccrualIndices(params.assetAddresses[i]);
+
+            uint256 normalizedDeposit = normalizeAmount(params.assetAmounts[i].deposited, indices.deposited);
+
+            vault.deposited += normalizedDeposit;
+            globalAmounts.deposited += normalizedDeposit; // params.assetAmounts[i];
 
             setVaultAmounts(depositor, params.assetAddresses[i], vault);
             setGlobalAmounts(params.assetAddresses[i], globalAmounts);
 
-            // TODO: token transfers (do you need this here? you should probably just transfer tokens directly to the lending protocol via relayer)
-            
+            // TODO: token transfers--directly mint to the lending protocol
+            SafeERC20.safeTransferFrom(
+                params.assetAddresses[i],
+                ,
+                address(this),
+                params.assetAmounts[i]
+            );
         }        
     }
 
     function completeWithdraw(bytes calldata encodedMessage) public {
 
-        // TODO: want to recheck if withdraw is valid given up to date prices? bc the prices can move in the time for VAA to come
-
         WithdrawMessage memory params = decodeWithdrawMessage(getWormholePayload(encodedMessage));
 
+        address borrower = params.header.sender;
+
+        checkValidAddresses(params.assetAddresses);
+
+        // get prices for assets
+        uint64[params.assetAddresses.length] prices;
+        for(uint i=0; i<params.assetAddresses.length; i++){
+            prices[i] = getOraclePrices(params.assetAddresses[i]);
+        }
+
+        // recheck if withdraw is valid given up to date prices? bc the prices can move in the time for VAA to come
+        allowedToWithdraw(borrower, params.assetAddresses, params.assetAmounts, prices);
+
+        // update the interest accrual indices
+        updateAccrualIndices(params.assetAddresses);
+
+        // for each asset update amounts for vault and global
+        for(uint i=0; i<params.assetAddresses.length; i++){
+            uint256 amount = params.assetAmounts[i];
+            AccrualIndices indices = getInterestAccrualIndices(params.assetAddress[i]);
+
+            uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed);
+            // update state for vault
+            VaultAmount vaultAmounts = getVaultAmounts(borrower, params.assetAddresses[i]);
+            vaultAmounts.borrowed += normalizedAmount;
+            // update state for global
+            VaultAmount globalAmounts = getGlobalAmounts(params.assetAddresses[i]);
+            globalAmounts.borrowed += normalizedAmount;
+        }
+        
+
         // NOTE: interest payment handled by normalization within this function
-
-        // TODO: for each asset, calculate the normalized amount that can be withdrawn, fail if not as much as requested
-
-        // TODO: update the contract state (assets withdrawn)
 
         // TODO: token transfers (will fail if not enough tokens)
 

@@ -18,6 +18,7 @@ contract HubStructs {
         uint256 reserveFactor;
         bytes32 pythId;
         // pyth id info
+        uint8 decimals;
         bool isValue;
     }
 
