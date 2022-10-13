@@ -223,7 +223,7 @@ contract HubMessages {
         params.assetAmount = assetAmount;
     }
     
-    /*
+
     function decodeLiquidationPayload(bytes memory serialized)
         internal
         pure
@@ -279,7 +279,6 @@ contract HubMessages {
         }
         params.assetReceiptAmounts = assetReceiptAmounts;
     }
-    */
 
 
 }

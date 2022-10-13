@@ -30,7 +30,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.consistencyLevel;
     }
 
-    function getAllowList() internal view returns (address[]) {
+    function getAllowList() internal view returns (address[] memory) {
         return _state.allowList;
     }
 
@@ -46,7 +46,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.consumedMessages[vmHash];
     }
 
-    function getAssetInfo(address assetAddress) internal view returns (HubStructs.AssetInfo) {
+    function getAssetInfo(address assetAddress) internal view returns (HubStructs.AssetInfo memory) {
         return _state.assetInfos[assetAddress];
     }
 
@@ -62,19 +62,19 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.totalAssets[assetAddress].borrowed;
     }
 
-    function getInterestRateModel(address assetAddress) internal view returns (InterestRateModel) {
+    function getInterestRateModel(address assetAddress) internal view returns (InterestRateModel memory) {
         return _state.interestRateModels[assetAddress];
     }
 
-    function getInterestAccrualIndices(address assetAddress) internal view returns (AccrualIndices) {
+    function getInterestAccrualIndices(address assetAddress) internal view returns (AccrualIndices memory) {
         return _state.indices[assetAddress];
     }
 
-    function getVaultAmounts(address vaultOwner, address assetAddress) internal view returns (VaultAmount) {
+    function getVaultAmounts(address vaultOwner, address assetAddress) internal view returns (VaultAmount memory) {
         return _state.vault[vaultOwner][assetAddress];
     } 
 
-    function getGlobalAmounts(address assetAddress) internal view returns (VaultAmount) {
+    function getGlobalAmounts(address assetAddress) internal view returns (VaultAmount memory) {
         return _state.totalAssets[assetAddress];
     }
 
@@ -87,7 +87,9 @@ contract HubGetters is Context, HubStructs, HubState {
     }
 
     function getOraclePrices(address assetAddress) internal view returns (uint64) {
-        IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetAddress);
+        AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+
+        IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetInfo.pythId);
 
         // sanity check the price feeds
         require(feed.price.price > 0, "negative prices detected");
@@ -98,31 +100,39 @@ contract HubGetters is Context, HubStructs, HubState {
     }
 
     // TODO: cycle through all assets in the vault
-    function allowedToWithdraw(address vaultOwner, address[] assetAddresses, address[] assetAmounts, uint64[] prices) internal view returns (bool) {       
+    function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
-        for(uint i=0; i<assetAddresses.length; i++) {
-            address assetAddress = assetAddresses[i];
-            uint256 assetAmount = assetAmounts[i];
-            uint256 assetPrice = prices[i];
-            AssetInfo assetInfo = getAssetInfo(assetAddress);
+        address[] memory allowList = getAllowList();
 
-            VaultAmount normalizedAmounts = getVaultAmounts(vaultOwner, assetAddress);
+        for(uint i=0; i<allowList.length; i++) {
+            address asset = allowList[i];
 
-            AccrualIndices indices = getInterestAccrualIndices(assetAddress);
+            uint64 price = getOraclePrices(asset);
+            
+            AssetInfo memory assetInfo = getAssetInfo(asset);
+
+            VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, asset);
+
+            AccrualIndices memory indices = getInterestAccrualIndices(asset);
             
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
-                    
-            effectiveNotionalDeposited += denormalizedDeposited * assetPrice / (10**assetInfo.decimals);
-            effectiveNotionalBorrowed += (denormalizedBorrowed + assetAmount) * assetInfo.collateralizationRatio * assetPrice / (10**assetInfo.decimals);
+
+            effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += (denormalizedBorrowed + assetAmount) * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals);
+        
+            if(asset == assetAddress){
+                require(assetAmount <= denormalizedDeposited, "Not enough deposited to withdraw");
+                effectiveNotionalDeposited -= assetAmount * price / (10**assetInfo.decimals);
+            }
         }       
 
         return (effectiveNotionalDeposited >= effectiveNotionalBorrowed);
     }
 
-    function allowedToLiquidate(address vault, address[] assetRepayAddresses, address[] assetRepayAmounts, uint64[] pricesRepay, address[] assetReceiptAddresses, uint256[] assetReceiptAmounts, uint64[] pricesReceipt) internal view returns (bool) {
+    function allowedToLiquidate(address vault, address[] memory assetRepayAddresses, address[] memory assetRepayAmounts, uint64[] memory pricesRepay, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts, uint64[] memory pricesReceipt) internal view returns (bool) {
         bool underwater = checkUnderwater(vault);
 
 
@@ -131,16 +141,16 @@ contract HubGetters is Context, HubStructs, HubState {
     }
 
     function checkUnderwater(address vault) internal view returns (bool){
-        address[] allowList = getAllowList();
+        address[] memory allowList = getAllowList();
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
         for(uint i=0; i<allowList.length; i++){
             address assetAddress = allowList[i];
 
-            VaultAmount vaultAmount = getVaultAmounts(vault, assetAddress);
-            AccrualIndices indices = getInterestAccrualIndices(assetAddress);
-            AssetInfo assetInfo = getAssetInfo(assetAddress);
+            VaultAmount memory vaultAmount = getVaultAmounts(vault, assetAddress);
+            AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+            AssetInfo memory assetInfo = getAssetInfo(assetAddress);
             uint64 price = getOraclePrices(assetAddress);
 
             effectiveNotionalDeposited += denormalizeAmount(vaultAmount.deposited, indices.deposited) * price / (10**assetInfo.decimals);
@@ -150,19 +160,19 @@ contract HubGetters is Context, HubStructs, HubState {
         return (effectiveNotionalDeposited < effectiveNotionalBorrowed);
     }
 
-    function checkValidAddresses(address[] assetAddresses) internal view {
-        mapping(address => bool) observedAssets;
+    function checkValidAddresses(address[] memory assetAddresses) internal view {
+        // mapping(address => bool) memory observedAssets;
 
         for(uint i=0; i<assetAddresses.length; i++){
             address assetAddress = assetAddresses[i];
             // check if asset address is allowed
-            AssetInfo registered_info = getAssetInfo(assetAddress);
+            AssetInfo memory registered_info = getAssetInfo(assetAddress);
             require(registered_info.isValue, "Unregistered asset");
 
             // check if each address is unique
-            require(!observedAssets[assetAddress], "Repeated asset");
+            // require(!observedAssets[assetAddress], "Repeated asset");
 
-            observedAssets[assetAddress] = true;
+            // observedAssets[assetAddress] = true;
         }
     }
 }

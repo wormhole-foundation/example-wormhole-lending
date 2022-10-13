@@ -33,7 +33,7 @@ contract HubSetters is HubState {
         _state.spokeContracts[chainId] = spokeContractAddress;
     }
 
-    function registerAssetInfo(address assetAddress, HubStructs.AssetInfo calldata info) internal {
+    function registerAssetInfo(address assetAddress, HubStructs.AssetInfo memory info) internal {
         _state.assetInfos[assetAddress] = info;
     }
 
@@ -49,15 +49,15 @@ contract HubSetters is HubState {
         _state.lastActivityBlockTimestamps[assetAddress] = blockTimestamp;
     }
 
-    function setInterestAccrualIndex(address assetAddress, HubStructs.AccrualIndices calldata indices) internal {
+    function setInterestAccrualIndex(address assetAddress, HubStructs.AccrualIndices memory indices) internal {
         _state.indices[assetAddress] = indices;
     }
 
-    function setVaultAmounts(address vaultOwner, address assetAddress, HubStructs.VaultAmount calldata vaultAmount) internal {
+    function setVaultAmounts(address vaultOwner, address assetAddress, HubStructs.VaultAmount memory vaultAmount) internal {
         _state.vault[vaultOwner][assetAddress] = vaultAmount;
     } 
 
-    function setGlobalAmounts(address assetAddress, HubStructs.VaultAmount calldata vaultAmount) internal {
+    function setGlobalAmounts(address assetAddress, HubStructs.VaultAmount memory vaultAmount) internal {
         _state.totalAssets[assetAddress] = vaultAmount;
     } 
 }

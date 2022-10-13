@@ -68,16 +68,15 @@ contract HubStructs {
         uint256 assetAmount;
     }
 
-    /*
+
     struct LiquidationPayload {
         // payloadId = 5
         PayloadHeader header;
         address vault; // address to liquidate
-        address[] assetRepayAddressz;
+        address[] assetRepayAddresses;
         uint256[] assetRepayAmounts;
         address[] assetReceiptAddresses;
         uint256[] assetReceiptAmounts;
     }
-    */
 
 }
