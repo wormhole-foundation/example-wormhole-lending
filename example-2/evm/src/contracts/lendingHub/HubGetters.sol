@@ -29,6 +29,10 @@ contract HubGetters is HubState, Context {
         return _state.consistencyLevel;
     }
 
+    function getAllowList() internal view returns (address[]) {
+        return _state.allowList;
+    }
+
     function getSpokeContract(uint16 chainId) internal view returns (address) {
         return _state.spokeContracts[chainId];
     }
@@ -105,11 +109,39 @@ contract HubGetters is HubState, Context {
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
                     
-            effectiveNotionalDeposited += denormalizedDeposited * price / assetInfo.decimals;
-            effectiveNotionalBorrowed += (denormalizedBorrowed + assetAmount) * assetInfo.collateralizationRatio * price / assetInfo.decimals;
+            effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += (denormalizedBorrowed + assetAmount) * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals);
         }       
 
         return (effectiveNotionalDeposited >= effectiveNotionalBorrowed);
+    }
+
+    function allowedToLiquidate(address vault, params.assetRepayAddresses, params.assetRepayAmounts, pricesRepay, params.assetReceiptAddresses, params.assetReceiptAmounts, pricesReceipt){
+        bool underwater = checkUnderwater(vault);
+
+
+
+        // TODO: return underwater && bool of whether repay amount valid
+    }
+
+    function checkUnderwater(address vault) internal view returns (bool){
+        address[] allowList = getAllowList();
+        uint256 notionalDeposited = 0;
+        uint256 notionalBorrowed = 0;
+
+        for(uint i=0; i<allowList.length; i++){
+            address assetAddress = allowList[i];
+
+            VaultAmount vaultAmount = getVaultAmounts(vault, assetAddress);
+            AccrualIndices indices = getInterestAccrualIndices(assetAddress);
+            AssetInfo assetInfo = getAssetInfo(assetAddress);
+            uint64 price = getOraclePrices(assetAddress);
+
+            effectiveNotionalDeposited += denormalizeAmount(vaultAmount.deposited, indices.deposited) * price / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += denormalizeAmount(vaultAmount.borrowed, indices.borrowed) * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals);
+        }
+
+        return (effectiveNotionalDeposited < effectiveNotionalBorrowed);
     }
 
     function checkValidAddresses(address[] assetAddresses) {
