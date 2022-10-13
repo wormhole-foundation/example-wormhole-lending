@@ -92,6 +92,7 @@ contract HubGetters is HubState, Context {
         return uint64(feed.price.price);
     }
 
+    // TODO: cycle through all assets in the vault
     function allowedToWithdraw(address vaultOwner, address[] assetAddresses, address[] assetAmounts, uint64[] prices) internal view returns (bool) {       
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;

@@ -112,7 +112,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         updateAccrualIndices(params.assetAddresses);
 
         // for each asset, calculate the normalized amount and store in the vault
-        // for each asset, update the global contract state with normalized amount (??)
+        // for each asset, update the global contract state with normalized amount
         for(uint i=0; i<params.assetAddresses.length; i++){
             address assetAddress = params.assetAddresses[i];
             uint256 amount = params.assetAmounts[i];
@@ -224,6 +224,7 @@ contract Hub is HubSetters, HubGetters, HubStructs, HubMessages, HubEvents {
         // TODO: token transfers (do you need this here? you should probably just transfer tokens directly to the lending protocol via relayer)
     }
 
+    // TODO: rename "completeLiquidation" to Liquidate bc all liqs from hub...
     function completeLiquidation(bytes calldata encodedMessage) public {
 
         LiquidationMessage memory params = decodeLiquidationMessage(getWormholePayload(encodedMessage));
