@@ -5,10 +5,10 @@ import "../../libraries/external/BytesLib.sol";
 
 import "./HubStructs.sol";
 
-contract HubMessages {
+contract HubMessages is HubStructs {
     using BytesLib for bytes;
 
-    function encodePayloadHeader(HubStructs.PayloadHeader memory header)
+    function encodePayloadHeader(PayloadHeader memory header)
         internal
         pure
         returns (bytes memory)
@@ -19,7 +19,7 @@ contract HubMessages {
             );
     }
 
-    function encodeDepositPayload(HubStructs.DepositPayload memory payload)
+    function encodeDepositPayload(DepositPayload memory payload)
         internal
         pure
         returns (bytes memory)
@@ -33,7 +33,7 @@ contract HubMessages {
             );
     }
 
-    function encodeWithdrawPayload(HubStructs.WithdrawPayload memory payload)
+    function encodeWithdrawPayload(WithdrawPayload memory payload)
         internal
         pure
         returns (bytes memory)
@@ -47,7 +47,7 @@ contract HubMessages {
             );
     }
 
-    function encodeBorrowPayload(HubStructs.BorrowPayload memory payload)
+    function encodeBorrowPayload(BorrowPayload memory payload)
         internal
         pure
         returns (bytes memory)
@@ -61,7 +61,7 @@ contract HubMessages {
             );
     }
 
-    function encodeRepayPayload(HubStructs.RepayPayload memory payload)
+    function encodeRepayPayload(RepayPayload memory payload)
         internal
         pure
         returns (bytes memory)
@@ -75,31 +75,10 @@ contract HubMessages {
             );
     }
 
-    /*
-    function encodeLiquidationPayload(HubStructs.LiquidationPayload memory payload)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(5), // payloadID
-                encodePayloadHeader(payload.header),
-                payload.vault,
-                payload.assetRepayAddresses.length,
-                payload.assetRepayAddresses,
-                payload.assetRepayAmounts,
-                payload.assetReceiptAddresses.length,
-                payload.assetReceiptAddresses,
-                payload.assetReceiptAmounts
-            );
-    }
-    */
-
     function decodePayloadHeader(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.PayloadHeader memory header)
+        returns (PayloadHeader memory header)
     {
         uint256 index = 0;
 
@@ -114,7 +93,7 @@ contract HubMessages {
     function decodeDepositPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.DepositPayload memory params)
+        returns (DepositPayload memory params)
     {
         uint256 index = 0;
 
@@ -142,7 +121,7 @@ contract HubMessages {
     function decodeWithdrawPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.WithdrawPayload memory params)
+        returns (WithdrawPayload memory params)
     {
         uint256 index = 0;
 
@@ -170,7 +149,7 @@ contract HubMessages {
     function decodeBorrowPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.BorrowPayload memory params)
+        returns (BorrowPayload memory params)
     {
         uint256 index = 0;
 
@@ -198,7 +177,7 @@ contract HubMessages {
     function decodeRepayPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.RepayPayload memory params)
+        returns (RepayPayload memory params)
     {
         uint256 index = 0;
 
@@ -224,10 +203,31 @@ contract HubMessages {
     }
     
     /*
+
+    
+    function encodeLiquidationPayload(LiquidationPayload memory payload)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(
+                uint8(5), // payloadID
+                encodePayloadHeader(payload.header),
+                payload.vault,
+                payload.assetRepayAddresses.length,
+                payload.assetRepayAddresses,
+                payload.assetRepayAmounts,
+                payload.assetReceiptAddresses.length,
+                payload.assetReceiptAddresses,
+                payload.assetReceiptAmounts
+            );
+    }
+
     function decodeLiquidationPayload(bytes memory serialized)
         internal
         pure
-        returns (HubStructs.LiquidationPayload memory params)
+        returns (LiquidationPayload memory params)
     {
         uint256 index = 0;
 

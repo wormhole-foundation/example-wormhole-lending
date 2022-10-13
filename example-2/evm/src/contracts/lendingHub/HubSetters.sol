@@ -49,7 +49,7 @@ contract HubSetters is HubState {
         _state.lastActivityBlockTimestamps[assetAddress] = blockTimestamp;
     }
 
-    function setInterestAccrualIndex(address assetAddress, HubStructs.AccrualIndices calldata indices) internal {
+    function setInterestAccrualIndices(address assetAddress, HubStructs.AccrualIndices calldata indices) internal {
         _state.indices[assetAddress] = indices;
     }
 

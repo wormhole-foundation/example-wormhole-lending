@@ -19,7 +19,7 @@ contract HubStructs {
         bytes32 pythId;
         // pyth id info
         uint8 decimals;
-        bool isValue;
+        bool exists;
     }
 
     struct InterestRateModel {

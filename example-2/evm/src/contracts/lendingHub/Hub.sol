@@ -8,7 +8,7 @@ import "./HubStructs.sol";
 import "./HubMessages.sol";
 import "./HubGetters.sol";
 
-contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
+contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
     constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
@@ -27,23 +27,20 @@ contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
     ) public {
         require(msg.sender == owner());
 
-        // check if asset is already registered (potentially write a getter for the assetInfos map)
         AssetInfo registered_info = getAssetInfo(assetAddress);
-        if (registered_info.isValue) {
-            // If not, update the 'allowList' array (write a setter for the allowList array)
-            allowAsset(assetAddress);
+        require(!registered_info.exists, "Asset already registered");
 
-            // update the asset info map
-            AssetInfo info = AssetInfo({
-                collaterizationRatio: collateralizationRatio,
-                reserveFactor: reserveFactor,
-                pythId: pythId,
-                decimals: decimals,
-                isValue: true
-            });
+        allowAsset(assetAddress);
 
-            registerAssetInfo(assetAddress, info);
-        }
+        AssetInfo info = AssetInfo({
+            collaterizationRatio: collateralizationRatio,
+            reserveFactor: reserveFactor,
+            pythId: pythId,
+            decimals: decimals,
+            exists: true
+        });
+
+        registerAssetInfo(assetAddress, info);
     }
 
     function registerSpoke(uint16 chainId, address spokeContractAddress) public {
@@ -71,30 +68,35 @@ contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
         ) / 365 / 24 / 60 / 60;
     }
 
+    function updateAccrualIndices(address assetAddress) internal {
+        uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
+        uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
+
+        uint256 deposited = getTotalAssetsDeposited(assetAddress);
+        uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
+
+        setLastActivityBlockTimestamp(assetAddress, block.timestamp);
+
+        InterestRateModel interestRateModel = getInterestRateModel(assetAddress);
+
+        uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
+
+        AccrualIndices accrualIndices = getInterestAccrualIndices(assetAddress);
+        accrualIndices.borrowed += interestFactor;
+        accrualIndices.deposited += (interestFactor * borrowed) / deposited;
+        accrualIndices.lastBlock = block.timestamp;
+
+        setInterestAccrualIndices(assetAddress, accrualIndices);
+    }
+
+    /*
     function updateAccrualIndices(address[] assetAddresses) internal {
         for (uint256 i = 0; i < assetAddresses.length; i++) {
             address assetAddress = assetAddresses[i];
 
-            uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
-            uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
-
-            uint256 deposited = getTotalAssetsDeposited(assetAddress);
-            uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
-
-            setLastActivityBlockTimestamp(assetAddress, block.timestamp);
-
-            InterestRateModel interestRateModel = getInterestRateModel(assetAddress);
-
-            uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
-
-            AccrualIndices accrualIndices = getInterestAccrualIndices(assetAddress);
-            accrualIndices.borrowed += interestFactor;
-            accrualIndices.deposited += (interestFactor * borrowed) / deposited;
-            accrualIndices.lastBlock = block.timestamp;
-
-            setInterestAccrualIndex(assetAddress, accrualIndices);
+            updateAccrualIndices(assetAddress);
         }
-    }
+    }*/
 
     function completeDeposit(bytes calldata encodedMessage) public {
         // DepositPayload memory params = decodeDepositPayload(getWormholePayload(encodedMessage));
@@ -110,7 +112,7 @@ contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
         assetAddresses[0] = assetAddress;
 
         // TODO: What to do if this fails?
-        checkValidAddresses([assetAddress]);
+        checkValidAddress(assetAddress);
 
         // update the interest accrual indices
         updateAccrualIndices([assetAddress]);
@@ -121,12 +123,12 @@ contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
         VaultAmount vault = getVaultAmounts(depositor, assetAddress);
         VaultAmount globalAmounts = getGlobalAmounts(assetAddress);
 
-        AccrualIndices indices = getInterestAccrualIndices([assetAddress]);
+        AccrualIndices indices = getInterestAccrualIndices(assetAddress);
 
         uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
 
         vault.deposited += normalizedDeposit;
-        globalAmounts.deposited += normalizedDeposit; // params.assetAmounts[i];
+        globalAmounts.deposited += normalizedDeposit;
 
         setVaultAmounts(depositor, assetAddress, vault);
         setGlobalAmounts(assetAddress, globalAmounts);
@@ -144,8 +146,10 @@ contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
         WithdrawPayload memory params = decodeWithdrawPayload(getWormholePayload(encodedMessage));
 
         address borrower = params.header.sender;
+        address assetAddress = params.assetAddress;
+        uint256 amount = params.assetAmount;
 
-        checkValidAddresses(params.assetAddresses);
+        checkValidAddress(assetAddress);
 
         // get prices for assets
         uint64[params.assetAddresses.length] prices;
@@ -157,23 +161,19 @@ contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
         allowedToWithdraw(borrower, params.assetAddresses, params.assetAmounts, prices);
 
         // update the interest accrual indices
-        updateAccrualIndices(params.assetAddresses);
+        updateAccrualIndices(assetAddress);
 
-        // for each asset update amounts for vault and global
-        for (uint256 i = 0; i < params.assetAddresses.length; i++) {
-            address assetAddress = params.assetAddresses[i];
-            uint256 amount = params.assetAmounts[i];
+        //  update amounts for vault and global
 
-            AccrualIndices indices = getInterestAccrualIndices(assetAddress);
+        AccrualIndices indices = getInterestAccrualIndices(assetAddress);
 
-            uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed);
-            // update state for vault
-            VaultAmount vaultAmounts = getVaultAmounts(borrower, assetAddress);
-            vaultAmounts.borrowed += normalizedAmount;
-            // update state for global
-            VaultAmount globalAmounts = getGlobalAmounts(assetAddress);
-            globalAmounts.borrowed += normalizedAmount;
-        }
+        uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed);
+        // update state for vault
+        VaultAmount vaultAmounts = getVaultAmounts(borrower, assetAddress);
+        vaultAmounts.borrowed += normalizedAmount;
+        // update state for global
+        VaultAmount globalAmounts = getGlobalAmounts(assetAddress);
+        globalAmounts.borrowed += normalizedAmount;
 
         // NOTE: interest payment handled by normalization within this function
 
@@ -194,8 +194,10 @@ contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
         RepayPayload memory params = decodeRepayPayload(getWormholePayload(encodedMessage));
 
         address repayer = params.header.sender;
+        address assetAddress = params.assetAddress;
+        uint256 amount = params.assetAmount;
 
-        checkValidAddresses(params.assetAddresses);
+        checkValidAddress(params.assetAddress);
 
         // update the interest accrual indices
         updateAccrualIndices(params.assetAddresses);
@@ -219,6 +221,7 @@ contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
         // TODO: token transfers (do you need this here? you should probably just transfer tokens directly to the lending protocol via relayer)
     }
 
+    /*
     // TODO: rename "completeLiquidation" to Liquidate bc all liqs from hub...
     function completeLiquidation(bytes calldata encodedMessage) public {
         LiquidationPayload memory params = decodeLiquidationPayload(getWormholePayload(encodedMessage));
@@ -289,9 +292,10 @@ contract Hub is  HubStructs, HubMessages, HubSetters, HubGetters {
         // TODO: token transfers
     }
 
-    function repay() public {}
+     function liquidate(address vault, address[] memory tokens) public {}
+    */
 
-    function liquidate(address vault, address[] memory tokens) public {}
+    function repay() public {}
 
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
         sequence = wormhole().publishMessage(

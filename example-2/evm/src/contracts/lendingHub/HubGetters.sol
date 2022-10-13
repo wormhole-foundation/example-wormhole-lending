@@ -30,7 +30,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.consistencyLevel;
     }
 
-    function getAllowList() internal view returns (address[]) {
+    function getAllowList() internal view returns (address[] storage) {
         return _state.allowList;
     }
 
@@ -46,7 +46,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.consumedMessages[vmHash];
     }
 
-    function getAssetInfo(address assetAddress) internal view returns (HubStructs.AssetInfo) {
+    function getAssetInfo(address assetAddress) internal view returns (AssetInfo storage) {
         return _state.assetInfos[assetAddress];
     }
 
@@ -62,19 +62,19 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.totalAssets[assetAddress].borrowed;
     }
 
-    function getInterestRateModel(address assetAddress) internal view returns (InterestRateModel) {
+    function getInterestRateModel(address assetAddress) internal view returns (InterestRateModel storage) {
         return _state.interestRateModels[assetAddress];
     }
 
-    function getInterestAccrualIndices(address assetAddress) internal view returns (AccrualIndices) {
+    function getInterestAccrualIndices(address assetAddress) internal view returns (AccrualIndices storage) {
         return _state.indices[assetAddress];
     }
 
-    function getVaultAmounts(address vaultOwner, address assetAddress) internal view returns (VaultAmount) {
+    function getVaultAmounts(address vaultOwner, address assetAddress) internal view returns (VaultAmount storage) {
         return _state.vault[vaultOwner][assetAddress];
     } 
 
-    function getGlobalAmounts(address assetAddress) internal view returns (VaultAmount) {
+    function getGlobalAmounts(address assetAddress) internal view returns (VaultAmount storage) {
         return _state.totalAssets[assetAddress];
     }
 
@@ -98,7 +98,7 @@ contract HubGetters is Context, HubStructs, HubState {
     }
 
     // TODO: cycle through all assets in the vault
-    function allowedToWithdraw(address vaultOwner, address[] assetAddresses, address[] assetAmounts, uint64[] prices) internal view returns (bool) {       
+    function allowedToWithdraw(address vaultOwner, address[] calldata assetAddresses, address[] calldata assetAmounts, uint64[] calldata prices) internal view returns (bool) {       
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
@@ -106,11 +106,11 @@ contract HubGetters is Context, HubStructs, HubState {
             address assetAddress = assetAddresses[i];
             uint256 assetAmount = assetAmounts[i];
             uint256 assetPrice = prices[i];
-            AssetInfo assetInfo = getAssetInfo(assetAddress);
+            AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
-            VaultAmount normalizedAmounts = getVaultAmounts(vaultOwner, assetAddress);
+            VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, assetAddress);
 
-            AccrualIndices indices = getInterestAccrualIndices(assetAddress);
+            AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
             
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
@@ -122,7 +122,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return (effectiveNotionalDeposited >= effectiveNotionalBorrowed);
     }
 
-    function allowedToLiquidate(address vault, address[] assetRepayAddresses, address[] assetRepayAmounts, uint64[] pricesRepay, address[] assetReceiptAddresses, uint256[] assetReceiptAmounts, uint64[] pricesReceipt) internal view returns (bool) {
+    function allowedToLiquidate(address vault, address[] calldata assetRepayAddresses, address[] calldata assetRepayAmounts, uint64[] pricesRepay, address[] calldata assetReceiptAddresses, uint256[] calldata assetReceiptAmounts, uint64[] calldata pricesReceipt) internal view returns (bool) {
         bool underwater = checkUnderwater(vault);
 
 
@@ -131,16 +131,16 @@ contract HubGetters is Context, HubStructs, HubState {
     }
 
     function checkUnderwater(address vault) internal view returns (bool){
-        address[] allowList = getAllowList();
+        address[] memory allowList = getAllowList();
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
         for(uint i=0; i<allowList.length; i++){
             address assetAddress = allowList[i];
 
-            VaultAmount vaultAmount = getVaultAmounts(vault, assetAddress);
-            AccrualIndices indices = getInterestAccrualIndices(assetAddress);
-            AssetInfo assetInfo = getAssetInfo(assetAddress);
+            VaultAmount memory vaultAmount = getVaultAmounts(vault, assetAddress);
+            AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+            AssetInfo memory assetInfo = getAssetInfo(assetAddress);
             uint64 price = getOraclePrices(assetAddress);
 
             effectiveNotionalDeposited += denormalizeAmount(vaultAmount.deposited, indices.deposited) * price / (10**assetInfo.decimals);
@@ -150,13 +150,20 @@ contract HubGetters is Context, HubStructs, HubState {
         return (effectiveNotionalDeposited < effectiveNotionalBorrowed);
     }
 
-    function checkValidAddresses(address[] assetAddresses) internal view {
-        mapping(address => bool) observedAssets;
+    function checkValidAddress(address assetAddress) internal view {
+        // check if asset address is allowed
+        AssetInfo memory registered_info = getAssetInfo(assetAddress);
+        require(registered_info.exists, "Unregistered asset");
+    }
+
+    /*
+    function checkValidAddresses(address[] calldata assetAddresses) internal view {
+        mapping(address => bool) memory observedAssets;
 
         for(uint i=0; i<assetAddresses.length; i++){
             address assetAddress = assetAddresses[i];
             // check if asset address is allowed
-            AssetInfo registered_info = getAssetInfo(assetAddress);
+            AssetInfo memory registered_info = getAssetInfo(assetAddress);
             require(registered_info.isValue, "Unregistered asset");
 
             // check if each address is unique
@@ -164,5 +171,5 @@ contract HubGetters is Context, HubStructs, HubState {
 
             observedAssets[assetAddress] = true;
         }
-    }
+    }*/
 }
