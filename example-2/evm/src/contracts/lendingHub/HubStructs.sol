@@ -16,52 +16,67 @@ contract HubStructs {
     struct AssetInfo {
         uint256 collateralizationRatio;
         uint256 reserveFactor;
+        bytes32 pythId;
+        // pyth id info
+        uint8 decimals;
+        bool exists;
     }
 
-    struct MessageHeader {
+    struct InterestRateModel {
+        uint64 ratePrecision;
+        uint64 rateIntercept;
+        uint64 rateCoefficientA;
+        // TODO: add more complexity for example?
+        uint64 reserveFactor;
+    }
+
+
+
+
+    struct PayloadHeader {
         uint8 payloadID;
         // address of the sender
         address sender;
-        // collateral info
+        
     }
 
-    struct DepositMessage {
+    struct DepositPayload {
         // payloadId = 1
-        MessageHeader header;
-        address[] assetAddresses;
-        uint256[] assetAmounts;
+        PayloadHeader header;
+        address assetAddress;
+        uint256 assetAmount;
     }
 
-    struct WithdrawMessage {
+    struct WithdrawPayload {
         // payloadId = 2
-        MessageHeader header;
-        address[] assetAddresses;
-        uint256[] assetAmounts;
+        PayloadHeader header;
+        address assetAddress;
+        uint256 assetAmount;
     }
 
-    struct BorrowMessage {
+    struct BorrowPayload {
         // payloadId = 3
-        MessageHeader header;
-        address[] assetAddresses;
-        uint256[] assetAmounts;
+        PayloadHeader header;
+        address assetAddress;
+        uint256 assetAmount;
     }
 
-    struct RepayMessage {
+    struct RepayPayload {
         // payloadId = 4
-        MessageHeader header;
-        address[] assetAddresses;
-        uint256[] assetAmounts;
+        PayloadHeader header;
+        address assetAddress;
+        uint256 assetAmount;
     }
 
-    struct LiquidationMessage {
+
+    struct LiquidationPayload {
         // payloadId = 5
-        MessageHeader header;
+        PayloadHeader header;
         address vault; // address to liquidate
         address[] assetRepayAddresses;
         uint256[] assetRepayAmounts;
         address[] assetReceiptAddresses;
         uint256[] assetReceiptAmounts;
     }
-
 
 }
