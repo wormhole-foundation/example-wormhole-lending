@@ -14,7 +14,7 @@ contract HubTest is Test {
     function setUp() public {
         hub = new Hub(msg.sender, msg.sender, msg.sender, 1);
     }
-    function testEncodeDepositMessage() public {
+    function testEncodeDepositPayload() public {
 
     }
     

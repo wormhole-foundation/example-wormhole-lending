@@ -5,7 +5,7 @@ import "./HubStructs.sol";
 
 contract HubEvents {}
 
-contract HubStorage {
+contract HubStorage is HubStructs {
     struct Provider {
         uint16 chainId;
         address payable wormhole;
@@ -25,27 +25,36 @@ contract HubStorage {
         // allowlist for tokens
         address[] allowList;
 
+        // mock Pyth address
+        address mockPythAddress;
+
         // allowlist for spoke contracts
         mapping(uint16 => address) spokeContracts;
 
         // address => AssetInfo
-        mapping(address => HubStructs.AssetInfo) assetInfos;
+        mapping(address => AssetInfo) assetInfos;
 
         // vault for lending
-        mapping(address => mapping(address => HubStructs.VaultAmount)) vault;
+        mapping(address => mapping(address => VaultAmount)) vault;
 
         // total asset amounts (tokenAddress => (uint256, uint256))
-        mapping(address => HubStructs.VaultAmount) totalAssets;
+        mapping(address => VaultAmount) totalAssets;
 
         // interest accrual indices
-        mapping(address => HubStructs.AccrualIndices) indices;
-
-        // token => pythIDs
-        mapping(address => bytes32) pythIds;
+        mapping(address => AccrualIndices) indices;
 
         // wormhole message hashes
         mapping(bytes32 => bool) consumedMessages;
+
+        // last timestamp for update
+        mapping(address => uint256) lastActivityBlockTimestamps;
+
+        // interest rate models
+        mapping(address => InterestRateModel) interestRateModels;
         
+        // interest accrual rate precision level
+        uint256 interestAccrualIndexPrecision;
+
         // storage gap
         uint256[50] ______gap;
     }
