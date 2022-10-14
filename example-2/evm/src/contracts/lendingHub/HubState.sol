@@ -28,6 +28,9 @@ contract HubStorage is HubStructs {
         // mock Pyth address
         address mockPythAddress;
 
+        // max liquidation bonus
+        uint256 maxLiquidationBonus;
+
         // allowlist for spoke contracts
         mapping(uint16 => address) spokeContracts;
 
