@@ -162,17 +162,17 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
 
         // calculate the normalized amount and store in the vault
         // update the global contract state with normalized amount
-        VaultAmount memory vault = getVaultAmounts(depositor, assetAddress);
+        VaultAmount memory vaultAmounts = getVaultAmounts(depositor, assetAddress);
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
 
         AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
 
         uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
 
-        vault.deposited += normalizedDeposit;
+        vaultAmounts.deposited += normalizedDeposit;
         globalAmounts.deposited += normalizedDeposit;
 
-        setVaultAmounts(depositor, assetAddress, vault);
+        setVaultAmounts(depositor, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
     }
 
@@ -267,6 +267,7 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         }
 
         // update the interest accrual indices
+        // TODO: Make more efficient
         address[] memory allowList = getAllowList();
         for(uint i=0; i<allowList.length; i++){
             updateAccrualIndices(allowList[i]);

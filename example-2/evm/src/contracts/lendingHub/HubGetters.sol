@@ -118,7 +118,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return uint64(feed.price.price);
     }
 
-    function getVaultEffectiveNotionalValue(address vaultOwner) internal view returns (uint256) {
+    function getVaultEffectiveNotionals(address vaultOwner) internal view returns (uint256, uint256) {
 
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
@@ -145,11 +145,7 @@ contract HubGetters is Context, HubStructs, HubState {
       
         }    
 
-        return effectiveNotionalDeposited - effectiveNotionalBorrowed;
-    }
-
-    function getCollateralizationRatioPrecision() internal view returns (uint256) {
-        return _state.collateralizationRatioPrecision;
+        return (effectiveNotionalDeposited, effectiveNotionalBorrowed);
     }
 
 
@@ -160,11 +156,11 @@ contract HubGetters is Context, HubStructs, HubState {
 
         uint64 price = getOraclePrices(assetAddress);
 
-        uint256 vaultValue = getVaultEffectiveNotionalValue(vaultOwner); 
+        (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner); 
 
         VaultAmount memory amounts = denormalizeVaultAmount(getVaultAmounts(vaultOwner, assetAddress), assetAddress);
 
-        return (amounts.deposited - amounts.borrowed >= assetAmount) && (vaultValue >= assetAmount * price / (10**assetInfo.decimals));
+        return (amounts.deposited - amounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price / (10**assetInfo.decimals));
     }
 
     function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
@@ -172,40 +168,19 @@ contract HubGetters is Context, HubStructs, HubState {
 
         uint64 price = getOraclePrices(assetAddress);
 
-        uint256 vaultValue = getVaultEffectiveNotionalValue(vaultOwner); 
+        (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
 
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        return (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultValue >= assetAmount * price * assetInfo.collateralizationRatio / (10**assetInfo.decimals));
+        return (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price * assetInfo.collateralizationRatio / (10**assetInfo.decimals));
 
     }
 
     function allowedToLiquidate(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) internal view {
-        uint256 effectiveNotionalDeposited = 0;
-        uint256 effectiveNotionalBorrowed = 0;
+        
+        (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault); 
 
-        address[] memory allowList = getAllowList();
-
-        // get current deposit and borrow notionals, check if vault underwater
-        for(uint i=0; i<allowList.length; i++){
-            address asset = allowList[i];
-
-            uint64 price = getOraclePrices(asset);
-
-            AssetInfo memory assetInfo = getAssetInfo(asset);
-
-            VaultAmount memory normalizedAmounts = getVaultAmounts(vault, asset);
-
-            AccrualIndices memory indices = getInterestAccrualIndices(asset);
-
-            uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
-            uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
-
-            effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
-            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
-        }
-
-        require(effectiveNotionalDeposited < effectiveNotionalBorrowed, "vault not underwater");
+        require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");
         
         uint256 notionalRepaid = 0;
         uint256 notionalReceived = 0;
@@ -231,7 +206,7 @@ contract HubGetters is Context, HubStructs, HubState {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            notionalRepaid += amount * price / (10**assetInfo.decimals);
+            notionalReceived += amount * price / (10**assetInfo.decimals);
         }
 
         // TODO: could add check that amount received > amount repaid
