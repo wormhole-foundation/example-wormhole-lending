@@ -34,6 +34,14 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.allowList;
     }
 
+    function getMaxLiquidationBonus() internal view returns (uint256) {
+        return _state.maxLiquidationBonus;
+    }
+
+    function getCollateralizationRatioPrecision() internal view returns (uint256) {
+        return _state.collateralizationRatioPrecision;
+    }
+
     function getSpokeContract(uint16 chainId) internal view returns (address) {
         return _state.spokeContracts[chainId];
     }
@@ -111,6 +119,7 @@ contract HubGetters is Context, HubStructs, HubState {
     }
 
     function getVaultEffectiveNotionalValue(address vaultOwner) internal view returns (uint256) {
+
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
@@ -131,8 +140,10 @@ contract HubGetters is Context, HubStructs, HubState {
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
             effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
-            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals) / getCollateralizationRatioPrecision();
-        }  
+
+            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
+      
+        }    
 
         return effectiveNotionalDeposited - effectiveNotionalBorrowed;
     }
@@ -166,34 +177,69 @@ contract HubGetters is Context, HubStructs, HubState {
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
         return (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultValue >= assetAmount * price * assetInfo.collateralizationRatio / (10**assetInfo.decimals));
+
     }
 
-    function allowedToLiquidate(address vault, address[] memory assetRepayAddresses, address[] memory assetRepayAmounts, uint64[] memory pricesRepay, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts, uint64[] memory pricesReceipt) internal view returns (bool) {
-        bool underwater = checkUnderwater(vault);
-
-
-
-        // TODO: return underwater && bool of whether repay amount valid
-    }
-
-    function checkUnderwater(address vault) internal view returns (bool){
-        address[] memory allowList = getAllowList();
+    function allowedToLiquidate(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) internal view {
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
+        address[] memory allowList = getAllowList();
+
+        // get current deposit and borrow notionals, check if vault underwater
         for(uint i=0; i<allowList.length; i++){
-            address assetAddress = allowList[i];
+            address asset = allowList[i];
 
-            VaultAmount memory vaultAmount = getVaultAmounts(vault, assetAddress);
-            AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-            AssetInfo memory assetInfo = getAssetInfo(assetAddress);
-            uint64 price = getOraclePrices(assetAddress);
+            uint64 price = getOraclePrices(asset);
 
-            effectiveNotionalDeposited += denormalizeAmount(vaultAmount.deposited, indices.deposited) * price / (10**assetInfo.decimals);
-            effectiveNotionalBorrowed += denormalizeAmount(vaultAmount.borrowed, indices.borrowed) * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals);
+            AssetInfo memory assetInfo = getAssetInfo(asset);
+
+            VaultAmount memory normalizedAmounts = getVaultAmounts(vault, asset);
+
+            AccrualIndices memory indices = getInterestAccrualIndices(asset);
+
+            uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
+            uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
+
+            effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
         }
 
-        return (effectiveNotionalDeposited < effectiveNotionalBorrowed);
+        require(effectiveNotionalDeposited < effectiveNotionalBorrowed, "vault not underwater");
+        
+        uint256 notionalRepaid = 0;
+        uint256 notionalReceived = 0;
+
+        // get notional repaid
+        for(uint i=0; i<assetRepayAddresses.length; i++){
+            address asset = assetRepayAddresses[i];
+            uint256 amount = assetRepayAmounts[i];
+
+            uint64 price = getOraclePrices(asset);
+
+            AssetInfo memory assetInfo = getAssetInfo(asset);
+
+            notionalRepaid += amount * price / (10**assetInfo.decimals);
+        }
+
+        // get notional received
+        for(uint i=0; i<assetReceiptAddresses.length; i++){
+            address asset = assetReceiptAddresses[i];
+            uint256 amount = assetReceiptAmounts[i];
+
+            uint64 price = getOraclePrices(asset);
+
+            AssetInfo memory assetInfo = getAssetInfo(asset);
+
+            notionalRepaid += amount * price / (10**assetInfo.decimals);
+        }
+
+        // TODO: could add check that amount received > amount repaid
+        // TODO: probably want to make the max liquidation bonus << min collateralization ratios
+        // check if notional received <= notional repaid * max liquidation bonus
+        uint256 maxLiquidationBonus = getMaxLiquidationBonus();
+
+        require(notionalReceived <= maxLiquidationBonus * notionalRepaid, "cannot receive more than the max liquidation bonus");
     }
 
     function checkValidAddress(address assetAddress) internal view {
@@ -202,20 +248,20 @@ contract HubGetters is Context, HubStructs, HubState {
         require(registered_info.exists, "Unregistered asset");
     }
 
-    /*
-    function checkValidAddresses(address[] calldata assetAddresses) internal view {
-        mapping(address => bool) memory observedAssets;
+    // /*
+    // function checkValidAddresses(address[] calldata assetAddresses) internal view {
+    //     mapping(address => bool) memory observedAssets;
 
-        for(uint i=0; i<assetAddresses.length; i++){
-            address assetAddress = assetAddresses[i];
-            // check if asset address is allowed
-            AssetInfo memory registered_info = getAssetInfo(assetAddress);
-            require(registered_info.isValue, "Unregistered asset");
+    //     for(uint i=0; i<assetAddresses.length; i++){
+    //         address assetAddress = assetAddresses[i];
+    //         // check if asset address is allowed
+    //         AssetInfo memory registered_info = getAssetInfo(assetAddress);
+    //         require(registered_info.isValue, "Unregistered asset");
 
-            // check if each address is unique
-            // require(!observedAssets[assetAddress], "Repeated asset");
+    //         // check if each address is unique
+    //         // require(!observedAssets[assetAddress], "Repeated asset");
 
-            // observedAssets[assetAddress] = true;
-        }
-    }*/
+    //         // observedAssets[assetAddress] = true;
+    //     }
+    // }*/
 }
