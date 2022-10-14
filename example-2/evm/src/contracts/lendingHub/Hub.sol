@@ -109,17 +109,14 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
 
     function completeWithdraw(bytes calldata encodedMessage) public {
 
-        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
-
-        WithdrawPayload memory params = decodeWithdrawPayload(vmPayload);
+        WithdrawPayload memory params = decodeWithdrawPayload(getWormholePayload(encodedMessage));
 
         withdraw(params.header.sender, params.assetAddress, params.assetAmount);
     }
 
     function completeBorrow(bytes calldata encodedMessage) public {
-        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
 
-        BorrowPayload memory params = decodeBorrowPayload(vmPayload);
+        BorrowPayload memory params = decodeBorrowPayload(getWormholePayload(encodedMessage));
 
         borrow(params.header.sender, params.assetAddress, params.assetAmount);
     }
@@ -180,6 +177,8 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
 
         setVaultAmounts(withdrawer, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
+
+        transferTokens(withdrawer, assetAddress, amount);
     }
 
     function borrow(address borrower, address assetAddress, uint256 amount) internal {
@@ -206,6 +205,7 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         setGlobalAmounts(assetAddress, globalAmounts);
 
         // TODO: token transfers
+        transferTokens(borrower, assetAddress, amount);
     }
 
     function repay(address repayer, address assetAddress, uint256 amount) internal {
@@ -225,8 +225,11 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
         globalAmounts.borrowed -= normalizedAmount;
 
-        // TODO: token transfers (do you need this here? you should probably just transfer tokens directly to the lending protocol via relayer)
-    
+
+    }
+
+    function transferTokens(address receiver, address assetAddress, uint256 amount) internal {
+        //tokenBridge().transferTokensWithPayload(assetAddress, amount, recipientChain, recipient, nonce, payload);
     }
 
     /*
