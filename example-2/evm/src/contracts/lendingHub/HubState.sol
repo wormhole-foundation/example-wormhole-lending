@@ -55,6 +55,9 @@ contract HubStorage is HubStructs {
         // interest accrual rate precision level
         uint256 interestAccrualIndexPrecision;
 
+        // collateralization ratio precision
+        uint256 collateralizationRatioPrecision;
+
         // storage gap
         uint256[50] ______gap;
     }

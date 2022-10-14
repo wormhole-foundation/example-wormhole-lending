@@ -52,12 +52,12 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
 
-    function computeSourceInterestFactor(
+    function computeSourceInterestFactor (
         uint256 secondsElapsed,
         uint256 deposited,
         uint256 borrowed,
         InterestRateModel memory interestRateModel
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         if (deposited == 0) {
             return 0;
         }
@@ -99,18 +99,38 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
     }*/
 
     function completeDeposit(bytes calldata encodedMessage) public {
-        // DepositPayload memory params = decodeDepositPayload(getWormholePayload(encodedMessage));
+
         bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
 
         DepositPayload memory params = decodeDepositPayload(vmPayload);
 
-        address depositor = params.header.sender;
-        address assetAddress = params.assetAddress;
-        uint256 amount = params.assetAmount;
+        deposit(params.header.sender, params.assetAddress, params.assetAmount);
+    }
 
-        address[] memory assetAddresses = new address[](1);
-        assetAddresses[0] = assetAddress;
+    function completeWithdraw(bytes calldata encodedMessage) public {
 
+        WithdrawPayload memory params = decodeWithdrawPayload(getWormholePayload(encodedMessage));
+
+        withdraw(params.header.sender, params.assetAddress, params.assetAmount);
+    }
+
+    function completeBorrow(bytes calldata encodedMessage) public {
+
+        BorrowPayload memory params = decodeBorrowPayload(getWormholePayload(encodedMessage));
+
+        borrow(params.header.sender, params.assetAddress, params.assetAmount);
+    }
+
+    function completeRepay(bytes calldata encodedMessage) public {
+
+        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
+
+        RepayPayload memory params = decodeRepayPayload(vmPayload);
+        
+        repay(params.header.sender, params.assetAddress, params.assetAmount);
+    }
+
+    function deposit(address depositor, address assetAddress, uint256 amount) internal {
         // TODO: What to do if this fails?
         checkValidAddress(assetAddress);
 
@@ -133,20 +153,13 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         setGlobalAmounts(assetAddress, globalAmounts);
     }
 
-    function completeWithdraw(bytes calldata encodedMessage) public {
-        // WithdrawPayload memory params = decodeWithdrawPayload(getWormholePayload(encodedMessage));
-        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
+    
 
-        WithdrawPayload memory params = decodeWithdrawPayload(vmPayload);
-
-        address withdrawer = params.header.sender;
-        address assetAddress = params.assetAddress;
-        uint256 amount = params.assetAmount;
-
+    function withdraw(address withdrawer, address assetAddress, uint256 amount) internal {
         checkValidAddress(assetAddress);
 
         // recheck if withdraw is valid given up to date prices? bc the prices can move in the time for VAA to come
-        allowedToWithdraw(withdrawer, assetAddress, amount);
+        require(allowedToWithdraw(withdrawer, assetAddress, amount), "Not enough in vault");
 
         // update the interest accrual indices
         updateAccrualIndices(assetAddress);
@@ -164,25 +177,38 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
 
         setVaultAmounts(withdrawer, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
+
+        transferTokens(withdrawer, assetAddress, amount);
     }
 
-    function completeBorrow(bytes calldata encodedMessage) public {
-        // TODO: check if borrow is valid given up to date prices?
+    function borrow(address borrower, address assetAddress, uint256 amount) internal {
+        checkValidAddress(assetAddress);
 
-        // TODO: for each asset, calculate the normalized amount that can be borrowed, fail if not as much as requested
+        // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
+        require(allowedToBorrow(borrower, assetAddress, amount), "Not enough in vault");
 
-        // TODO: update the contract state (assets borrowed)
+        // update the interest accrual indices
+        updateAccrualIndices(assetAddress);
+
+        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+
+        uint256 normalizedAmount = normalizeAmount(amount, indices.deposited);
+
+        // update state for vault
+        VaultAmount memory vaultAmounts = getVaultAmounts(borrower, assetAddress);
+        vaultAmounts.borrowed += normalizedAmount;
+        // update state for global
+        VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
+        globalAmounts.borrowed += normalizedAmount;
+
+        setVaultAmounts(borrower, assetAddress, vaultAmounts);
+        setGlobalAmounts(assetAddress, globalAmounts);
 
         // TODO: token transfers
+        transferTokens(borrower, assetAddress, amount);
     }
 
-    function completeRepay(bytes calldata encodedMessage) public {
-        RepayPayload memory params = decodeRepayPayload(getWormholePayload(encodedMessage));
-
-        address repayer = params.header.sender;
-        address assetAddress = params.assetAddress;
-        uint256 amount = params.assetAmount;
-
+    function repay(address repayer, address assetAddress, uint256 amount) internal {
         checkValidAddress(assetAddress);
 
         // update the interest accrual indices
@@ -199,7 +225,11 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
         globalAmounts.borrowed -= normalizedAmount;
 
-        // TODO: token transfers (do you need this here? you should probably just transfer tokens directly to the lending protocol via relayer)
+
+    }
+
+    function transferTokens(address receiver, address assetAddress, uint256 amount) internal {
+        //tokenBridge().transferTokensWithPayload(assetAddress, amount, recipientChain, recipient, nonce, payload);
     }
 
     /*
@@ -311,7 +341,6 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
      function liquidate(address vault, address[] memory tokens) public {}
     */
 
-    function repay() public {}
 
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
         sequence = wormhole().publishMessage(
