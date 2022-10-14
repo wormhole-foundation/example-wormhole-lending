@@ -133,7 +133,7 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         address[] memory assetAddresses = new address[](1);
         assetAddresses[0] = assetAddress;
 
-        // TODO: What to do if this fails?
+        // TODO: What to do if this fails? this should fail on the spoke side first
         checkValidAddress(assetAddress);
 
         // update the interest accrual indices
