@@ -199,7 +199,7 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         vaultAmounts.borrowed += normalizedAmount;
         // update state for global
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
-        globalAmounts.borrowed -= normalizedAmount;
+        globalAmounts.borrowed += normalizedAmount;
 
         setVaultAmounts(borrower, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
