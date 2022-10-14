@@ -261,6 +261,9 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
             // update global state
             VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
             globalAmounts.borrowed -= normalizedAmount;
+
+            setVaultAmounts(vault, assetAddress, vaultAmounts);
+            setGlobalAmounts(assetAddress, globalAmounts);
         }
 
         // for received assets update amounts for vault and global
@@ -280,6 +283,9 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
             // update global state
             VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
             globalAmounts.deposited -= normalizedAmount;
+
+            setVaultAmounts(vault, assetAddress, vaultAmounts);
+            setGlobalAmounts(assetAddress, globalAmounts);
         }
 
         // send repay tokens from liquidator to contract
