@@ -131,11 +131,16 @@ contract HubGetters is Context, HubStructs, HubState {
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
             effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
-            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals) / getCollateralizationRatioPrecision();
         }  
 
         return effectiveNotionalDeposited - effectiveNotionalBorrowed;
     }
+
+    function getCollateralizationRatioPrecision() internal view returns (uint256) {
+        return _state.collateralizationRatioPrecision;
+    }
+
 
     // TODO: cycle through all assets in the vault
     function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
