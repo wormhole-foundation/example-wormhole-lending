@@ -227,7 +227,7 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
 
     function Liquidation(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) public {
         // check if asset addresses all valid
-        // TODO: eventually check all addresses in one function checkValidAddresses that checks for no duplicates as well
+        // TODO: eventually check all addresses in one function checkValidAddresses that checks for no duplicates also
         for(uint i=0; i<assetRepayAddresses.length; i++){
             checkValidAddress(assetRepayAddresses[i]);
         }
