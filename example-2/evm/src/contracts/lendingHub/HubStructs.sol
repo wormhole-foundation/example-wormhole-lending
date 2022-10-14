@@ -68,15 +68,14 @@ contract HubStructs {
         uint256 assetAmount;
     }
 
-
-    struct LiquidationPayload {
-        // payloadId = 5
+    struct RegisterAssetMessage {
+        // messageId = 5
         PayloadHeader header;
-        address vault; // address to liquidate
-        address[] assetRepayAddresses;
-        uint256[] assetRepayAmounts;
-        address[] assetReceiptAddresses;
-        uint256[] assetReceiptAmounts;
+        address assetAddress;
+        uint256 collateralizationRatio;
+        uint256 reserveFactor;
+        bytes32 pythId;
+        uint8 decimals;
     }
 
 }

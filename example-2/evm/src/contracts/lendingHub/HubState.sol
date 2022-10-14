@@ -28,6 +28,9 @@ contract HubStorage is HubStructs {
         // mock Pyth address
         address mockPythAddress;
 
+        // max liquidation bonus
+        uint256 maxLiquidationBonus;
+
         // allowlist for spoke contracts
         mapping(uint16 => address) spokeContracts;
 
@@ -54,6 +57,9 @@ contract HubStorage is HubStructs {
         
         // interest accrual rate precision level
         uint256 interestAccrualIndexPrecision;
+
+        // collateralization ratio precision
+        uint256 collateralizationRatioPrecision;
 
         // storage gap
         uint256[50] ______gap;

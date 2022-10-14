@@ -75,6 +75,23 @@ contract HubMessages is HubStructs {
             );
     }
 
+    function encodeRegisterAssetMessage(RegisterAssetMessage memory message)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(
+                uint8(5), // payloadID
+                encodePayloadHeader(message.header),
+                message.assetAddress,
+                message.collateralizationRatio,
+                message.reserveFactor,
+                message.pythId,
+                message.decimals
+            );
+    }
+
     function decodePayloadHeader(bytes memory serialized)
         internal
         pure
@@ -202,84 +219,51 @@ contract HubMessages is HubStructs {
         params.assetAmount = assetAmount;
     }
     
-    /*
-
-    
-    function encodeLiquidationPayload(LiquidationPayload memory payload)
+    function decodeRegisterAssetMessage(bytes memory serialized)
         internal
         pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(5), // payloadID
-                encodePayloadHeader(payload.header),
-                payload.vault,
-                payload.assetRepayAddresses.length,
-                payload.assetRepayAddresses,
-                payload.assetRepayAmounts,
-                payload.assetReceiptAddresses.length,
-                payload.assetReceiptAddresses,
-                payload.assetReceiptAmounts
-            );
-    }
-
-    function decodeLiquidationPayload(bytes memory serialized)
-        internal
-        pure
-        returns (LiquidationPayload memory params)
+        returns (RegisterAssetMessage memory params)
     {
         uint256 index = 0;
 
-        // parse the payload header
+        // parse the message header
         params.header = decodePayloadHeader(
             serialized.slice(index, index + 21)
         );
         require(params.header.payloadID == 5, "invalid payload");
         index += 21;
+
         
-        // repay section of the payload
-        uint32 repayLength = serialized.toUint32(index);
+        // parse the asset address
+        address assetAddress = serialized.toAddress(index);
+        index += 20;
+
+        params.assetAddress = assetAddress;
+
+        // parse the collateralization rato
+        uint256 collateralizationRatio = serialized.toUint256(index);
+        index += 32;
+
+        params.collateralizationRatio = collateralizationRatio;
+
+        // parse the reserve factor
+        uint256 reserveFactor = serialized.toUint256(index);
+        index += 32;
+
+        params.reserveFactor = reserveFactor;
+
+        // parse the Pyth Id
+        // TODO: is this valid?? better way to do the conversion from bytes to bytes32
+        bytes32 pythId = bytes32(serialized.toUint256(index)); //serialized[index:index+4];
         index += 4;
 
-        // parse the repay asset addresses
-        address[] memory assetRepayAddresses = new address[](repayLength);
-        for(uint i=0; i<repayLength; i++){
-            assetRepayAddresses[i] = serialized.toAddress(index);
-            index += 20;
-        }
-        params.assetRepayAddresses = assetRepayAddresses;
-        
-        // parse the repay asset amounts
-        uint256[] memory assetRepayAmounts = new uint256[](repayLength);
-        for(uint i=0; i<repayLength; i++){
-            assetRepayAmounts[i] = serialized.toUint256(index);
-            index += 32;
-        }
-        params.assetRepayAmounts = assetRepayAmounts;
-        
-        
-        // receipt section of the payload
-        uint32 receiptLength = serialized.toUint32(index);
-        index += 4;
+        params.pythId = pythId;
 
-        // parse the receipt asset addresses
-        address[] memory assetReceiptAddresses = new address[](receiptLength);
-        for(uint i=0; i<receiptLength; i++){
-            assetReceiptAddresses[i] = serialized.toAddress(index);
-            index += 20;
-        }
-        params.assetReceiptAddresses = assetReceiptAddresses;
-        
-        // parse the receipt asset amounts
-        uint256[] memory assetReceiptAmounts = new uint256[](receiptLength);
-        for(uint i=0; i<receiptLength; i++){
-            assetReceiptAmounts[i] = serialized.toUint256(index);
-            index += 32;
-        }
-        params.assetReceiptAmounts = assetReceiptAmounts;
-    }*/    
+        // parse the decimals
+        uint8 decimals = serialized.toUint8(index);
+        index += 1;
 
-
+        params.decimals = decimals;
+    }
 }
 

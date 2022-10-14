@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "../../interfaces/IWormhole.sol";
 
 import "./HubSetters.sol";
@@ -24,7 +27,7 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         uint256 reserveFactor,
         bytes32 pythId,
         uint8 decimals
-    ) public {
+    ) public returns (uint64 sequence) {
         require(msg.sender == owner());
 
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
@@ -41,6 +44,25 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         });
 
         registerAssetInfo(assetAddress, info);
+
+        PayloadHeader memory payloadHeader = PayloadHeader({
+            payloadID: 5,
+            sender: address(this)
+        });
+
+        RegisterAssetMessage memory registerAssetMessage = RegisterAssetMessage({
+            header: payloadHeader,
+            assetAddress: assetAddress,
+            collateralizationRatio: collateralizationRatio,
+            reserveFactor: reserveFactor,
+            pythId: pythId,
+            decimals: decimals
+        });
+
+        // create WH message
+        bytes memory serialized = encodeRegisterAssetMessage(registerAssetMessage);
+
+        sequence = sendWormholeMessage(serialized);
     }
 
     function registerSpoke(uint16 chainId, address spokeContractAddress) public {
@@ -202,116 +224,90 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         // TODO: token transfers (do you need this here? you should probably just transfer tokens directly to the lending protocol via relayer)
     }
 
-    /*
-    // TODO: rename "completeLiquidation" to Liquidate bc all liqs from hub...
-    function completeLiquidation(bytes calldata encodedMessage) public {
-        LiquidationPayload memory params = decodeLiquidationPayload(getWormholePayload(encodedMessage));
 
-        RepayPayload memory params = decodeRepayPayload(vmPayload);
-
-        address repayer = params.header.sender;
-        address assetAddress = params.assetAddress;
-        uint256 amount = params.assetAmount;
-
-        address[] memory assetAddresses = new address[](1);
-        assetAddresses[0] = assetAddress;
-
-        checkValidAddresses(assetAddresses);
+    function Liquidation(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) public {
+        // check if asset addresses all valid
+        // TODO: eventually check all addresses in one function checkValidAddresses that checks for no duplicates as well
+        for(uint i=0; i<assetRepayAddresses.length; i++){
+            checkValidAddress(assetRepayAddresses[i]);
+        }
+        for(uint i=0; i<assetReceiptAddresses.length; i++){
+            checkValidAddress(assetReceiptAddresses[i]);
+        }
 
         // update the interest accrual indices
-        updateAccrualIndices(assetAddresses);
+        address[] memory allowList = getAllowList();
+        for(uint i=0; i<allowList.length; i++){
+            updateAccrualIndices(allowList[i]);
+        }
 
-        // for asset update amounts for vault and global
-        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-        uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed);
+        // check if intended liquidation is valid
+        allowedToLiquidate(vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
 
-        require(amount <= normalizedAmount, "Cannot repay more than borrowed");
+        // for repay assets update amounts for vault and global
+        for(uint i=0; i<assetRepayAddresses.length; i++){
+            address assetAddress = assetRepayAddresses[i];
+            uint256 assetAmount = assetRepayAmounts[i];
 
-        // update state for vault
-        VaultAmount memory vaultAmounts = getVaultAmounts(repayer, assetAddress);
-        vaultAmounts.borrowed -= normalizedAmount;
-        // update state for global
-        VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
-        globalAmounts.borrowed -= normalizedAmount;
+            AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
 
-        setVaultAmounts(repayer, assetAddress, vaultAmounts);
-        setGlobalAmounts(assetAddress, globalAmounts);
+            uint256 normalizedAmount = normalizeAmount(assetAmount, indices.borrowed);
+            // update state for vault
+            VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
+            // require that amount paid back <= amount borrowed
+            uint256 denormalizedBorrowedAmount = denormalizeAmount(vaultAmounts.borrowed, indices.borrowed);
+            require(denormalizedBorrowedAmount >= assetAmount, "cannot repay more than has been borrowed");
+            vaultAmounts.borrowed -= normalizedAmount;
+            // update global state
+            VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
+            globalAmounts.borrowed -= normalizedAmount;
+        }
+
+        // for received assets update amounts for vault and global
+        for (uint256 i=0; i<assetReceiptAddresses.length; i++) {
+            address assetAddress = assetReceiptAddresses[i];
+            uint256 assetAmount = assetReceiptAmounts[i];
+
+            AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+
+            uint256 normalizedAmount = normalizeAmount(assetAmount, indices.deposited);
+            // update state for vault
+            VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
+            // require that amount received <= amount deposited
+            uint256 denormalizedDepositedAmount = denormalizeAmount(vaultAmounts.deposited, indices.deposited);
+            require(denormalizedDepositedAmount >= assetAmount, "cannot take out more collateral than vault has deposited");
+            vaultAmounts.deposited -= normalizedAmount;
+            // update global state
+            VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
+            globalAmounts.deposited -= normalizedAmount;
+        }
+
+        // send repay tokens from liquidator to contract
+        for(uint i=0; i<assetRepayAddresses.length; i++){
+            address assetAddress = assetRepayAddresses[i];
+            uint256 assetAmount = assetRepayAmounts[i];
+
+            SafeERC20.safeTransferFrom(
+                IERC20(assetAddress),
+                msg.sender,
+                address(this),
+                assetAmount
+            );
+        }
+
+        // send receive tokens from contract to liquidator
+        for(uint i=0; i<assetReceiptAddresses.length; i++){
+            address assetAddress = assetReceiptAddresses[i];
+            uint256 assetAmount = assetReceiptAmounts[i];
+
+            SafeERC20.safeTransferFrom(
+                IERC20(assetAddress),
+                address(this),
+                msg.sender,
+                assetAmount
+            );
+        }
     }
-
-    // TODO: rename "completeLiquidation" to Liquidate bc all liqs from hub...
-    function completeLiquidation(bytes calldata encodedMessage) public {
-        LiquidationPayload memory params = decodeLiquidationPayload(getWormholePayload(encodedMessage));
-
-        // address liquidator = params.header.sender;
-        // address vault = params.vault;
-
-        // checkValidAddresses(params.assetRepayAddresses);
-        // checkValidAddresses(params.assetReceiptAddresses);
-
-        // // get prices for assets used for repay
-        // uint64[params.assetRepayAddresses.length] memory pricesRepay;
-        // for (uint256 i = 0; i < params.assetAddresses.length; i++) {
-        //     pricesRepay[i] = getOraclePrices(params.assetRepayAddresses[i]);
-        // }
-        // // get prices for assets received
-        // uint64[params.assetReceiptAddresses.length] memory pricesReceipt;
-        // for (uint256 i = 0; i < params.assetAddresses.length; i++) {
-        //     pricesReceipt[i] = getOraclePrices(params.assetReceiptAddresses[i]);
-        // }
-
-        // // TODO: check if vault under water
-        // // TODO: check if this repayment is valid (i.e. notional_repaid < notional_received < notional_repaid * liquidation_bonus)
-        // allowedToLiquidate(
-        //     vault,
-        //     params.assetRepayAddresses,
-        //     params.assetRepayAmounts,
-        //     pricesRepay,
-        //     params.assetReceiptAddresses,
-        //     params.assetReceiptAmounts,
-        //     pricesReceipt
-        // );
-
-        // // update the interest accrual indices
-        // updateAccrualIndices(params.assetRepayAddresses);
-        // updateAccrualIndices(params.assetReceiptAddresses);
-
-        // // for each repay asset update amounts for vault and global
-        // for (uint256 i = 0; i < params.assetRepayAddresses.length; i++) {
-        //     address assetAddress = params.assetRepayAddresses[i];
-        //     uint256 amount = params.assetRepayAmounts[i];
-
-        //     AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-
-        //     uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed);
-        //     // TODO: how to update state for vault??
-        //     // TODO: how to update state for global??
-        // }
-
-        // // for each received asset update amounts for vault and global
-        // for (uint256 i = 0; i < params.assetReceiptAddresses.length; i++) {
-        //     address assetAddress = params.assetReceiptAddresses[i];
-        //     uint256 amount = params.assetReceiptAmounts[i];
-
-        //     AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-
-        //     uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed);
-        //     // TODO: how to update state for vault??
-        //     // TODO: how to update state for global??
-        // }
-
-        // // TODO: for each repay asset check if allowed
-
-        // // TODO: update the interest accrual indices
-
-        // // TODO: for each repay asset, calculate the normalized amount and store in the vault
-
-        // // TODO: token transfers
-    }
-
-     function liquidate(address vault, address[] memory tokens) public {}
-    */
-
-    function repay() public {}
 
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
         sequence = wormhole().publishMessage(
