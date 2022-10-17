@@ -10,8 +10,9 @@ import "./HubSetters.sol";
 import "./HubStructs.sol";
 import "./HubMessages.sol";
 import "./HubGetters.sol";
+import "./HubUtilities.sol";
 
-contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
+contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
@@ -69,56 +70,6 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         require(msg.sender == owner());
         registerSpokeContract(chainId, spokeContractAddress);
     }
-
-    function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
-        require(getSpokeContract(chainId) == sender, "Invalid spoke");
-    }
-
-    function computeSourceInterestFactor (
-        uint256 secondsElapsed,
-        uint256 deposited,
-        uint256 borrowed,
-        InterestRateModel memory interestRateModel
-    ) internal pure returns (uint256) {
-        if (deposited == 0) {
-            return 0;
-        }
-
-        return (
-            secondsElapsed
-                * (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited)
-        ) / 365 / 24 / 60 / 60;
-    }
-
-    function updateAccrualIndices(address assetAddress) internal {
-        uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
-        uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
-
-        uint256 deposited = getTotalAssetsDeposited(assetAddress);
-        uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
-
-        setLastActivityBlockTimestamp(assetAddress, block.timestamp);
-
-        InterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
-
-        uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
-
-        AccrualIndices memory accrualIndices = getInterestAccrualIndices(assetAddress);
-        accrualIndices.borrowed += interestFactor;
-        accrualIndices.deposited += (interestFactor * borrowed) / deposited;
-        accrualIndices.lastBlock = block.timestamp;
-
-        setInterestAccrualIndices(assetAddress, accrualIndices);
-    }
-
-    /*
-    function updateAccrualIndices(address[] assetAddresses) internal {
-        for (uint256 i = 0; i < assetAddresses.length; i++) {
-            address assetAddress = assetAddresses[i];
-
-            updateAccrualIndices(assetAddress);
-        }
-    }*/
 
     function completeDeposit(bytes calldata encodedMessage) public {
 
@@ -251,11 +202,6 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
 
     }
 
-    function transferTokens(address receiver, address assetAddress, uint256 amount) internal {
-        //tokenBridge().transferTokensWithPayload(assetAddress, amount, recipientChain, recipient, nonce, payload);
-    }
-
-
     function liquidation(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) public {
         // check if asset addresses all valid
         // TODO: eventually check all addresses in one function checkValidAddresses that checks for no duplicates also
@@ -274,7 +220,7 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         }
 
         // check if intended liquidation is valid
-        allowedToLiquidate(vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+        require(allowedToLiquidate(vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts), "Liquidation attempt not allowed");
 
         // for repay assets update amounts for vault and global
         for(uint i=0; i<assetRepayAddresses.length; i++){
@@ -345,25 +291,5 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
                 assetAmount
             );
         }
-    }
-
-    function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
-        sequence = wormhole().publishMessage(
-            0, // nonce
-            payload,
-            consistencyLevel()
-        );
-    }
-
-    function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
-        (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
-        require(valid, reason);
-
-        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(bytes20(parsed.emitterAddress))));
-
-        require(!messageHashConsumed(parsed.hash), "message already confused");
-        consumeMessageHash(parsed.hash);
-
-        return parsed.payload;
     }
 }
