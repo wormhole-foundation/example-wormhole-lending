@@ -2,8 +2,10 @@
 pragma solidity ^0.8.0;
 
 import "./SpokeState.sol";
+import "../lendingHub/HubStructs.sol";
 
-contract SpokeSetters is SpokeState {
+
+contract SpokeSetters is SpokeState, HubStructs {
     function setOwner(address owner) internal {
         _state.owner = owner;
     }
@@ -18,5 +20,13 @@ contract SpokeSetters is SpokeState {
 
     function setTokenBridge(address tokenBridgeAddress) internal {
         _state.provider.tokenBridge = tokenBridgeAddress;
+    }
+
+    function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
+        _state.assetInfos[assetAddress] = info;
+    }
+
+    function allowAsset(address assetAddress) internal {
+        _state.allowList.push(assetAddress);
     }
 }

@@ -75,7 +75,7 @@ contract HubMessages is HubStructs {
             );
     }
 
-    function encodeRegisterAssetMessage(RegisterAssetMessage memory message)
+    function encodeRegisterAssetPayload(RegisterAssetPayload memory message)
         internal
         pure
         returns (bytes memory)
@@ -219,10 +219,10 @@ contract HubMessages is HubStructs {
         params.assetAmount = assetAmount;
     }
     
-    function decodeRegisterAssetMessage(bytes memory serialized)
+    function decodeRegisterAssetPayload(bytes memory serialized)
         internal
         pure
-        returns (RegisterAssetMessage memory params)
+        returns (RegisterAssetPayload memory params)
     {
         uint256 index = 0;
 

@@ -22,7 +22,7 @@ contract HubStorage is HubStructs {
         // number of confirmations for wormhole messages
         uint8 consistencyLevel;
 
-        // allowlist for tokens
+        // allowlist for assets
         address[] allowList;
 
         // mock Pyth address
