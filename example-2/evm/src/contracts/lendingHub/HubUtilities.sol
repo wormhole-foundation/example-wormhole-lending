@@ -116,7 +116,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * @param {uint256} assetAmount - The amount of the relevant asset
     * @return {bool} True or false depending on if this withdrawal keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices) 
     * (where the borrow values are multiplied by their collateralization ratio) and also if there is enough asset in the vault to complete the withdrawal
-    */
+    */ // TODO: cycle through all assets in the vault
     function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
 
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
