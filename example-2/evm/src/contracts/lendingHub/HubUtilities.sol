@@ -9,8 +9,9 @@ import "../../interfaces/IMockPyth.sol";
 import "./HubStructs.sol";
 import "./HubState.sol";
 import "./HubGetters.sol";
+import "./HubSetters.sol";
 
-contract HubUtilities is Context, HubStructs, HubState, HubGetters {
+contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     /** 
     * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued). 
     * 
@@ -211,6 +212,86 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters {
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
         require(registered_info.exists, "Unregistered asset");
     }
+
+    // TODO: Write docstrings for these functions
+
+    function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
+        require(getSpokeContract(chainId) == sender, "Invalid spoke");
+    }
+
+    function computeSourceInterestFactor (
+        uint256 secondsElapsed,
+        uint256 deposited,
+        uint256 borrowed,
+        InterestRateModel memory interestRateModel
+    ) internal pure returns (uint256) {
+        if (deposited == 0) {
+            return 0;
+        }
+
+        return (
+            secondsElapsed
+                * (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited)
+        ) / 365 / 24 / 60 / 60;
+    }
+
+    function updateAccrualIndices(address assetAddress) internal {
+        uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
+        uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
+
+        uint256 deposited = getTotalAssetsDeposited(assetAddress);
+        uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
+
+        setLastActivityBlockTimestamp(assetAddress, block.timestamp);
+
+        InterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
+
+        uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
+
+        AccrualIndices memory accrualIndices = getInterestAccrualIndices(assetAddress);
+        accrualIndices.borrowed += interestFactor;
+        accrualIndices.deposited += (interestFactor * borrowed) / deposited;
+        accrualIndices.lastBlock = block.timestamp;
+
+        setInterestAccrualIndices(assetAddress, accrualIndices);
+    }
+
+    function transferTokens(address receiver, address assetAddress, uint256 amount) internal {
+        //tokenBridge().transferTokensWithPayload(assetAddress, amount, recipientChain, recipient, nonce, payload);
+    }
+
+    function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
+        sequence = wormhole().publishMessage(
+            0, // nonce
+            payload,
+            consistencyLevel()
+        );
+    }
+
+    function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
+        (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
+        require(valid, reason);
+
+        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(bytes20(parsed.emitterAddress))));
+
+        require(!messageHashConsumed(parsed.hash), "message already confused");
+        consumeMessageHash(parsed.hash);
+
+        return parsed.payload;
+    }
+
+    /*
+    function updateAccrualIndices(address[] assetAddresses) internal {
+        for (uint256 i = 0; i < assetAddresses.length; i++) {
+            address assetAddress = assetAddresses[i];
+
+            updateAccrualIndices(assetAddress);
+        }
+    }*/
+
+
+
+
 
     // /*
     // function checkValidAddresses(address[] calldata assetAddresses) internal view {
