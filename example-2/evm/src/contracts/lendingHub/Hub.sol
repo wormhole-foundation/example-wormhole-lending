@@ -10,8 +10,9 @@ import "./HubSetters.sol";
 import "./HubStructs.sol";
 import "./HubMessages.sol";
 import "./HubGetters.sol";
+import "./HubUtilities.sol";
 
-contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
+contract Hub is HubStructs, HubMessages, HubSetters, HubGetters, HubUtilities {
     constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
@@ -274,7 +275,7 @@ contract Hub is HubStructs, HubMessages, HubSetters, HubGetters {
         }
 
         // check if intended liquidation is valid
-        allowedToLiquidate(vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+        require(allowedToLiquidate(vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts), "Liquidation attempt not allowed");
 
         // for repay assets update amounts for vault and global
         for(uint i=0; i<assetRepayAddresses.length; i++){
