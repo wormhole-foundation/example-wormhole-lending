@@ -48,16 +48,21 @@ contract HubMessages is HubStructs {
         );
     }
 
-    function encodeRegisterAssetMessage(RegisterAssetMessage memory message) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            uint8(5), // payloadID
-            encodePayloadHeader(message.header),
-            message.assetAddress,
-            message.collateralizationRatio,
-            message.reserveFactor,
-            message.pythId,
-            message.decimals
-        );
+    function encodeRegisterAssetPayload(RegisterAssetPayload memory message)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(
+                uint8(5), // payloadID
+                encodePayloadHeader(message.header),
+                message.assetAddress,
+                message.collateralizationRatio,
+                message.reserveFactor,
+                message.pythId,
+                message.decimals
+            );
     }
 
     function decodePayloadHeader(bytes memory serialized) internal pure returns (PayloadHeader memory header) {
@@ -163,11 +168,11 @@ contract HubMessages is HubStructs {
 
         params.assetAmount = assetAmount;
     }
-
-    function decodeRegisterAssetMessage(bytes memory serialized)
+    
+    function decodeRegisterAssetPayload(bytes memory serialized)
         internal
         pure
-        returns (RegisterAssetMessage memory params)
+        returns (RegisterAssetPayload memory params)
     {
         uint256 index = 0;
 
