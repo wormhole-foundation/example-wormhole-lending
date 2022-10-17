@@ -8,12 +8,17 @@ import "../lendingHub/HubStructs.sol";
 import "../lendingHub/HubMessages.sol";
 import "./SpokeGetters.sol";
 
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
-    constructor(uint16 chainId_, address wormhole_, address tokenBridge_) {
+    constructor(uint16 chainId_, address wormhole_, address tokenBridge_, uint16 hubChainId_, address hubContractAddress) {
         setOwner(_msgSender());
         setChainId(chainId_);
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
+        setHubChainId(hubChainId_);
+        setHubContractAddress(hubContractAddress);
     }
 
     function completeRegisterAsset(bytes calldata encodedMessage) public {
@@ -30,7 +35,7 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
         registerAssetInfo(params.assetAddress, info);        
     }
 
-    function depositCollateral(address assetAddress, uint256 assetAmount) public returns (uint64) {
+    function depositCollateral(address assetAddress, uint256 assetAmount) public {
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 1,
             sender: address(this)
@@ -45,7 +50,7 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
         // create WH message
         bytes memory serialized = encodeDepositPayload(depositPayload);
 
-        // TODO: Send a token bridge message
+        sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
     }
 
     function withdrawCollateral(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
@@ -84,7 +89,7 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
         sequence = sendWormholeMessage(serialized);
     }
 
-    function repay(address assetAddress, uint256 assetAmount) public returns (uint64) {
+    function repay(address assetAddress, uint256 assetAmount) public {
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 4,
             sender: address(this)
@@ -101,7 +106,7 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
         // create WH message
         bytes memory serialized = encodeRepayPayload(repayPayload);
 
-        // TODO: Send a token bridge message
+        sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
     }
 >>>>>>> 4a50fa5 (Implementation of spoke methods without tokenbridge)
 
@@ -114,5 +119,9 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
             payload,
             consistencyLevel()
         );
+    }
+
+    function sendTokenBridgeMessage(address assetAddress, uint256 assetAmount, bytes memory payload) internal {
+        tokenBridge().transferTokensWithPayload(assetAddress, assetAmount, hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload);
     }
 }
