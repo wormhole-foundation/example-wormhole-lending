@@ -22,6 +22,14 @@ contract SpokeSetters is SpokeState, HubStructs {
         _state.provider.tokenBridge = tokenBridgeAddress;
     }
 
+    function setHubChainId(uint16 hubChainId) internal {
+        _state.hubChainId = hubChainId;
+    }
+
+    function setHubContractAddress(address hubContractAddress) internal {
+        _state.hubContractAddress = hubContractAddress;
+    }
+
     function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
         _state.assetInfos[assetAddress] = info;
     }

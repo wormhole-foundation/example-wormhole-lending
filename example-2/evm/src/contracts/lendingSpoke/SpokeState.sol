@@ -25,6 +25,10 @@ contract SpokeStorage is HubStructs {
         // address => AssetInfo
         mapping(address => AssetInfo) assetInfos;
 
+        uint16 hubChainId;
+
+        address hubContractAddress;
+
         // @dev storage gap
         uint256[50] ______gap;
     }

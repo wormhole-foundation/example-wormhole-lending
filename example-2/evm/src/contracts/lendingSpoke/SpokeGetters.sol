@@ -28,4 +28,12 @@ contract SpokeGetters is SpokeState, Context {
     function consistencyLevel() internal view returns (uint8) {
         return _state.consistencyLevel;
     }
+
+    function hubChainId() internal view returns (uint16) {
+        return _state.hubChainId;
+    }
+
+    function hubContractAddress() internal view returns (address) {
+        return _state.hubContractAddress;
+    }
 }
