@@ -8,95 +8,59 @@ import "./HubStructs.sol";
 contract HubMessages is HubStructs {
     using BytesLib for bytes;
 
-    function encodePayloadHeader(PayloadHeader memory header)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                header.sender
-            );
+    function encodePayloadHeader(PayloadHeader memory header) internal pure returns (bytes memory) {
+        return abi.encodePacked(header.sender);
     }
 
-    function encodeDepositPayload(DepositPayload memory payload)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(1), // payloadID
-                encodePayloadHeader(payload.header),
-                payload.assetAddress,
-                payload.assetAmount
-            );
+    function encodeDepositPayload(DepositPayload memory payload) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            uint8(1), // payloadID
+            encodePayloadHeader(payload.header),
+            payload.assetAddress,
+            payload.assetAmount
+        );
     }
 
-    function encodeWithdrawPayload(WithdrawPayload memory payload)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(2), // payloadID
-                encodePayloadHeader(payload.header),
-                payload.assetAddress,
-                payload.assetAmount
-            );
+    function encodeWithdrawPayload(WithdrawPayload memory payload) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            uint8(2), // payloadID
+            encodePayloadHeader(payload.header),
+            payload.assetAddress,
+            payload.assetAmount
+        );
     }
 
-    function encodeBorrowPayload(BorrowPayload memory payload)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(3), // payloadID
-                encodePayloadHeader(payload.header),
-                payload.assetAddress,
-                payload.assetAmount
-            );
+    function encodeBorrowPayload(BorrowPayload memory payload) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            uint8(3), // payloadID
+            encodePayloadHeader(payload.header),
+            payload.assetAddress,
+            payload.assetAmount
+        );
     }
 
-    function encodeRepayPayload(RepayPayload memory payload)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(4), // payloadID
-                encodePayloadHeader(payload.header),
-                payload.assetAddress,
-                payload.assetAmount
-            );
+    function encodeRepayPayload(RepayPayload memory payload) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            uint8(4), // payloadID
+            encodePayloadHeader(payload.header),
+            payload.assetAddress,
+            payload.assetAmount
+        );
     }
 
-    function encodeRegisterAssetMessage(RegisterAssetMessage memory message)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(5), // payloadID
-                encodePayloadHeader(message.header),
-                message.assetAddress,
-                message.collateralizationRatio,
-                message.reserveFactor,
-                message.pythId,
-                message.decimals
-            );
+    function encodeRegisterAssetMessage(RegisterAssetMessage memory message) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            uint8(5), // payloadID
+            encodePayloadHeader(message.header),
+            message.assetAddress,
+            message.collateralizationRatio,
+            message.reserveFactor,
+            message.pythId,
+            message.decimals
+        );
     }
 
-    function decodePayloadHeader(bytes memory serialized)
-        internal
-        pure
-        returns (PayloadHeader memory header)
-    {
+    function decodePayloadHeader(bytes memory serialized) internal pure returns (PayloadHeader memory header) {
         uint256 index = 0;
 
         // parse the header
@@ -104,121 +68,92 @@ contract HubMessages is HubStructs {
         header.payloadID = serialized.toUint8(index);
         index += 1;
         header.sender = serialized.toAddress(index);
-
     }
 
-    function decodeDepositPayload(bytes memory serialized)
-        internal
-        pure
-        returns (DepositPayload memory params)
-    {
+    function decodeDepositPayload(bytes memory serialized) internal pure returns (DepositPayload memory params) {
         uint256 index = 0;
 
         // parse the payload header
-        params.header = decodePayloadHeader(
-            serialized.slice(index, index + 21)
-        );
-        require(params.header.payloadID == 1, "invalid payload");
+        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        require(params.header.payloadID == 1, "invalid deposit message");
         index += 21;
-       
-        // parse the asset address
-        address assetAddress = serialized.toAddress(index);
-        index += 20;
-
-        params.assetAddress = assetAddress;
-        
-        // parse the asset amount
-        uint256 assetAmount = serialized.toUint256(index);
-        index += 32;
-        
-        params.assetAmount = assetAmount;
-    }
-
-    
-    function decodeWithdrawPayload(bytes memory serialized)
-        internal
-        pure
-        returns (WithdrawPayload memory params)
-    {
-        uint256 index = 0;
-
-        // parse the payload header
-        params.header = decodePayloadHeader(
-            serialized.slice(index, index + 21)
-        );
-        require(params.header.payloadID == 2, "invalid payload");
-        index += 21;
-       
 
         // parse the asset address
         address assetAddress = serialized.toAddress(index);
         index += 20;
 
         params.assetAddress = assetAddress;
-        
+
         // parse the asset amount
         uint256 assetAmount = serialized.toUint256(index);
         index += 32;
-        
+
         params.assetAmount = assetAmount;
     }
-    
-    function decodeBorrowPayload(bytes memory serialized)
-        internal
-        pure
-        returns (BorrowPayload memory params)
-    {
+
+    function decodeWithdrawPayload(bytes memory serialized) internal pure returns (WithdrawPayload memory params) {
         uint256 index = 0;
 
         // parse the payload header
-        params.header = decodePayloadHeader(
-            serialized.slice(index, index + 21)
-        );
-        require(params.header.payloadID == 3, "invalid payload");
+        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        require(params.header.payloadID == 2, "invalid withdraw message");
         index += 21;
-       
 
         // parse the asset address
         address assetAddress = serialized.toAddress(index);
         index += 20;
 
         params.assetAddress = assetAddress;
-        
+
         // parse the asset amount
         uint256 assetAmount = serialized.toUint256(index);
         index += 32;
-        
+
         params.assetAmount = assetAmount;
     }
-    
-    function decodeRepayPayload(bytes memory serialized)
-        internal
-        pure
-        returns (RepayPayload memory params)
-    {
+
+    function decodeBorrowPayload(bytes memory serialized) internal pure returns (BorrowPayload memory params) {
         uint256 index = 0;
 
         // parse the payload header
-        params.header = decodePayloadHeader(
-            serialized.slice(index, index + 21)
-        );
-        require(params.header.payloadID == 4, "invalid payload");
+        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        require(params.header.payloadID == 3, "invalid borrow message");
         index += 21;
-        
 
         // parse the asset address
         address assetAddress = serialized.toAddress(index);
         index += 20;
 
         params.assetAddress = assetAddress;
-        
+
         // parse the asset amount
         uint256 assetAmount = serialized.toUint256(index);
         index += 32;
-        
+
         params.assetAmount = assetAmount;
     }
-    
+
+    function decodeRepayPayload(bytes memory serialized) internal pure returns (RepayPayload memory params) {
+        uint256 index = 0;
+
+        // parse the payload header
+        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        require(params.header.payloadID == 4, "invalid repay message");
+        index += 21;
+
+        // parse the asset address
+        address assetAddress = serialized.toAddress(index);
+        index += 20;
+
+        params.assetAddress = assetAddress;
+
+        // parse the asset amount
+        uint256 assetAmount = serialized.toUint256(index);
+        index += 32;
+
+        params.assetAmount = assetAmount;
+    }
+
     function decodeRegisterAssetMessage(bytes memory serialized)
         internal
         pure
@@ -227,13 +162,10 @@ contract HubMessages is HubStructs {
         uint256 index = 0;
 
         // parse the message header
-        params.header = decodePayloadHeader(
-            serialized.slice(index, index + 21)
-        );
-        require(params.header.payloadID == 5, "invalid payload");
+        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        require(params.header.payloadID == 5, "invalid register asset message");
         index += 21;
 
-        
         // parse the asset address
         address assetAddress = serialized.toAddress(index);
         index += 20;
@@ -266,4 +198,3 @@ contract HubMessages is HubStructs {
         params.decimals = decimals;
     }
 }
-

@@ -9,9 +9,12 @@ import {Hub} from "../src/contracts/lendingHub/Hub.sol";
 import {HubStructs} from "../src/contracts/lendingHub/HubStructs.sol";
 import {HubMessages} from "../src/contracts/lendingHub/HubMessages.sol";
 import {MyERC20} from "./helpers/MyERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IWormhole} from "../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../src/interfaces/ITokenBridge.sol";
+import {ITokenImplementation} from "../src/interfaces/ITokenImplementation.sol";
+
 import "../src/contracts/lendingHub/HubGetters.sol";
 
 import {WormholeSimulator} from "./helpers/WormholeSimulator.sol";
@@ -19,8 +22,9 @@ import {WormholeSimulator} from "./helpers/WormholeSimulator.sol";
 // TODO: add wormhole interface and use fork-url w/ mainnet
 
 contract HubTest is Test, HubStructs, HubMessages, HubGetters {
-    MyERC20[] tokens;
-    string[] tokenNames = ["BNB", "ETH", "USDC", "SOL", "AVAX"];
+    IERC20[] tokens;
+    //string[] tokenNames = ["BNB", "ETH", "USDC", "SOL", "AVAX"];
+    address[] tokenAddresses = [0x442F7f22b1EE2c842bEAFf52880d4573E9201158];
     uint256[] collateralizationRatios;
     Hub hub;
 
@@ -29,10 +33,13 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
     uint256 guardianSigner;
     WormholeSimulator public wormholeSimulator;
 
+    bytes32 foreignTokenBridgeAddress;
+    uint16 foreignChainId;
+
     function setUp() public {
         // initialize tokens with above tokens
-        for (uint8 i = 0; i < tokenNames.length; i++) {
-            tokens.push(new MyERC20(tokenNames[i], tokenNames[i], 18));
+        for (uint8 i = 0; i < tokenAddresses.length; i++) {
+            tokens.push(IERC20(tokenAddresses[i]));
             collateralizationRatios.push(110000000000000000000); // all tokens have min collat ratio of 110%
         }
 
@@ -59,6 +66,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
         // verify Token Bridge state from fork
         require(tokenBridgeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")), "wrong chainId");
 
+        // foreign token bridge (ethereum)
+        foreignTokenBridgeAddress = vm.envBytes32("TESTING_FOREIGN_TOKEN_BRIDGE_ADDRESS");
+        foreignChainId = uint16(vm.envUint("TESTING_FOREIGN_CHAIN_ID"));
 
         // initialize Hub contract
         uint8 wormholeFinality = 1;
@@ -68,187 +78,110 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
     function testEncodeDepositPayload() public {
         PayloadHeader memory header = PayloadHeader({
             payloadID: 1,
-            sender: address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
+            sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
         });
         address assetAddress = address(tokens[0]);
         uint256 assetAmount = 502;
-        
-        DepositPayload memory myPayload = DepositPayload({
-            header: header,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount
-        });
-        bytes memory serialized = encodeDepositPayload(myPayload);
-        DepositPayload memory encodedAndDecodedMsg = decodeDepositPayload(
-            serialized
-        );
 
-        require(
-            myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID,
-            "payload ids do not match"
-        );
-        require(
-            myPayload.header.sender == encodedAndDecodedMsg.header.sender,
-            "sender addresses do not match"
-        );
-        require(
-            myPayload.assetAddress ==
-                encodedAndDecodedMsg.assetAddress,
-            "asset addresses do not match "
-        );
-        require(
-            myPayload.assetAmount ==
-                encodedAndDecodedMsg.assetAmount,
-            "asset amounts do not match "
-        );
+        DepositPayload memory myPayload =
+            DepositPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeDepositPayload(myPayload);
+        DepositPayload memory encodedAndDecodedMsg = decodeDepositPayload(serialized);
+
+        require(myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID, "payload ids do not match");
+        require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
+        require(myPayload.assetAddress == encodedAndDecodedMsg.assetAddress, "asset addresses do not match ");
+        require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
 
     function testEncodeWithdrawPayload() public {
         PayloadHeader memory header = PayloadHeader({
             payloadID: 2,
-            sender: address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
+            sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
         });
         address assetAddress = address(tokens[0]);
         uint256 assetAmount = 2356;
-        
-        WithdrawPayload memory myPayload = WithdrawPayload({
-            header: header,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount
-        });
+
+        WithdrawPayload memory myPayload =
+            WithdrawPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
         bytes memory serialized = encodeWithdrawPayload(myPayload);
-        WithdrawPayload memory encodedAndDecodedMsg = decodeWithdrawPayload(
-            serialized
-        );
+        WithdrawPayload memory encodedAndDecodedMsg = decodeWithdrawPayload(serialized);
 
-        require(
-            myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID,
-            "payload ids do not match"
-        );
-        require(
-            myPayload.header.sender == encodedAndDecodedMsg.header.sender,
-            "sender addresses do not match"
-        );
-        require(
-            myPayload.assetAddress ==
-                encodedAndDecodedMsg.assetAddress,
-            "asset addresses do not match "
-        );
-        require(
-            myPayload.assetAmount ==
-                encodedAndDecodedMsg.assetAmount,
-            "asset amounts do not match "
-        );
+        require(myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID, "payload ids do not match");
+        require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
+        require(myPayload.assetAddress == encodedAndDecodedMsg.assetAddress, "asset addresses do not match ");
+        require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
-
 
     function testEncodeBorrowPayload() public {
         PayloadHeader memory header = PayloadHeader({
             payloadID: 3,
-            sender: address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
+            sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
         });
         address assetAddress = address(tokens[0]);
         uint256 assetAmount = 1242;
-        
-        BorrowPayload memory myPayload = BorrowPayload({
-            header: header,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount
-        });
-        bytes memory serialized = encodeBorrowPayload(myPayload);
-        BorrowPayload memory encodedAndDecodedMsg = decodeBorrowPayload(
-            serialized
-        );
 
-        require(
-            myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID,
-            "payload ids do not match"
-        );
-        require(
-            myPayload.header.sender == encodedAndDecodedMsg.header.sender,
-            "sender addresses do not match"
-        );
-        require(
-            myPayload.assetAddress ==
-                encodedAndDecodedMsg.assetAddress,
-            "asset addresses do not match "
-        );
-        require(
-            myPayload.assetAmount ==
-                encodedAndDecodedMsg.assetAmount,
-            "asset amounts do not match "
-        );
+        BorrowPayload memory myPayload =
+            BorrowPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeBorrowPayload(myPayload);
+        BorrowPayload memory encodedAndDecodedMsg = decodeBorrowPayload(serialized);
+
+        require(myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID, "payload ids do not match");
+        require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
+        require(myPayload.assetAddress == encodedAndDecodedMsg.assetAddress, "asset addresses do not match ");
+        require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
 
     function testEncodeRepayPayload() public {
         PayloadHeader memory header = PayloadHeader({
             payloadID: 4,
-            sender: address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
+            sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
         });
         address assetAddress = address(tokens[0]);
         uint256 assetAmount = 4253;
-        
-        RepayPayload memory myPayload = RepayPayload({
-            header: header,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount
-        });
-        bytes memory serialized = encodeRepayPayload(myPayload);
-        RepayPayload memory encodedAndDecodedMsg = decodeRepayPayload(
-            serialized
-        );
 
-        require(
-            myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID,
-            "payload ids do not match"
-        );
-        require(
-            myPayload.header.sender == encodedAndDecodedMsg.header.sender,
-            "sender addresses do not match"
-        );
-        require(
-            myPayload.assetAddress ==
-                encodedAndDecodedMsg.assetAddress,
-            "asset addresses do not match "
-        );
-        require(
-            myPayload.assetAmount ==
-                encodedAndDecodedMsg.assetAmount,
-            "asset amounts do not match "
-        );
+        RepayPayload memory myPayload =
+            RepayPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeRepayPayload(myPayload);
+        RepayPayload memory encodedAndDecodedMsg = decodeRepayPayload(serialized);
+
+        require(myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID, "payload ids do not match");
+        require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
+        require(myPayload.assetAddress == encodedAndDecodedMsg.assetAddress, "asset addresses do not match ");
+        require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
+    }
+
+    struct WormholeBodyParams {
+        uint32 timestamp;
+        uint32 nonce;
+        uint16 emitterChainId;
+        bytes32 emitterAddress;
+        uint64 sequence;
+        uint8 consistencyLevel;
     }
 
     function encodePayload3Message(
-        uint8 payloadID,
-        uint256 amount,
-        bytes32 tokenAddress,
-        uint16 tokenChain,
-        bytes32 to,
-        uint16 toChain,
-        bytes32 fromAddress,
-        bytes memory payload        
+        ITokenBridge.TransferWithPayload memory transfer,
+        // wormhole related
+        WormholeBodyParams memory wormholeParams
     ) public returns (bytes memory encoded) {
-        tokenBridgeContract = tokenBridge();
-        ITokenBridge.TransferWithPayload memory transfer = ITokenBridge.TransferWithPayload({
-                payloadID: payloadID,
-                amount: amount,
-                tokenAddress: tokenAddress,
-                tokenChain: tokenChain,
-                to: to,
-                toChain: toChain,
-                fromAddress: fromAddress, // bytes32(uint256(uint160(msg.sender)))
-                payload: payload
-            });
-
         encoded = abi.encodePacked(
-            transfer.payloadID,
-            transfer.amount,
-            transfer.tokenAddress,
-            transfer.tokenChain,
-            transfer.to,
-            transfer.toChain,
-            transfer.fromAddress,
-            transfer.payload
+            wormholeParams.timestamp,
+            wormholeParams.nonce,
+            wormholeParams.emitterChainId,
+            wormholeParams.emitterAddress,
+            wormholeParams.sequence,
+            wormholeParams.consistencyLevel,
+            abi.encodePacked(
+                transfer.payloadID,
+                transfer.amount,
+                transfer.tokenAddress,
+                transfer.tokenChain,
+                transfer.to,
+                transfer.toChain,
+                transfer.fromAddress,
+                transfer.payload
+            )
         );
     }
 
@@ -260,36 +193,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
         bytes32 emitterAddress,
         uint64 sequence,
         uint8 consistencyLevel,
-        bytes calldata payload,
-        uint32 guardianSetIndex,
-        IWormhole.Signature[] calldata signatures,
-        bytes32 hash
+        bytes calldata payload
     ) public returns (bytes memory encodedVm) {
-        IWormhole.VM memory preVm = IWormhole.VM({
-            version: version,
-            timestamp: timestamp,
-            nonce: nonce,
-            emitterChainId: emitterChainId,
-            emitterAddress: emitterAddress,
-            sequence: sequence,
-            consistencyLevel: consistencyLevel,
-            payload: payload,
-            guardianSetIndex: guardianSetIndex,
-            signatures: signatures,
-            hash: hash
-        });
-
         encodedVm = abi.encodePacked(
-            preVm.version,
-            preVm.timestamp,
-            preVm.nonce,
-            preVm.emitterChainId,
-            preVm.emitterAddress,
-            preVm.sequence,
-            preVm.consistencyLevel,
-            preVm.payload,
-            preVm.guardianSetIndex,
-            preVm.hash
+            version, timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload
         );
     }
 
@@ -304,9 +211,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
         AssetInfo memory info = hub.getAssetAddressInfo(assetAddress);
 
         require(
-            (info.collateralizationRatio == collateralizationRatios[0]) &&
-            (info.decimals == 18) &&
-            (info.exists),
+            (info.collateralizationRatio == collateralizationRatios[0]) && (info.decimals == 18) && (info.exists),
             "didn't register properly"
         );
     }
@@ -324,12 +229,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
         console.log("actual asset Address: ", assetAddress);
         console.log("actual asset Amount: ", assetAmount);
         console.log("depositor: ", msg.sender);
-        
-        DepositPayload memory myPayload = DepositPayload({
-            header: header,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount
-        });
+
+        DepositPayload memory myPayload =
+            DepositPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
         bytes memory serialized = encodeDepositPayload(myPayload);
 
         // register asset
@@ -343,13 +245,57 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
         console.log("reserveFactor: ", info.reserveFactor, info2.reserveFactor);
         console.log("exists: ", info.exists, info2.exists);
 
+        ITokenImplementation wrapped = ITokenImplementation(assetAddress);
+        console.log("wrapped chain id", wrapped.chainId());
+        console.log("wrapped native contract");
+        console.logBytes32(wrapped.nativeContract());
 
+        ITokenBridge.TransferWithPayload memory transfer = ITokenBridge.TransferWithPayload({
+            payloadID: 3,
+            amount: assetAmount,
+            tokenAddress: wrapped.nativeContract(),
+            tokenChain: wrapped.chainId(),
+            to: bytes32(uint256(uint160(address(hub)))),
+            toChain: wormholeContract.chainId(),
+            fromAddress: bytes32(uint256(uint160(msg.sender))),
+            payload: serialized
+        });
 
-        bytes memory depositPayload = encodePayload3Message(1, assetAmount, bytes32(uint256(uint160(assetAddress))), 1, bytes32(uint256(uint160(msg.sender))), 2, bytes32(uint256(uint160(msg.sender))), serialized);
+        bytes memory depositPayload = encodePayload3Message(
+            transfer,
+            WormholeBodyParams({
+                timestamp: 0,
+                nonce: 0,
+                emitterChainId: foreignChainId,
+                emitterAddress: foreignTokenBridgeAddress,
+                sequence: 1,
+                consistencyLevel: 15
+            })
+        );
+
+        bytes32 messageHash = keccak256(abi.encodePacked(keccak256(depositPayload)));
+
+        // Sign the hash with the devnet guardian private key
+        IWormhole.Signature[] memory sigs = new IWormhole.Signature[](1);
+        (sigs[0].v, sigs[0].r, sigs[0].s) = vm.sign(guardianSigner, messageHash);
+        sigs[0].guardianIndex = 0;
+
+        bytes memory encodedVM = abi.encodePacked(
+            uint8(1), // version
+            wormholeContract.getCurrentGuardianSetIndex(),
+            uint8(sigs.length),
+            sigs[0].guardianIndex,
+            sigs[0].r,
+            sigs[0].s,
+            sigs[0].v - 27,
+            depositPayload
+        );
+
+        //(IWormhole.VM memory vm, bool valid, string memory reason) = wormholeContract.parseAndVerifyVM(encodedVM);
+
         // IWormhole.Signature calldata sig = IWormhole.Signature({r: bytes32(uint256(uint160(0))), s: bytes32(uint256(uint160(0))), v: 0, guardianIndex: 2});
         // IWormhole.Signature[] calldata signatures = [sig];
         // bytes memory depositMessage = encodeVM(1, 1000000, 1, 6, bytes32(uint256(uint160(0))), 1, 1, depositPayload, 2, signatures, bytes32(uint256(uint160(0))));
-        bytes memory depositMessage = depositPayload;
 
         uint256 deposited0;
         uint256 borrowed0;
@@ -366,7 +312,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
         vault0 = getVaultAmounts(msg.sender, assetAddress);
 
         // complete deposit
-        hub.completeDeposit(depositMessage); // depositMessage
+        hub.completeDeposit(encodedVM); // depositMessage
 
         DepositPayload memory decodedmsg = decodeDepositPayload(serialized);
         console.log("assetAddress deposited: ", decodedmsg.assetAddress);
@@ -379,12 +325,11 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
 
         console.log("Deposited before globally: ", deposited0);
         console.log("Deposited after globally: ", deposited1);
-        
+
         console.log("Borrowed before globally: ", borrowed0);
         console.log("Borrowed after globally: ", borrowed1);
 
         console.log("Vault before: ", vault0.deposited, vault0.borrowed);
         console.log("Vault after: ", vault1.deposited, vault1.borrowed);
-
     }
 }
