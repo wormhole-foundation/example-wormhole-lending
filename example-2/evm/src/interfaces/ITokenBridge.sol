@@ -2,6 +2,17 @@
 pragma solidity ^0.8.0;
 
 interface ITokenBridge {
+    struct TransferWithPayload {
+        uint8 payloadID;
+        uint256 amount;
+        bytes32 tokenAddress;
+        uint16 tokenChain;
+        bytes32 to;
+        uint16 toChain;
+        bytes32 fromAddress;
+        bytes payload;
+    }
+
     function transferTokens(
         address token,
         uint256 amount,
@@ -21,7 +32,10 @@ interface ITokenBridge {
       uint32 nonce,
       bytes memory payload
     ) external payable returns (uint64);
+
     function completeTransferWithPayload(
         bytes memory encodedVm
     ) external returns (bytes memory);
+
+    function chainId() external view returns (uint16);
 }

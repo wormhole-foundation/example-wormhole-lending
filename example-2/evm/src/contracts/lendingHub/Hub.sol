@@ -22,6 +22,24 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setConsistencyLevel(consistencyLevel_);
     }
 
+    // TODO: only for testing, get rid of
+    function getAssetAddressInfo(address assetAddress) public returns (AssetInfo memory assetInfo) {
+        assetInfo = getAssetInfo(assetAddress);
+    }
+    // TODO: only for testing, get rid of
+    function getAmountsVault(address vault, address assetAddress) public returns (VaultAmount memory vaultAmount) {
+        vaultAmount = getVaultAmounts(vault, assetAddress);
+    }
+    // TODO: only for testing, get rid of
+    function getAmountsGlobal(address assetAddress) public returns (uint256 deposited, uint256 borrowed) {
+        deposited = getTotalAssetsDeposited(assetAddress);
+        borrowed = getTotalAssetsBorrowed(assetAddress);
+    }
+    function getConsistencyLevel() public returns (uint8 consistency) {
+        consistency = consistencyLevel();
+    }
+
+
     function registerAsset(
         address assetAddress,
         uint256 collateralizationRatio,
@@ -29,7 +47,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         bytes32 pythId,
         uint8 decimals
     ) public returns (uint64 sequence) {
-        require(msg.sender == owner());
+        require(msg.sender == owner(), "invalid owner");
 
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
         require(!registered_info.exists, "Asset already registered");
@@ -67,13 +85,14 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     }
 
     function registerSpoke(uint16 chainId, address spokeContractAddress) public {
-        require(msg.sender == owner());
+        require(msg.sender == owner(), "invalid owner");
         registerSpokeContract(chainId, spokeContractAddress);
     }
 
-    function completeDeposit(bytes calldata encodedMessage) public {
+    function completeDeposit(bytes calldata encodedMessage) public { // calldata encodedMessage
 
-        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
+        // encodedMessage is Token Bridge payload 3 full msg
+        bytes memory vmPayload = getTransferPayload(encodedMessage);
 
         DepositPayload memory params = decodeDepositPayload(vmPayload);
 
@@ -96,7 +115,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
     function completeRepay(bytes calldata encodedMessage) public {
 
-        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
+        // encodedMessage is Token Bridge payload 3 full msg
+        bytes memory vmPayload = getTransferPayload(encodedMessage);
 
         RepayPayload memory params = decodeRepayPayload(vmPayload);
         
@@ -120,8 +140,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
 
-        vaultAmounts.deposited += normalizedDeposit;
-        globalAmounts.deposited += normalizedDeposit;
+        vaultAmounts.deposited = 456; // += normalizedDeposit;
+        globalAmounts.deposited = 123; // += normalizedDeposit;
 
         setVaultAmounts(depositor, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);

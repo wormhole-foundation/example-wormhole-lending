@@ -240,6 +240,20 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
 
         uint256 deposited = getTotalAssetsDeposited(assetAddress);
+        AccrualIndices memory accrualIndices = getInterestAccrualIndices(assetAddress);
+
+        if(secondsElapsed == 0) {
+            // no need to update anything
+            return;
+        }
+
+        accrualIndices.lastBlock = block.timestamp;
+
+        if(deposited == 0) {
+            // avoid divide by 0 due to 0 deposits
+            return;
+        }
+
         uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
 
         setLastActivityBlockTimestamp(assetAddress, block.timestamp);
@@ -248,10 +262,8 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
 
-        AccrualIndices memory accrualIndices = getInterestAccrualIndices(assetAddress);
         accrualIndices.borrowed += interestFactor;
         accrualIndices.deposited += (interestFactor * borrowed) / deposited;
-        accrualIndices.lastBlock = block.timestamp;
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }
@@ -278,6 +290,13 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         consumeMessageHash(parsed.hash);
 
         return parsed.payload;
+    }
+
+    function getTransferPayload(bytes calldata encodedMessage) internal returns (bytes memory payload) {
+        payload = tokenBridge().completeTransferWithPayload(encodedMessage);
+
+        // do some stuff
+        
     }
 
     /*

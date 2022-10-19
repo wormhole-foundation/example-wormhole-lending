@@ -35,6 +35,13 @@ contract HubSetters is HubStructs, HubState {
 
     function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
         _state.assetInfos[assetAddress] = info;
+        AccrualIndices memory accrualIndices;
+        accrualIndices.deposited = 1;
+        accrualIndices.borrowed = 1;
+        accrualIndices.lastBlock = block.timestamp;
+
+        // TODO: confirm you want to set indices to 1 when registering for first time
+        setInterestAccrualIndices(assetAddress, accrualIndices);
     }
 
     function consumeMessageHash(bytes32 vmHash) internal {

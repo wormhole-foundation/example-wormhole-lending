@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
@@ -10,19 +10,59 @@ import {HubStructs} from "../src/contracts/lendingHub/HubStructs.sol";
 import {HubMessages} from "../src/contracts/lendingHub/HubMessages.sol";
 import {MyERC20} from "./helpers/MyERC20.sol";
 
+import {IWormhole} from "../src/interfaces/IWormhole.sol";
+import {ITokenBridge} from "../src/interfaces/ITokenBridge.sol";
+import "../src/contracts/lendingHub/HubGetters.sol";
+
+import {WormholeSimulator} from "./helpers/WormholeSimulator.sol";
+
 // TODO: add wormhole interface and use fork-url w/ mainnet
 
-contract HubTest is Test, HubStructs, HubMessages {
+contract HubTest is Test, HubStructs, HubMessages, HubGetters {
     MyERC20[] tokens;
     string[] tokenNames = ["BNB", "ETH", "USDC", "SOL", "AVAX"];
+    uint256[] collateralizationRatios;
     Hub hub;
 
-    function setUp() public {
-        hub = new Hub(msg.sender, msg.sender, msg.sender, 1);
+    IWormhole wormholeContract;
+    ITokenBridge tokenBridgeContract;
+    uint256 guardianSigner;
+    WormholeSimulator public wormholeSimulator;
 
+    function setUp() public {
+        // initialize tokens with above tokens
         for (uint8 i = 0; i < tokenNames.length; i++) {
             tokens.push(new MyERC20(tokenNames[i], tokenNames[i], 18));
+            collateralizationRatios.push(110000000000000000000); // all tokens have min collat ratio of 110%
         }
+
+        // this will be used to sign wormhole messages
+        guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
+
+        // set up Wormhole using Wormhole existing
+        wormholeSimulator = new WormholeSimulator(vm.envAddress("TESTING_WORMHOLE_ADDRESS"), guardianSigner);
+
+        // we may need to interact with Wormhole throughout the test
+        wormholeContract = wormholeSimulator.wormhole();
+
+        // verify Wormhole state from fork
+        require(wormholeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")), "wrong chainId");
+        require(wormholeContract.messageFee() == vm.envUint("TESTING_WORMHOLE_MESSAGE_FEE"), "wrong messageFee");
+        require(
+            wormholeContract.getCurrentGuardianSetIndex() == uint32(vm.envUint("TESTING_WORMHOLE_GUARDIAN_SET_INDEX")),
+            "wrong guardian set index"
+        );
+
+        // set up Token Bridge
+        tokenBridgeContract = ITokenBridge(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
+
+        // verify Token Bridge state from fork
+        require(tokenBridgeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")), "wrong chainId");
+
+
+        // initialize Hub contract
+        uint8 wormholeFinality = 1;
+        hub = new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality);
     }
 
     function testEncodeDepositPayload() public {
@@ -178,5 +218,173 @@ contract HubTest is Test, HubStructs, HubMessages {
         );
     }
 
-   
+    function encodePayload3Message(
+        uint8 payloadID,
+        uint256 amount,
+        bytes32 tokenAddress,
+        uint16 tokenChain,
+        bytes32 to,
+        uint16 toChain,
+        bytes32 fromAddress,
+        bytes memory payload        
+    ) public returns (bytes memory encoded) {
+        tokenBridgeContract = tokenBridge();
+        ITokenBridge.TransferWithPayload memory transfer = ITokenBridge.TransferWithPayload({
+                payloadID: payloadID,
+                amount: amount,
+                tokenAddress: tokenAddress,
+                tokenChain: tokenChain,
+                to: to,
+                toChain: toChain,
+                fromAddress: fromAddress, // bytes32(uint256(uint160(msg.sender)))
+                payload: payload
+            });
+
+        encoded = abi.encodePacked(
+            transfer.payloadID,
+            transfer.amount,
+            transfer.tokenAddress,
+            transfer.tokenChain,
+            transfer.to,
+            transfer.toChain,
+            transfer.fromAddress,
+            transfer.payload
+        );
+    }
+
+    function encodeVM(
+        uint8 version,
+        uint32 timestamp,
+        uint32 nonce,
+        uint16 emitterChainId,
+        bytes32 emitterAddress,
+        uint64 sequence,
+        uint8 consistencyLevel,
+        bytes calldata payload,
+        uint32 guardianSetIndex,
+        IWormhole.Signature[] calldata signatures,
+        bytes32 hash
+    ) public returns (bytes memory encodedVm) {
+        IWormhole.VM memory preVm = IWormhole.VM({
+            version: version,
+            timestamp: timestamp,
+            nonce: nonce,
+            emitterChainId: emitterChainId,
+            emitterAddress: emitterAddress,
+            sequence: sequence,
+            consistencyLevel: consistencyLevel,
+            payload: payload,
+            guardianSetIndex: guardianSetIndex,
+            signatures: signatures,
+            hash: hash
+        });
+
+        encodedVm = abi.encodePacked(
+            preVm.version,
+            preVm.timestamp,
+            preVm.nonce,
+            preVm.emitterChainId,
+            preVm.emitterAddress,
+            preVm.sequence,
+            preVm.consistencyLevel,
+            preVm.payload,
+            preVm.guardianSetIndex,
+            preVm.hash
+        );
+    }
+
+    // test register
+    function testRegister() public {
+        address assetAddress = address(tokens[0]);
+
+        // register asset
+        hub.registerAsset(assetAddress, collateralizationRatios[0], 0, bytes32(0), 18);
+
+        // TODO: get rid of this getAssetAddressInfo function from Hub.sol, expose the function in Getters
+        AssetInfo memory info = hub.getAssetAddressInfo(assetAddress);
+
+        require(
+            (info.collateralizationRatio == collateralizationRatios[0]) &&
+            (info.decimals == 18) &&
+            (info.exists),
+            "didn't register properly"
+        );
+    }
+
+    // test deposit
+    function testDeposit() public {
+        // create Deposit message
+        PayloadHeader memory header = PayloadHeader({
+            payloadID: 1,
+            sender: msg.sender //address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
+        });
+        address assetAddress = address(tokens[0]);
+        uint256 assetAmount = 502;
+
+        console.log("actual asset Address: ", assetAddress);
+        console.log("actual asset Amount: ", assetAmount);
+        console.log("depositor: ", msg.sender);
+        
+        DepositPayload memory myPayload = DepositPayload({
+            header: header,
+            assetAddress: assetAddress,
+            assetAmount: assetAmount
+        });
+        bytes memory serialized = encodeDepositPayload(myPayload);
+
+        // register asset
+        hub.registerAsset(assetAddress, collateralizationRatios[0], 0, bytes32(0), 18);
+        // TODO: get rid of this getAssetAddressInfo function from Hub.sol, expose the function in Getters
+        AssetInfo memory info = hub.getAssetAddressInfo(assetAddress);
+        AssetInfo memory info2 = getAssetInfo(assetAddress);
+
+        console.log("collat ratios: ", info.collateralizationRatio, info2.collateralizationRatio);
+        console.log("decimals: ", info.decimals, info2.decimals);
+        console.log("reserveFactor: ", info.reserveFactor, info2.reserveFactor);
+        console.log("exists: ", info.exists, info2.exists);
+
+
+
+        bytes memory depositPayload = encodePayload3Message(1, assetAmount, bytes32(uint256(uint160(assetAddress))), 1, bytes32(uint256(uint160(msg.sender))), 2, bytes32(uint256(uint160(msg.sender))), serialized);
+        // IWormhole.Signature calldata sig = IWormhole.Signature({r: bytes32(uint256(uint160(0))), s: bytes32(uint256(uint160(0))), v: 0, guardianIndex: 2});
+        // IWormhole.Signature[] calldata signatures = [sig];
+        // bytes memory depositMessage = encodeVM(1, 1000000, 1, 6, bytes32(uint256(uint160(0))), 1, 1, depositPayload, 2, signatures, bytes32(uint256(uint160(0))));
+        bytes memory depositMessage = depositPayload;
+
+        uint256 deposited0;
+        uint256 borrowed0;
+        uint256 deposited1;
+        uint256 borrowed1;
+
+        VaultAmount memory global0;
+        VaultAmount memory global1;
+
+        VaultAmount memory vault0;
+        VaultAmount memory vault1;
+
+        (deposited0, borrowed0) = hub.getAmountsGlobal(assetAddress);
+        vault0 = getVaultAmounts(msg.sender, assetAddress);
+
+        // complete deposit
+        hub.completeDeposit(depositMessage); // depositMessage
+
+        DepositPayload memory decodedmsg = decodeDepositPayload(serialized);
+        console.log("assetAddress deposited: ", decodedmsg.assetAddress);
+        console.log("assetAmount depoisted: ", decodedmsg.assetAmount);
+        console.log("actual depositor: ", decodedmsg.header.sender);
+
+        (deposited1, borrowed1) = hub.getAmountsGlobal(assetAddress);
+        // TODO: why does specifying msg.sender fix all?? Seems it assumes incorrect msg.sender by default
+        vault1 = hub.getAmountsVault(msg.sender, assetAddress);
+
+        console.log("Deposited before globally: ", deposited0);
+        console.log("Deposited after globally: ", deposited1);
+        
+        console.log("Borrowed before globally: ", borrowed0);
+        console.log("Borrowed after globally: ", borrowed1);
+
+        console.log("Vault before: ", vault0.deposited, vault0.borrowed);
+        console.log("Vault after: ", vault1.deposited, vault1.borrowed);
+
+    }
 }

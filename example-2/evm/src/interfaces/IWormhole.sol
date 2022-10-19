@@ -51,4 +51,14 @@ interface IWormhole {
     function chainId() external view returns (uint16);
 
     function messageFee() external view returns (uint256);
+
+    // added due to WormholeSimulator need
+    function getCurrentGuardianSetIndex() external view returns (uint32);
+
+    struct GuardianSet {
+		address[] keys;
+		uint32 expirationTime;
+	}
+
+    function getGuardianSet(uint32 guardianSetIndex) external view returns (GuardianSet memory guardians);
 }
