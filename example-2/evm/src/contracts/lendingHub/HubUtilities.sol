@@ -292,7 +292,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         return parsed.payload;
     }
 
-    function getTransferPayload(bytes calldata encodedMessage) internal returns (bytes memory payload) {
+    function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
         payload = tokenBridge().completeTransferWithPayload(encodedMessage);
 
         // do some stuff

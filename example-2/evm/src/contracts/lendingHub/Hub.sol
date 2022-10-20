@@ -6,6 +6,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../../interfaces/IWormhole.sol";
 
+import "forge-std/console.sol";
+
 import "./HubSetters.sol";
 import "./HubStructs.sol";
 import "./HubMessages.sol";
@@ -89,12 +91,14 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         registerSpokeContract(chainId, spokeContractAddress);
     }
 
-    function completeDeposit(bytes calldata encodedMessage) public { // calldata encodedMessage
+    function completeDeposit(bytes memory encodedMessage) public { // calldata encodedMessage
 
-        // encodedMessage is Token Bridge payload 3 full msg
+        // encodedMessage is WH full msg, returns token bridge transfer msg
         bytes memory vmPayload = getTransferPayload(encodedMessage);
 
-        DepositPayload memory params = decodeDepositPayload(vmPayload);
+        bytes memory serialized = extractSerializedFromTransferWithPayload(vmPayload);
+
+        DepositPayload memory params = decodeDepositPayload(serialized);
 
         deposit(params.header.sender, params.assetAddress, params.assetAmount);
     }

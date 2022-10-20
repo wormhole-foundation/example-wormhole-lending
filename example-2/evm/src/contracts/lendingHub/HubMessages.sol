@@ -70,11 +70,22 @@ contract HubMessages is HubStructs {
         header.sender = serialized.toAddress(index);
     }
 
+    function extractSerializedFromTransferWithPayload(bytes memory encodedVM) internal pure returns (bytes memory serialized) {
+        uint256 index = 0;
+        uint256 end = encodedVM.length;
+
+        // pass through TransferWithPayload metadata to arbitrary serialized bytes
+        index += 1 + 32 + 32 + 2 + 32 + 2 + 32;
+
+        return encodedVM.slice(index, end-index);
+    }
+
     function decodeDepositPayload(bytes memory serialized) internal pure returns (DepositPayload memory params) {
         uint256 index = 0;
 
         // parse the payload header
-        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        // TODO: fix all the slices to be .slice(start, length)
+        params.header = decodePayloadHeader(serialized.slice(index, 21));
         require(params.header.payloadID == 1, "invalid deposit message");
         index += 21;
 
@@ -95,7 +106,7 @@ contract HubMessages is HubStructs {
         uint256 index = 0;
 
         // parse the payload header
-        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        params.header = decodePayloadHeader(serialized.slice(index, 21));
         require(params.header.payloadID == 2, "invalid withdraw message");
         index += 21;
 
@@ -116,7 +127,7 @@ contract HubMessages is HubStructs {
         uint256 index = 0;
 
         // parse the payload header
-        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        params.header = decodePayloadHeader(serialized.slice(index, 21));
         require(params.header.payloadID == 3, "invalid borrow message");
         index += 21;
 
@@ -137,7 +148,7 @@ contract HubMessages is HubStructs {
         uint256 index = 0;
 
         // parse the payload header
-        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        params.header = decodePayloadHeader(serialized.slice(index, 21));
         require(params.header.payloadID == 4, "invalid repay message");
         index += 21;
 
@@ -162,7 +173,7 @@ contract HubMessages is HubStructs {
         uint256 index = 0;
 
         // parse the message header
-        params.header = decodePayloadHeader(serialized.slice(index, index + 21));
+        params.header = decodePayloadHeader(serialized.slice(index, 21));
         require(params.header.payloadID == 5, "invalid register asset message");
         index += 21;
 

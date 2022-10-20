@@ -5,9 +5,12 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
+import "../../src/libraries/external/BytesLib.sol";
+
 import {Hub} from "../src/contracts/lendingHub/Hub.sol";
 import {HubStructs} from "../src/contracts/lendingHub/HubStructs.sol";
 import {HubMessages} from "../src/contracts/lendingHub/HubMessages.sol";
+import {HubUtilities} from "../src/contracts/lendingHub/HubUtilities.sol";
 import {MyERC20} from "./helpers/MyERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -21,7 +24,9 @@ import {WormholeSimulator} from "./helpers/WormholeSimulator.sol";
 
 // TODO: add wormhole interface and use fork-url w/ mainnet
 
-contract HubTest is Test, HubStructs, HubMessages, HubGetters {
+contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities {
+    using BytesLib for bytes;
+
     IERC20[] tokens;
     //string[] tokenNames = ["BNB", "ETH", "USDC", "SOL", "AVAX"];
     address[] tokenAddresses = [0x442F7f22b1EE2c842bEAFf52880d4573E9201158];
@@ -77,7 +82,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
 
     function testEncodeDepositPayload() public {
         PayloadHeader memory header = PayloadHeader({
-            payloadID: 1,
+            payloadID: uint8(1),
             sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
         });
         address assetAddress = address(tokens[0]);
@@ -86,7 +91,15 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
         DepositPayload memory myPayload =
             DepositPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
         bytes memory serialized = encodeDepositPayload(myPayload);
+
+        console.logBytes(serialized);
+
         DepositPayload memory encodedAndDecodedMsg = decodeDepositPayload(serialized);
+
+        console.log("payload ID", encodedAndDecodedMsg.header.payloadID);
+        console.log("sender", encodedAndDecodedMsg.header.sender);
+        console.log("asset addresses", encodedAndDecodedMsg.assetAddress);
+        console.log("asset amounts", encodedAndDecodedMsg.assetAmount);
 
         require(myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID, "payload ids do not match");
         require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
@@ -151,19 +164,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
         require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
 
-    struct WormholeBodyParams {
-        uint32 timestamp;
-        uint32 nonce;
-        uint16 emitterChainId;
-        bytes32 emitterAddress;
-        uint64 sequence;
-        uint8 consistencyLevel;
-    }
-
     function encodePayload3Message(
         ITokenBridge.TransferWithPayload memory transfer,
         // wormhole related
-        WormholeBodyParams memory wormholeParams
+        IWormhole.WormholeBodyParams memory wormholeParams
     ) public returns (bytes memory encoded) {
         encoded = abi.encodePacked(
             wormholeParams.timestamp,
@@ -220,10 +224,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
     function testDeposit() public {
         // create Deposit message
         PayloadHeader memory header = PayloadHeader({
-            payloadID: 1,
+            payloadID: uint8(1),
             sender: msg.sender //address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
         });
-        address assetAddress = address(tokens[0]);
+        address assetAddress = address(tokenAddresses[0]);
         uint256 assetAmount = 502;
 
         console.log("actual asset Address: ", assetAddress);
@@ -233,6 +237,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
         DepositPayload memory myPayload =
             DepositPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
         bytes memory serialized = encodeDepositPayload(myPayload);
+
+        console.log("FROM HUB.T.SOL");
+        console.logBytes(serialized);
 
         // register asset
         hub.registerAsset(assetAddress, collateralizationRatios[0], 0, bytes32(0), 18);
@@ -263,7 +270,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
 
         bytes memory depositPayload = encodePayload3Message(
             transfer,
-            WormholeBodyParams({
+            IWormhole.WormholeBodyParams({
                 timestamp: 0,
                 nonce: 0,
                 emitterChainId: foreignChainId,
@@ -291,11 +298,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
             depositPayload
         );
 
-        //(IWormhole.VM memory vm, bool valid, string memory reason) = wormholeContract.parseAndVerifyVM(encodedVM);
-
-        // IWormhole.Signature calldata sig = IWormhole.Signature({r: bytes32(uint256(uint160(0))), s: bytes32(uint256(uint160(0))), v: 0, guardianIndex: 2});
-        // IWormhole.Signature[] calldata signatures = [sig];
-        // bytes memory depositMessage = encodeVM(1, 1000000, 1, 6, bytes32(uint256(uint160(0))), 1, 1, depositPayload, 2, signatures, bytes32(uint256(uint160(0))));
+        console.log("GET BYTES");
+        console.logBytes(encodedVM);
 
         uint256 deposited0;
         uint256 borrowed0;
@@ -310,6 +314,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters {
 
         (deposited0, borrowed0) = hub.getAmountsGlobal(assetAddress);
         vault0 = getVaultAmounts(msg.sender, assetAddress);
+
 
         // complete deposit
         hub.completeDeposit(encodedVM); // depositMessage

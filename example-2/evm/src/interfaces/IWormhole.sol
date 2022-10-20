@@ -25,6 +25,15 @@ interface IWormhole {
         bytes32 hash;
     }
 
+    struct WormholeBodyParams {
+        uint32 timestamp;
+        uint32 nonce;
+        uint16 emitterChainId;
+        bytes32 emitterAddress;
+        uint64 sequence;
+        uint8 consistencyLevel;
+    }
+
     event LogMessagePublished(
         address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel
     );
