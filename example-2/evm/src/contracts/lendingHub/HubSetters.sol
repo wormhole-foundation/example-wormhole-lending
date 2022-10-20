@@ -60,11 +60,15 @@ contract HubSetters is HubStructs, HubState {
         _state.indices[assetAddress] = indices;
     }
 
+    function setInterestAccrualIndexPrecision(uint256 interestAccrualIndexPrecision) internal {
+        _state.interestAccrualIndexPrecision = interestAccrualIndexPrecision;
+    }
+
     function setVaultAmounts(address vaultOwner, address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.vault[vaultOwner][assetAddress] = vaultAmount;
     } 
 
     function setGlobalAmounts(address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.totalAssets[assetAddress] = vaultAmount;
-    } 
+    }
 }

@@ -15,13 +15,14 @@ import "./HubGetters.sol";
 import "./HubUtilities.sol"; 
 
 contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
-    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
+    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
         setPyth(mockPythAddress_);
 
         setConsistencyLevel(consistencyLevel_);
+        setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
     }
 
     // TODO: only for testing, get rid of
@@ -144,8 +145,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
 
-        vaultAmounts.deposited = 456; // += normalizedDeposit;
-        globalAmounts.deposited = 123; // += normalizedDeposit;
+        console.log("NORM DEP", amount,  normalizedDeposit, indices.deposited);
+        vaultAmounts.deposited += normalizedDeposit;
+        globalAmounts.deposited += normalizedDeposit;
 
         setVaultAmounts(depositor, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);

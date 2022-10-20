@@ -77,7 +77,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities {
 
         // initialize Hub contract
         uint8 wormholeFinality = 1;
-        hub = new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality);
+        uint256 interestAccrualIndexPrecision = 1000000000000000000;
+        hub = new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality, interestAccrualIndexPrecision);
     }
 
     function testEncodeDepositPayload() public {
@@ -322,17 +323,21 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities {
         VaultAmount memory vault1;
 
         (deposited0, borrowed0) = hub.getAmountsGlobal(assetAddress);
-        vault0 = getVaultAmounts(msg.sender, assetAddress);
+        vault0 = hub.getAmountsVault(vault, assetAddress);
+
+
 
 
         // call deposit
         doDeposit(vault, assetAddress, assetAmount);
-        
+
+
+
 
 
         (deposited1, borrowed1) = hub.getAmountsGlobal(assetAddress);
         // TODO: why does specifying msg.sender fix all?? Seems it assumes incorrect msg.sender by default
-        vault1 = hub.getAmountsVault(msg.sender, assetAddress);
+        vault1 = hub.getAmountsVault(vault, assetAddress);
 
         console.log("Deposited before globally: ", deposited0);
         console.log("Deposited after globally: ", deposited1);
