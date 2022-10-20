@@ -25,24 +25,6 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
     }
 
-    // TODO: only for testing, get rid of
-    function getAssetAddressInfo(address assetAddress) public returns (AssetInfo memory assetInfo) {
-        assetInfo = getAssetInfo(assetAddress);
-    }
-    // TODO: only for testing, get rid of
-    function getAmountsVault(address vault, address assetAddress) public returns (VaultAmount memory vaultAmount) {
-        vaultAmount = getVaultAmounts(vault, assetAddress);
-    }
-    // TODO: only for testing, get rid of
-    function getAmountsGlobal(address assetAddress) public returns (uint256 deposited, uint256 borrowed) {
-        deposited = getTotalAssetsDeposited(assetAddress);
-        borrowed = getTotalAssetsBorrowed(assetAddress);
-    }
-    function getConsistencyLevel() public returns (uint8 consistency) {
-        consistency = consistencyLevel();
-    }
-
-
     function registerAsset(
         address assetAddress,
         uint256 collateralizationRatio,

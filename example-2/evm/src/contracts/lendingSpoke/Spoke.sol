@@ -26,11 +26,6 @@ contract Spoke is SpokeSetters, SpokeGetters, SpokeStructs, SpokeMessages {
 
     function repay() public returns (uint64) {}
 
-    function liquidate(
-        address vault,
-        LiquidationRepay[] memory repay,
-        LiquidationReceipt[] memory receipt
-    ) public returns (uint64) {}
 
     function sendWormholeMessage(bytes memory payload)
         internal
