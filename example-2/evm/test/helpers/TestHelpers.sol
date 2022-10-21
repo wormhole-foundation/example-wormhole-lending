@@ -25,10 +25,13 @@ import {WormholeSimulator} from "./WormholeSimulator.sol";
 // TODO: add wormhole interface and use fork-url w/ mainnet
 
 contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
-    struct TestToken {
-        address tokenAddress;
-        IERC20 token;
+    struct TestAsset {
+        address assetAddress;
+        IERC20 asset;
         uint256 collateralizationRatio;
+        uint8 decimals;
+        uint256 reserveFactor;
+        bytes32 pythId;
     }
 
     struct WormholeData {
@@ -47,19 +50,25 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
     using BytesLib for bytes;
 
-    function testSetUp(Vm vm, TestToken[] storage tokens) internal returns (WormholeData memory, WormholeSpokeData memory) {
-        // initialize tokens with above tokens
+    function testSetUp(Vm vm, TestAsset[] storage assets) internal returns (WormholeData memory, WormholeSpokeData memory) {
+        // initialize assets with above assets
         
-        tokens.push(TestToken({
-                tokenAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
-                token: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
-                collateralizationRatio: 110000000000000000000
+        assets.push(TestAsset({
+                assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
+                asset: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
+                collateralizationRatio: 110 * 10 ** 16,
+                decimals: 18,
+                reserveFactor: 0,
+                pythId: bytes32("BNB")
             }));
 
-        tokens.push(TestToken({
-                tokenAddress: 0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, // WSOL
-                token: IERC20(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
-                collateralizationRatio: 110000000000000000000
+        assets.push(TestAsset({
+                assetAddress: 0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, // WSOL
+                asset: IERC20(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
+                collateralizationRatio: 110 * 10 ** 16,
+                decimals: 18,
+                reserveFactor: 0,
+                pythId: bytes32("SOL")
             }));
 
         // this will be used to sign wormhole messages
@@ -92,9 +101,10 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
         // initialize Hub contract
         uint8 wormholeFinality = 1;
-        uint256 interestAccrualIndexPrecision = 1000000000000000000;
+        uint256 interestAccrualIndexPrecision = 10 ** 18;
+        uint256 collateralizationRatioPrecision = 10 ** 18;
         Hub hub =
-        new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality, interestAccrualIndexPrecision);
+        new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality, interestAccrualIndexPrecision, collateralizationRatioPrecision);
 
         WormholeData memory wormholeData = WormholeData({
             guardianSigner: guardianSigner,
@@ -115,7 +125,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         ITokenBridge.TransferWithPayload memory transfer,
         // wormhole related
         IWormhole.WormholeBodyParams memory wormholeParams
-    ) public returns (bytes memory encoded) {
+    ) public pure returns (bytes memory encoded) {
         encoded = abi.encodePacked(
             wormholeParams.timestamp,
             wormholeParams.nonce,
@@ -145,18 +155,18 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         uint64 sequence,
         uint8 consistencyLevel,
         bytes calldata payload
-    ) public returns (bytes memory encodedVm) {
+    ) public pure returns (bytes memory encodedVm) {
         encodedVm = abi.encodePacked(
             version, timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload
         );
     }
 
-    function getWrappedInfo(address assetAddress) internal returns (ITokenImplementation wrapped) {
+    function getWrappedInfo(address assetAddress) internal view returns (ITokenImplementation wrapped) {
         //
         wrapped = ITokenImplementation(assetAddress);
-        console.log("wrapped chain id", wrapped.chainId());
-        console.log("wrapped native contract");
-        console.logBytes32(wrapped.nativeContract());
+        //console.log("wrapped chain id", wrapped.chainId());
+        //console.log("wrapped native contract");
+        //console.logBytes32(wrapped.nativeContract());
     }
     
     function getMessageFromTransferTokenBridge(
@@ -174,6 +184,23 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
                 consistencyLevel: 15
             })
         );
+    }
+
+    function getSignedWHMsgCoreBridge(
+        bytes memory payload,
+        WormholeData memory wormholeData,
+        WormholeSpokeData memory wormholeSpokeData
+    ) internal returns (bytes memory encodedVM) {
+        bytes memory message =abi.encodePacked(
+            uint32(0),
+            uint32(0),
+            wormholeSpokeData.foreignChainId,
+            wormholeSpokeData.foreignTokenBridgeAddress, // TODO: Fix this address; this should be the spoke address
+            uint64(1),
+            uint8(15),
+            payload);
+
+        encodedVM = getSignedWHMsg(message, wormholeData, wormholeSpokeData);
     }
     
     function getSignedWHMsgTransferTokenBridge(
@@ -212,17 +239,22 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     }
 
     // TODO: Do we need this? Maybe remove this helper function
-    function doRegister(
-        address assetAddress,
-        uint256 collateralizationRatio,
-        uint256 reserveFactor,
-        bytes32 pythId,
-        uint8 decimals,
+    function doRegisterSpoke(
         WormholeData memory wormholeData,
         WormholeSpokeData memory wormholeSpokeData
     ) internal {
         // register asset
-        wormholeData.hub.registerAsset(assetAddress, collateralizationRatio, reserveFactor, pythId, decimals);
+        wormholeData.hub.registerSpoke(wormholeSpokeData.foreignChainId, address(uint160(uint256(wormholeSpokeData.foreignTokenBridgeAddress))));
+    }
+
+    // TODO: Do we need this? Maybe remove this helper function
+    function doRegister(
+        TestAsset memory asset,
+        WormholeData memory wormholeData,
+        WormholeSpokeData memory wormholeSpokeData
+    ) internal {
+        // register asset
+        wormholeData.hub.registerAsset(asset.assetAddress, asset.collateralizationRatio, asset.reserveFactor, asset.pythId, asset.decimals);
     }
 
     // create Deposit payload and package it into TokenBridgePayload into WH message and send the deposit
@@ -273,7 +305,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     ) internal returns (bytes memory encodedVM) {
         // create Borrow payload
         PayloadHeader memory header = PayloadHeader({
-            payloadID: uint8(2),
+            payloadID: uint8(3),
             sender: vault //address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
         });
         BorrowPayload memory myPayload =
@@ -295,7 +327,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         //     payload: serialized
         // });
 
-        encodedVM = getSignedWHMsg(serialized, wormholeData, wormholeSpokeData);
+        encodedVM = getSignedWHMsgCoreBridge(serialized, wormholeData, wormholeSpokeData);
 
         // complete borrow
         wormholeData.hub.completeBorrow(encodedVM);

@@ -11,6 +11,8 @@ import "./HubState.sol";
 import "./HubGetters.sol";
 import "./HubSetters.sol";
 
+import "forge-std/console.sol";
+
 contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     /** 
     * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued). 
@@ -88,10 +90,10 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         uint256 effectiveNotionalBorrowed = 0;
 
         address[] memory allowList = getAllowList();
-
         for(uint i=0; i<allowList.length; i++) {
             address asset = allowList[i];
 
+            
             VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, asset);
 
             uint64 price = getOraclePrices(asset);
@@ -106,7 +108,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
 
             effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
-      
+
         }    
 
         return (effectiveNotionalDeposited, effectiveNotionalBorrowed);
@@ -142,16 +144,18 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * @return {bool} True or false depending on if this borrow keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices) 
     * (where the borrow values are multiplied by their collateralization ratio) and also if there is enough asset in the total reserve of the protocol to complete the borrow
     */
-    function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
+    function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool) {       
+        
+     
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         uint64 price = getOraclePrices(assetAddress);
-
+     
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
-
+     
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        return (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price * assetInfo.collateralizationRatio / (10**assetInfo.decimals));
+        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price * assetInfo.collateralizationRatio / (10**assetInfo.decimals) / (getCollateralizationRatioPrecision())));
 
     }
 
@@ -220,6 +224,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     // TODO: Write docstrings for these functions
 
     function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
+
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
 
@@ -288,9 +293,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);
 
-        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(bytes20(parsed.emitterAddress))));
+        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.emitterAddress))));
 
-        require(!messageHashConsumed(parsed.hash), "message already confused");
+        require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
 
         return parsed.payload;

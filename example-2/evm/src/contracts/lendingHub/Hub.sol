@@ -15,7 +15,7 @@ import "./HubGetters.sol";
 import "./HubUtilities.sol"; 
 
 contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
-    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_) {
+    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_, uint256 collateralizationRatioPrecision_) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
@@ -23,6 +23,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         setConsistencyLevel(consistencyLevel_);
         setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
+        setCollateralizationRatioPrecision(collateralizationRatioPrecision_);
     }
 
     function registerAsset(
@@ -128,7 +129,6 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
 
-        console.log("NORM DEP", amount,  normalizedDeposit, indices.deposited);
         vaultAmounts.deposited += normalizedDeposit;
         globalAmounts.deposited += normalizedDeposit;
 
@@ -168,7 +168,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         checkValidAddress(assetAddress);
 
         // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
-        require(allowedToBorrow(borrower, assetAddress, amount), "Not enough in vault");
+        (bool check1, bool check2) = allowedToBorrow(borrower, assetAddress, amount);
+        require(check1, "Not enough in global supply");
+        require(check2, "Vault is undercollateralized if this borrow goes through");
 
         // update the interest accrual indices
         updateAccrualIndices(assetAddress);
@@ -180,6 +182,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         // update state for vault
         VaultAmount memory vaultAmounts = getVaultAmounts(borrower, assetAddress);
         vaultAmounts.borrowed += normalizedAmount;
+   
         // update state for global
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
         globalAmounts.borrowed += normalizedAmount;

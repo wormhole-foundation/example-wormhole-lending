@@ -31,24 +31,24 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     // TODO: Decide what data goes where.. what makes sense here?
     WormholeData wormholeData;
     WormholeSpokeData wormholeSpokeData;
-    TestToken[] tokens;
+    TestAsset[] assets;
 
     function setUp() public {
-        (wormholeData, wormholeSpokeData) = testSetUp(vm, tokens);
+        (wormholeData, wormholeSpokeData) = testSetUp(vm, assets);
     }
 
+    // test register SPOKE (make sure nothing is possible without doing this)
 
-    // test register
-    function testRegister() public {
-        address assetAddress = tokens[0].tokenAddress;
+    // test register asset
+    function testRegisterAsset() public {
 
         // register asset
-        doRegister(assetAddress, tokens[0].collateralizationRatio, 0, bytes32(0), 18, wormholeData, wormholeSpokeData);
+        doRegister(assets[0], wormholeData, wormholeSpokeData);
 
-        AssetInfo memory info = wormholeData.hub.getAssetInfo(assetAddress);
+        AssetInfo memory info = wormholeData.hub.getAssetInfo(assets[0].assetAddress);
 
         require(
-            (info.collateralizationRatio == tokens[0].collateralizationRatio) && (info.decimals == 18) && (info.exists),
+            (info.collateralizationRatio == assets[0].collateralizationRatio) && (info.decimals == assets[0].decimals) && (info.pythId == assets[0].pythId) && (info.exists),
             "didn't register properly"
         );
     }
@@ -63,34 +63,25 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
     function testRD() public {
         address vault = msg.sender;
-        address assetAddress = tokens[0].tokenAddress;
-        uint256 assetAmount = 502;
-        uint256 collateralizationRatio = tokens[0].collateralizationRatio;
-        uint8 decimals = 18;
-        uint256 reserveFactor = 0;
-        bytes32 pythId = bytes32(0);
-
+        address assetAddress = assets[0].assetAddress;
         // call register
-        // TODO: make the syntax just doRegister(token)
-        doRegister(assetAddress, collateralizationRatio, reserveFactor, pythId, decimals, wormholeData, wormholeSpokeData);
-
-        AssetInfo memory info = wormholeData.hub.getAssetInfo(assetAddress);
+        doRegister(assets[0], wormholeData, wormholeSpokeData);
 
         VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
 
         // call deposit
-        doDeposit(vault, assetAddress, assetAmount, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assetAddress, 502, wormholeData, wormholeSpokeData);
 
         VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
         VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
         // TODO: why does specifying msg.sender fix all?? Seems it assumes incorrect msg.sender by default
         
         require(globalBefore.deposited == 0, "Deposited not initialized to 0");
-        require(globalAfter.deposited == 502 * 10**decimals , "502 wasn't deposited (globally)");
+        require(globalAfter.deposited == 502 , "502 wasn't deposited (globally)");
 
         require(vaultBefore.deposited == 0, "Deposited not initialized to 0");
-        require(vaultAfter.deposited == 502 * 10**decimals, "502 wasn't deposited (in the vault)");
+        require(vaultAfter.deposited == 502, "502 wasn't deposited (in the vault)");
     }
 
     function testD() public {
@@ -98,83 +89,55 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         // vm.expectRevert("Unregistered asset");
 
         address vault = msg.sender;
-        address assetAddress = tokens[0].tokenAddress;
-        uint256 assetAmount = 502;
-        uint256 collateralizationRatio = tokens[0].collateralizationRatio;
-        uint8 decimals = 18;
-        uint256 reserveFactor = 0;
-        bytes32 pythId = bytes32(0);
-
-        doDeposit(vault, assetAddress, assetAmount, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assets[0].assetAddress, 502, wormholeData, wormholeSpokeData);
     }
 
     function testRDB() public {
         // TODO: work out how to set Pyth price
         address vault = msg.sender;
-        address assetAddress0 = tokens[0].tokenAddress;
-        uint256 assetAmount0 = 502;
-        uint256 collateralizationRatio0 = tokens[0].collateralizationRatio;
-        uint8 decimals0 = 18;
-        uint256 reserveFactor0 = 0;
-        bytes32 pythId0 = bytes32("BNB");
-
-        address assetAddress1 = tokens[1].tokenAddress;
-        uint256 assetAmount1 = 500;
-        uint256 collateralizationRatio1 = tokens[1].collateralizationRatio;
-        uint8 decimals1 = 18;
-        uint256 reserveFactor1 = 0;
-        bytes32 pythId1 = bytes32("SOL");
 
         // call register
-        doRegister(assetAddress0, collateralizationRatio0, reserveFactor0, pythId0, decimals0, wormholeData, wormholeSpokeData);
-        doRegister(assetAddress1, collateralizationRatio1, reserveFactor1, pythId1, decimals1, wormholeData, wormholeSpokeData);
+        doRegister(assets[0], wormholeData, wormholeSpokeData);
+        doRegister(assets[1], wormholeData, wormholeSpokeData);
 
-        AssetInfo memory info0 = wormholeData.hub.getAssetInfo(assetAddress0);
-        AssetInfo memory info1 = wormholeData.hub.getAssetInfo(assetAddress1);
+        // register spoke
+        doRegisterSpoke(wormholeData, wormholeSpokeData);
 
         // call deposit
-        doDeposit(vault, assetAddress0, assetAmount0, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assets[0].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+
+        doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
 
         // set Oracle price for asset deposited
-        int64 price0 = 100;
-        uint64 conf0 = 10;
-        int32 expo0 = 0;
-        uint publishTime0 = 1;
-        Price memory oraclePrice0 = Price({
-            price: price0,
-            conf: conf0,
-            expo: expo0,
-            publishTime: publishTime0
-        });
-        wormholeData.hub.setOraclePrice(info0.pythId, oraclePrice0);
+        wormholeData.hub.setOraclePrice(assets[0].pythId, Price({
+            price: 100,
+            conf: 10, 
+            expo: 1,
+            publishTime: 1
+        }));
 
         // set Oracle price for asset intended to be borrowed
-        int64 price1 = 50;
-        uint64 conf1 = 5;
-        int32 expo1 = 0;
-        uint publishTime1 = 1;
-        Price memory oraclePrice1 = Price({
-            price: price1,
-            conf: conf1,
-            expo: expo1,
-            publishTime: publishTime1
-        });
-        wormholeData.hub.setOraclePrice(info1.pythId, oraclePrice1);
+        wormholeData.hub.setOraclePrice(assets[1].pythId, Price({
+            price: 90,
+            conf: 5,
+            expo: 0,
+            publishTime: 1
+        }));
 
         // call borrow
-        doBorrow(vault, assetAddress1, assetAmount1, wormholeData, wormholeSpokeData);
+        doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
     }
     
     /*
     *       TESTING ENCODING AND DECODING OF MESSAGES
     */
 
-        function testEncodeDepositPayload() public {
+    function testEncodeDepositPayload() public view {
         PayloadHeader memory header = PayloadHeader({
             payloadID: uint8(1),
             sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
         });
-        address assetAddress = tokens[0].tokenAddress;
+        address assetAddress = assets[0].assetAddress;
         uint256 assetAmount = 502;
 
         DepositPayload memory myPayload =
@@ -189,12 +152,12 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
 
-    function testEncodeWithdrawPayload() public {
+    function testEncodeWithdrawPayload() public view {
         PayloadHeader memory header = PayloadHeader({
             payloadID: 2,
             sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
         });
-        address assetAddress = tokens[0].tokenAddress;
+        address assetAddress = assets[0].assetAddress;
         uint256 assetAmount = 2356;
 
         WithdrawPayload memory myPayload =
@@ -208,12 +171,12 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
 
-    function testEncodeBorrowPayload() public {
+    function testEncodeBorrowPayload() public view {
         PayloadHeader memory header = PayloadHeader({
             payloadID: 3,
             sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
         });
-        address assetAddress = tokens[0].tokenAddress;
+        address assetAddress = assets[0].assetAddress;
         uint256 assetAmount = 1242;
 
         BorrowPayload memory myPayload =
@@ -227,12 +190,12 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
 
-    function testEncodeRepayPayload() public {
+    function testEncodeRepayPayload() public view {
         PayloadHeader memory header = PayloadHeader({
             payloadID: 4,
             sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
         });
-        address assetAddress = tokens[0].tokenAddress;
+        address assetAddress = assets[0].assetAddress;
         uint256 assetAmount = 4253;
 
         RepayPayload memory myPayload =

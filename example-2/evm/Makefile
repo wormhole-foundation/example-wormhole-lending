@@ -25,11 +25,11 @@ unit-test: forge-test
 
 .PHONY: forge-test
 forge-test: dependencies
-	forge test --fork-url ${TESTING_FORK_RPC} -vv
+	forge test --fork-url ${TESTING_FORK_RPC} -vv --via-ir
 
 .PHONY: forge-test-verbose
 forge-test-verbose: dependencies
-	forge test --fork-url ${TESTING_FORK_RPC} -vvv --match-test testRDB --via-ir
+	forge test --fork-url ${TESTING_FORK_RPC} -vvvvv --match-test testRDB --via-ir
 
 .PHONY: integration-test
 integration-test: dependencies build

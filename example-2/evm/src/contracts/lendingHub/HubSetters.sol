@@ -3,8 +3,9 @@ pragma solidity ^0.8.0;
 
 import "./HubState.sol";
 import "./HubStructs.sol";
+import "./HubGetters.sol";
 
-contract HubSetters is HubStructs, HubState {
+contract HubSetters is HubStructs, HubState, HubGetters {
     function setOwner(address owner) internal {
         _state.owner = owner;
     }
@@ -36,8 +37,8 @@ contract HubSetters is HubStructs, HubState {
     function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
         _state.assetInfos[assetAddress] = info;
         AccrualIndices memory accrualIndices;
-        accrualIndices.deposited = 1;
-        accrualIndices.borrowed = 1;
+        accrualIndices.deposited = 1*getInterestAccrualIndexPrecision();
+        accrualIndices.borrowed = 1*getInterestAccrualIndexPrecision();
         accrualIndices.lastBlock = block.timestamp;
 
         // TODO: confirm you want to set indices to 1 when registering for first time
@@ -62,6 +63,10 @@ contract HubSetters is HubStructs, HubState {
 
     function setInterestAccrualIndexPrecision(uint256 interestAccrualIndexPrecision) internal {
         _state.interestAccrualIndexPrecision = interestAccrualIndexPrecision;
+    }
+
+    function setCollateralizationRatioPrecision(uint256 collateralizationRatioPrecision) internal {
+        _state.collateralizationRatioPrecision = collateralizationRatioPrecision;
     }
 
     function setVaultAmounts(address vaultOwner, address assetAddress, VaultAmount memory vaultAmount) internal {
