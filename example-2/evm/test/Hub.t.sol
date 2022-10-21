@@ -111,35 +111,58 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     function testRDB() public {
         // TODO: work out how to set Pyth price
         address vault = msg.sender;
-        address assetAddress = tokens[0].tokenAddress;
-        uint256 assetAmount = 502;
-        uint256 collateralizationRatio = tokens[0].collateralizationRatio;
-        uint8 decimals = 18;
-        uint256 reserveFactor = 0;
-        bytes32 pythId = bytes32(0);
+        address assetAddress0 = tokens[0].tokenAddress;
+        uint256 assetAmount0 = 502;
+        uint256 collateralizationRatio0 = tokens[0].collateralizationRatio;
+        uint8 decimals0 = 18;
+        uint256 reserveFactor0 = 0;
+        bytes32 pythId0 = bytes32("BNB");
+
+        address assetAddress1 = tokens[1].tokenAddress;
+        uint256 assetAmount1 = 500;
+        uint256 collateralizationRatio1 = tokens[1].collateralizationRatio;
+        uint8 decimals1 = 18;
+        uint256 reserveFactor1 = 0;
+        bytes32 pythId1 = bytes32("SOL");
 
         // call register
-        doRegister(assetAddress, collateralizationRatio, reserveFactor, pythId, decimals, wormholeData, wormholeSpokeData);
+        doRegister(assetAddress0, collateralizationRatio0, reserveFactor0, pythId0, decimals0, wormholeData, wormholeSpokeData);
+        doRegister(assetAddress1, collateralizationRatio1, reserveFactor1, pythId1, decimals1, wormholeData, wormholeSpokeData);
 
-        AssetInfo memory info = wormholeData.hub.getAssetInfo(assetAddress);
+        AssetInfo memory info0 = wormholeData.hub.getAssetInfo(assetAddress0);
+        AssetInfo memory info1 = wormholeData.hub.getAssetInfo(assetAddress1);
 
         // call deposit
-        doDeposit(vault, assetAddress, assetAmount, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assetAddress0, assetAmount0, wormholeData, wormholeSpokeData);
 
-        // set Oracle price
-        int64 price = 100;
-        uint64 conf = 10;
-        int32 expo = 0;
-        uint publishTime = 1;
-        Price memory oraclePrice = Price({
-            price: price,
-            conf: conf,
-            expo: expo,
-            publishTime: publishTime
+        // set Oracle price for asset deposited
+        int64 price0 = 100;
+        uint64 conf0 = 10;
+        int32 expo0 = 0;
+        uint publishTime0 = 1;
+        Price memory oraclePrice0 = Price({
+            price: price0,
+            conf: conf0,
+            expo: expo0,
+            publishTime: publishTime0
         });
-        wormholeData.hub.setOraclePrice(info.pythId, oraclePrice);
+        wormholeData.hub.setOraclePrice(info0.pythId, oraclePrice0);
+
+        // set Oracle price for asset intended to be borrowed
+        int64 price1 = 50;
+        uint64 conf1 = 5;
+        int32 expo1 = 0;
+        uint publishTime1 = 1;
+        Price memory oraclePrice1 = Price({
+            price: price1,
+            conf: conf1,
+            expo: expo1,
+            publishTime: publishTime1
+        });
+        wormholeData.hub.setOraclePrice(info1.pythId, oraclePrice1);
 
         // call borrow
+        doBorrow(vault, assetAddress1, assetAmount1, wormholeData, wormholeSpokeData);
     }
     
     /*

@@ -95,6 +95,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
     function completeBorrow(bytes calldata encodedMessage) public {
 
+        // encodedMessage is WH full msg, returns arbitrary bytes
         BorrowPayload memory params = decodeBorrowPayload(getWormholePayload(encodedMessage));
 
         borrow(params.header.sender, params.assetAddress, params.assetAmount);

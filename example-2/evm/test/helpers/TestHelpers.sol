@@ -51,8 +51,14 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         // initialize tokens with above tokens
         
         tokens.push(TestToken({
-                tokenAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158,
+                tokenAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
                 token: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
+                collateralizationRatio: 110000000000000000000
+            }));
+
+        tokens.push(TestToken({
+                tokenAddress: 0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, // WSOL
+                token: IERC20(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
                 collateralizationRatio: 110000000000000000000
             }));
 
@@ -152,14 +158,12 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         console.log("wrapped native contract");
         console.logBytes32(wrapped.nativeContract());
     }
-
-    function getSignedWHMsg(
+    
+    function getMessageFromTransferTokenBridge(
         ITokenBridge.TransferWithPayload memory transfer,
-        WormholeData memory wormholeData,
         WormholeSpokeData memory wormholeSpokeData
-    ) internal returns (bytes memory encodedVM) {
-        //  construct WH message
-        bytes memory message = encodePayload3Message(
+    ) internal returns (bytes memory message) {
+        message = encodePayload3Message(
             transfer,
             IWormhole.WormholeBodyParams({
                 timestamp: 0,
@@ -170,7 +174,23 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
                 consistencyLevel: 15
             })
         );
+    }
+    
+    function getSignedWHMsgTransferTokenBridge(
+        ITokenBridge.TransferWithPayload memory transfer,
+        WormholeData memory wormholeData,
+        WormholeSpokeData memory wormholeSpokeData
+    ) internal returns (bytes memory encodedVM) {
+        bytes memory message = getMessageFromTransferTokenBridge(transfer, wormholeSpokeData);
 
+        encodedVM = getSignedWHMsg(message, wormholeData, wormholeSpokeData);
+    }
+
+    function getSignedWHMsg(
+        bytes memory message,
+        WormholeData memory wormholeData,
+        WormholeSpokeData memory wormholeSpokeData
+    ) internal returns (bytes memory encodedVM) {
         // get hash for signature
         bytes32 messageHash = keccak256(abi.encodePacked(keccak256(message)));
 
@@ -237,9 +257,47 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             payload: serialized
         });
 
-        encodedVM = getSignedWHMsg(transfer, wormholeData, wormholeSpokeData);
+        encodedVM = getSignedWHMsgTransferTokenBridge(transfer, wormholeData, wormholeSpokeData);
 
         // complete deposit
         wormholeData.hub.completeDeposit(encodedVM);
+    }
+
+    // create Borrow payload and package it into TokenBridgePayload into WH message and send the borrow
+    function doBorrow(
+        address vault,
+        address assetAddress,
+        uint256 assetAmount,
+        WormholeData memory wormholeData,
+        WormholeSpokeData memory wormholeSpokeData
+    ) internal returns (bytes memory encodedVM) {
+        // create Borrow payload
+        PayloadHeader memory header = PayloadHeader({
+            payloadID: uint8(2),
+            sender: vault //address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
+        });
+        BorrowPayload memory myPayload =
+            BorrowPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeBorrowPayload(myPayload);
+
+        // // get wrapped info
+        // ITokenImplementation wrapped = getWrappedInfo(assetAddress);
+
+        // // TokenBridgePayload
+        // ITokenBridge.TransferWithPayload memory transfer = ITokenBridge.TransferWithPayload({
+        //     payloadID: 3,
+        //     amount: assetAmount,
+        //     tokenAddress: wrapped.nativeContract(),
+        //     tokenChain: wrapped.chainId(),
+        //     to: bytes32(uint256(uint160(address(wormholeData.hub)))),
+        //     toChain: wormholeData.wormholeContract.chainId(),
+        //     fromAddress: bytes32(uint256(uint160(msg.sender))),
+        //     payload: serialized
+        // });
+
+        encodedVM = getSignedWHMsg(serialized, wormholeData, wormholeSpokeData);
+
+        // complete borrow
+        wormholeData.hub.completeBorrow(encodedVM);
     }
 }
