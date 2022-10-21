@@ -53,9 +53,15 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         );
     }
 
+    // action codes
+    // register: R
+    // deposit: D
+    // borrow: B
+    // withdraw: W
+    // repay: P
+    // liquidation: L
 
-    // test deposit
-    function testDeposit() public {
+    function testRD() public {
         address vault = msg.sender;
         address assetAddress = tokens[0].tokenAddress;
         uint256 assetAmount = 502;
@@ -87,6 +93,55 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         require(vaultAfter.deposited == 502 * 10**decimals, "502 wasn't deposited (in the vault)");
     }
 
+    function testD() public {
+        // TODO: how to use expectRevert when error is triggered in other file
+        // vm.expectRevert("Unregistered asset");
+
+        address vault = msg.sender;
+        address assetAddress = tokens[0].tokenAddress;
+        uint256 assetAmount = 502;
+        uint256 collateralizationRatio = tokens[0].collateralizationRatio;
+        uint8 decimals = 18;
+        uint256 reserveFactor = 0;
+        bytes32 pythId = bytes32(0);
+
+        doDeposit(vault, assetAddress, assetAmount, wormholeData, wormholeSpokeData);
+    }
+
+    function testRDB() public {
+        // TODO: work out how to set Pyth price
+        address vault = msg.sender;
+        address assetAddress = tokens[0].tokenAddress;
+        uint256 assetAmount = 502;
+        uint256 collateralizationRatio = tokens[0].collateralizationRatio;
+        uint8 decimals = 18;
+        uint256 reserveFactor = 0;
+        bytes32 pythId = bytes32(0);
+
+        // call register
+        doRegister(assetAddress, collateralizationRatio, reserveFactor, pythId, decimals, wormholeData, wormholeSpokeData);
+
+        AssetInfo memory info = wormholeData.hub.getAssetInfo(assetAddress);
+
+        // call deposit
+        doDeposit(vault, assetAddress, assetAmount, wormholeData, wormholeSpokeData);
+
+        // set Oracle price
+        int64 price = 100;
+        uint64 conf = 10;
+        int32 expo = 0;
+        uint publishTime = 1;
+        Price memory oraclePrice = Price({
+            price: price,
+            conf: conf,
+            expo: expo,
+            publishTime: publishTime
+        });
+        wormholeData.hub.setOraclePrice(info.pythId, oraclePrice);
+
+        // call borrow
+    }
+    
     /*
     *       TESTING ENCODING AND DECODING OF MESSAGES
     */

@@ -112,7 +112,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
     function deposit(address depositor, address assetAddress, uint256 amount) internal {
         // TODO: What to do if this fails?
-
+        
         checkValidAddress(assetAddress);
 
         // update the interest accrual indices

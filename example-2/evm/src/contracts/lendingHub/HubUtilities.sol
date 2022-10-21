@@ -62,14 +62,18 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     function getOraclePrices(address assetAddress) internal view returns (uint64) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
-        IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetInfo.pythId);
+        // getting oracle price via hubgetters fn (TODO: remove if we get oracle contract up and running)
+        Price memory oraclePrice = getOraclePrice(assetInfo.pythId);
+        // IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetInfo.pythId);
 
         // sanity check the price feeds
-        require(feed.price.price > 0, "negative prices detected");
+        require(oraclePrice.price > 0, "negative prices detected");
+        // require(feed.price.price > 0, "negative prices detected");
 
         // Users of Pyth prices should read: https://docs.pyth.network/consumers/best-practices
         // before using the price feed. Blindly using the price alone is not recommended.
-        return uint64(feed.price.price);
+        return uint64(oraclePrice.price);
+        // return uint64(feed.price.price);
     }
 
     /** 

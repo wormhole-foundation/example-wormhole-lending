@@ -71,4 +71,9 @@ contract HubSetters is HubStructs, HubState {
     function setGlobalAmounts(address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.totalAssets[assetAddress] = vaultAmount;
     }
+
+    // setting oracle price (TODO: remove if we get oracle contract up and running)
+    function setOraclePrice(bytes32 oracleId, Price memory price) public {
+        _state.oracle[oracleId] = price;
+    }
 }
