@@ -202,12 +202,14 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             notionalReceived += amount * price / (10**assetInfo.decimals);
         }
 
-        // TODO: could add check that amount received > amount repaid
-        // TODO: probably want to make the max liquidation bonus << min collateralization ratios
+        // safety check to ensure liquidator doesn't play themselves
+        require(notionalReceived >= notionalRepaid, "Liquidator receipt less than amount they repaid");
+
+        // TODO: probably want to make the max liquidation bonus << min collateralization ratios--how to do this with multiple collat ratios??
         // check if notional received <= notional repaid * max liquidation bonus
         uint256 maxLiquidationBonus = getMaxLiquidationBonus();
 
-        return (notionalReceived <= maxLiquidationBonus * notionalRepaid);
+        return (notionalReceived <= maxLiquidationBonus * notionalRepaid / getCollateralizationRatioPrecision());
     }
 
     /**

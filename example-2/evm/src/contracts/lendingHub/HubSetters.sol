@@ -41,7 +41,6 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         accrualIndices.borrowed = 1*getInterestAccrualIndexPrecision();
         accrualIndices.lastBlock = block.timestamp;
 
-        // TODO: confirm you want to set indices to 1 when registering for first time
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }
 

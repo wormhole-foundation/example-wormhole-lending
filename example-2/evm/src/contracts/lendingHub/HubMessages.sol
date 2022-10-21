@@ -84,7 +84,6 @@ contract HubMessages is HubStructs {
         uint256 index = 0;
 
         // parse the payload header
-        // TODO: fix all the slices to be .slice(start, length)
         params.header = decodePayloadHeader(serialized.slice(index, 21));
         require(params.header.payloadID == 1, "invalid deposit message");
         index += 21;
