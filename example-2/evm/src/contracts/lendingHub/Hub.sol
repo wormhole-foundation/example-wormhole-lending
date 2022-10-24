@@ -6,20 +6,24 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../../interfaces/IWormhole.sol";
 
+import "forge-std/console.sol";
+
 import "./HubSetters.sol";
 import "./HubStructs.sol";
 import "./HubMessages.sol";
 import "./HubGetters.sol";
-import "./HubUtilities.sol";
+import "./HubUtilities.sol"; 
 
 contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
-    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_) {
+    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_, uint256 collateralizationRatioPrecision_) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
         setPyth(mockPythAddress_);
 
         setConsistencyLevel(consistencyLevel_);
+        setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
+        setCollateralizationRatioPrecision(collateralizationRatioPrecision_);
     }
 
     /**
@@ -41,7 +45,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         bytes32 pythId,
         uint8 decimals
     ) public returns (uint64 sequence) {
-        require(msg.sender == owner());
+        require(msg.sender == owner(), "invalid owner");
 
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
         require(!registered_info.exists, "Asset already registered");
@@ -85,7 +89,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     * @param spokeContractAddress - The address of the spoke contract on its chain 
     */ 
     function registerSpoke(uint16 chainId, address spokeContractAddress) public {
-        require(msg.sender == owner());
+        require(msg.sender == owner(), "invalid owner");
         registerSpokeContract(chainId, spokeContractAddress);
     }
 
@@ -94,11 +98,14 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     *
     * @param encodedMessage - Encoded token bridge VAA (payload3) with the tokens deposited and deposit information
     */ 
-    function completeDeposit(bytes calldata encodedMessage) public {
+    function completeDeposit(bytes memory encodedMessage) public { // calldata encodedMessage
 
-        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
+        // encodedMessage is WH full msg, returns token bridge transfer msg
+        bytes memory vmPayload = getTransferPayload(encodedMessage);
 
-        DepositPayload memory params = decodeDepositPayload(vmPayload);
+        bytes memory serialized = extractSerializedFromTransferWithPayload(vmPayload);
+
+        DepositPayload memory params = decodeDepositPayload(serialized);
 
         deposit(params.header.sender, params.assetAddress, params.assetAmount);
     }
@@ -122,6 +129,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */
     function completeBorrow(bytes calldata encodedMessage) public {
 
+        // encodedMessage is WH full msg, returns arbitrary bytes
         BorrowPayload memory params = decodeBorrowPayload(getWormholePayload(encodedMessage));
 
         borrow(params.header.sender, params.assetAddress, params.assetAmount);
@@ -134,7 +142,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */
     function completeRepay(bytes calldata encodedMessage) public {
 
-        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
+        // encodedMessage is Token Bridge payload 3 full msg
+        bytes memory vmPayload = getTransferPayload(encodedMessage);
 
         RepayPayload memory params = decodeRepayPayload(vmPayload);
         
@@ -150,7 +159,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */
     function deposit(address depositor, address assetAddress, uint256 amount) internal {
         // TODO: What to do if this fails?
-
+        
         checkValidAddress(assetAddress);
 
         // update the interest accrual indices
@@ -216,7 +225,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         checkValidAddress(assetAddress);
 
         // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
-        require(allowedToBorrow(borrower, assetAddress, amount), "Not enough in vault");
+        (bool check1, bool check2) = allowedToBorrow(borrower, assetAddress, amount);
+        require(check1, "Not enough in global supply");
+        require(check2, "Vault is undercollateralized if this borrow goes through");
 
         // update the interest accrual indices
         updateAccrualIndices(assetAddress);
@@ -228,6 +239,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         // update state for vault
         VaultAmount memory vaultAmounts = getVaultAmounts(borrower, assetAddress);
         vaultAmounts.borrowed += normalizedAmount;
+   
         // update state for global
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
         globalAmounts.borrowed += normalizedAmount;

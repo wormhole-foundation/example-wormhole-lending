@@ -78,4 +78,11 @@ contract HubStructs {
         uint8 decimals;
     }
 
+    // struct for mock oracle price
+    struct Price {
+        int64 price;
+        uint64 conf;
+        int32 expo;
+        uint publishTime;
+    }
 }

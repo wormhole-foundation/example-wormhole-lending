@@ -63,6 +63,9 @@ contract HubStorage is HubStructs {
 
         // storage gap
         uint256[50] ______gap;
+
+        // MockOracle (TODO: remove if we get oracle contract up and running)
+        mapping(bytes32 => Price) oracle;
     }
 }
 

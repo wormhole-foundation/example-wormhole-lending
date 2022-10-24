@@ -1,19 +1,39 @@
-.PHONY: dependencies wormhole_dependencies
+include testing.env
+
+.PHONY: dependencies unit-test forge-test integration-test clean all
 
 all: build
 
-.PHONY: dependencies
-dependencies: forge_dependencies wormhole_dependencies
+.PHONY: clean
+clean:
+	rm -rf anvil.log node_modules lib out
 
-.PHONY: forge_dependencies
-forge_dependencies: lib/forge-std
+.PHONY: dependencies
+dependencies: node_modules lib/forge-std
+
+node_modules:
+	yarn
 
 lib/forge-std:
-	forge install foundry-rs/forge-std --no-git
+	forge install foundry-rs/forge-std --no-git --no-commit
 
-.PHONY: wormhole_dependencies
-wormhole_dependencies: wormhole/ethereum/build
+build: dependencies
+	forge build
 
-wormhole/ethereum/build:
-	git clone --depth 1 --branch dev.v2 --single-branch https://github.com/certusone/wormhole.git
-#	cd wormhole/ethereum && npm ci && npm run build && make .env
+.PHONY: unit-test
+unit-test: forge-test
+
+.PHONY: forge-test
+forge-test: dependencies
+	forge test --fork-url ${TESTING_FORK_RPC} -vv --via-ir
+
+.PHONY: forge-test-verbose
+forge-test-verbose: dependencies
+	forge test --fork-url ${TESTING_FORK_RPC} -vv --via-ir
+
+.PHONY: integration-test
+integration-test: dependencies build
+	bash shell-scripts/run_integration_tests.sh
+
+.PHONY: test
+test: forge-test integration-test
