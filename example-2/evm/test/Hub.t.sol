@@ -91,6 +91,80 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit(vault, assets[0].assetAddress, 502, wormholeData, wormholeSpokeData);
     }
 
+    function testRDB() public {
+        address vault = msg.sender;
+
+        // call register
+        doRegister(assets[0], wormholeData, wormholeSpokeData);
+        doRegister(assets[1], wormholeData, wormholeSpokeData);
+
+        // register spoke
+        doRegisterSpoke(wormholeData, wormholeSpokeData);
+
+        // call deposit
+        doDeposit(vault, assets[0].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+
+        doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
+
+        // set Oracle price for asset deposited
+        wormholeData.hub.setOraclePrice(assets[0].pythId, Price({
+            price: 100,
+            conf: 10, 
+            expo: 1,
+            publishTime: 1
+        }));
+
+        // set Oracle price for asset intended to be borrowed
+        wormholeData.hub.setOraclePrice(assets[1].pythId, Price({
+            price: 90,
+            conf: 5,
+            expo: 0,
+            publishTime: 1
+        }));
+
+        // call borrow
+        doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+
+    }
+
+    function testFailRDB() public {
+        // Should fail because the price of the borrow asset is a little too high
+
+        address vault = msg.sender;
+
+        // call register
+        doRegister(assets[0], wormholeData, wormholeSpokeData);
+        doRegister(assets[1], wormholeData, wormholeSpokeData);
+
+        // register spoke
+        doRegisterSpoke(wormholeData, wormholeSpokeData);
+
+        // call deposit
+        doDeposit(vault, assets[0].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+
+        doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
+
+        // set Oracle price for asset deposited
+        wormholeData.hub.setOraclePrice(assets[0].pythId, Price({
+            price: 100,
+            conf: 10, 
+            expo: 1,
+            publishTime: 1
+        }));
+
+        // set Oracle price for asset intended to be borrowed
+        wormholeData.hub.setOraclePrice(assets[1].pythId, Price({
+            price: 91,
+            conf: 5,
+            expo: 0,
+            publishTime: 1
+        }));
+
+        // call borrow
+        doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+
+    }
+
     function testRDBW() public {
         address vault = msg.sender;
 
@@ -125,7 +199,44 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         // call borrow
         doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
     
-        doWithdraw(vault, assets[0].assetAddress, 5000000000000000001, wormholeData, wormholeSpokeData);
+        doWithdraw(vault, assets[0].assetAddress, 500 * 10 ** 16, wormholeData, wormholeSpokeData);
+    }
+
+    function testFailRDBW() public {
+        address vault = msg.sender;
+
+        // call register
+        doRegister(assets[0], wormholeData, wormholeSpokeData);
+        doRegister(assets[1], wormholeData, wormholeSpokeData);
+
+        // register spoke
+        doRegisterSpoke(wormholeData, wormholeSpokeData);
+
+        // call deposit
+        doDeposit(vault, assets[0].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+
+        doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
+
+        // set Oracle price for asset deposited
+        wormholeData.hub.setOraclePrice(assets[0].pythId, Price({
+            price: 100,
+            conf: 10, 
+            expo: 1,
+            publishTime: 1
+        }));
+
+        // set Oracle price for asset intended to be borrowed
+        wormholeData.hub.setOraclePrice(assets[1].pythId, Price({
+            price: 90,
+            conf: 5,
+            expo: 0,
+            publishTime: 1
+        }));
+
+        // call borrow
+        doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+    
+        doWithdraw(vault, assets[0].assetAddress, 500 * 10 ** 16 + 1, wormholeData, wormholeSpokeData);
     }
     
     /*
