@@ -126,6 +126,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */ // TODO: cycle through all assets in the vault
     function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
 
+        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         uint64 price = getOraclePrices(assetAddress);
