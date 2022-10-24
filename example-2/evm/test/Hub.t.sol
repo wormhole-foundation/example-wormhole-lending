@@ -92,8 +92,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit(vault, assets[0].assetAddress, 502, wormholeData, wormholeSpokeData);
     }
 
-    function testRDB() public {
-        // TODO: work out how to set Pyth price
+    function testRDBW() public {
         address vault = msg.sender;
 
         // call register
@@ -126,6 +125,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         // call borrow
         doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+    
+        doWithdraw(vault, assets[0].assetAddress, 5000000000000000001, wormholeData, wormholeSpokeData);
     }
     
     /*

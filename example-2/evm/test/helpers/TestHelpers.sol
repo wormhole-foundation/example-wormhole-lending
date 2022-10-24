@@ -332,4 +332,27 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         // complete borrow
         wormholeData.hub.completeBorrow(encodedVM);
     }
+
+    // create Withdraw payload and package it into TokenBridgePayload into WH message and send the withdraw
+    function doWithdraw(
+        address vault,
+        address assetAddress,
+        uint256 assetAmount,
+        WormholeData memory wormholeData,
+        WormholeSpokeData memory wormholeSpokeData
+    ) internal returns (bytes memory encodedVM) {
+        // create Withdraw payload
+        PayloadHeader memory header = PayloadHeader({
+            payloadID: uint8(2),
+            sender: vault
+        });
+        WithdrawPayload memory myPayload =
+            WithdrawPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeWithdrawPayload(myPayload);
+
+        encodedVM = getSignedWHMsgCoreBridge(serialized, wormholeData, wormholeSpokeData);
+
+        // complete withdraw
+        wormholeData.hub.completeWithdraw(encodedVM);
+    }
 }

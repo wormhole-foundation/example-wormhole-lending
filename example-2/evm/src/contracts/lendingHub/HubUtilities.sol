@@ -86,6 +86,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function getVaultEffectiveNotionals(address vaultOwner) internal view returns (uint256, uint256) {
 
+        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
@@ -105,9 +106,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
-            effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
+            effectiveNotionalDeposited += denormalizedDeposited * price; // / (10**assetInfo.decimals);
 
-            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
+            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / getCollateralizationRatioPrecision(); // / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
 
         }    
 
@@ -133,7 +134,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         VaultAmount memory amounts = denormalizeVaultAmount(getVaultAmounts(vaultOwner, assetAddress), assetAddress);
 
-        return (amounts.deposited - amounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price / (10**assetInfo.decimals));
+        return (amounts.deposited - amounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price); // / (10**assetInfo.decimals));
     }
 
     /** 
@@ -146,7 +147,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool) {       
         
-     
+        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         uint64 price = getOraclePrices(assetAddress);
@@ -154,8 +155,8 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
      
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
-
-        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price * assetInfo.collateralizationRatio / (10**assetInfo.decimals) / (getCollateralizationRatioPrecision())));
+        
+        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price * assetInfo.collateralizationRatio / getCollateralizationRatioPrecision())); // / (10**assetInfo.decimals) / (getCollateralizationRatioPrecision())));
 
     }
 
@@ -171,6 +172,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function allowedToLiquidate(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) internal view returns (bool) {
         
+        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault); 
 
         require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");
@@ -187,7 +189,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            notionalRepaid += amount * price / (10**assetInfo.decimals);
+            notionalRepaid += amount * price; // / (10**assetInfo.decimals);
         }
 
         // get notional received
@@ -199,7 +201,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            notionalReceived += amount * price / (10**assetInfo.decimals);
+            notionalReceived += amount * price; // / (10**assetInfo.decimals);
         }
 
         // safety check to ensure liquidator doesn't play themselves
