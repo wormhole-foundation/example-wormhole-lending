@@ -29,12 +29,33 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     using BytesLib for bytes;
 
     // TODO: Decide what data goes where.. what makes sense here?
-    WormholeData wormholeData;
-    WormholeSpokeData wormholeSpokeData;
-    TestAsset[] assets;
+    
+      TestAsset[] assets;
+      Hub hub;
 
     function setUp() public {
-        (wormholeData, wormholeSpokeData) = testSetUp(vm, assets);
+        hub = testSetUp(vm);
+        assets.push(
+            TestAsset({
+                assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
+                asset: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
+                collateralizationRatio: 110 * 10 ** 16,
+                decimals: 18,
+                reserveFactor: 0,
+                pythId: bytes32("BNB")
+            })
+        );
+
+        assets.push(
+            TestAsset({
+                assetAddress: 0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, // WSOL
+                asset: IERC20(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
+                collateralizationRatio: 110 * 10 ** 16,
+                decimals: 18,
+                reserveFactor: 0,
+                pythId: bytes32("SOL")
+            })
+        );
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)
@@ -43,9 +64,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     function testRegisterAsset() public {
 
         // register asset
-        doRegister(assets[0], wormholeData);
+        doRegister(assets[0]);
 
-        AssetInfo memory info = wormholeData.hub.getAssetInfo(assets[0].assetAddress);
+        AssetInfo memory info = hub.getAssetInfo(assets[0].assetAddress);
 
         require(
             (info.collateralizationRatio == assets[0].collateralizationRatio) && (info.decimals == assets[0].decimals) && (info.pythId == assets[0].pythId) && (info.exists),
@@ -65,16 +86,16 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address vault = msg.sender;
         address assetAddress = assets[0].assetAddress;
         // call register
-        doRegister(assets[0], wormholeData);
+        doRegister(assets[0]);
 
-        VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
-        VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        VaultAmount memory globalBefore = hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = hub.getVaultAmounts(vault, assetAddress);
 
         // call deposit
-        doDeposit(vault, assetAddress, 502, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assets[0], 502);
 
-        VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
-        VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        VaultAmount memory globalAfter = hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = hub.getVaultAmounts(vault, assetAddress);
         // TODO: why does specifying msg.sender fix all?? Seems it assumes incorrect msg.sender by default
         
         require(globalBefore.deposited == 0, "Deposited not initialized to 0");
@@ -88,32 +109,31 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         // Should fail because there is no registered asset
 
         address vault = msg.sender;
-        doDeposit(vault, assets[0].assetAddress, 502, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assets[0], 502);
     }
 
     function testRDB() public {
         address vault = msg.sender;
 
         // call register
-        doRegister(assets[0], wormholeData);
-        doRegister(assets[1], wormholeData);
+        doRegister(assets[0]);
+        doRegister(assets[1]);
 
-        // register spoke
-        doRegisterSpoke(wormholeData, wormholeSpokeData);
+        doRegisterSpoke();
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+  
 
         // call deposit
-        doDeposit(vault, assets[0].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assets[0], 500 * 10 ** 18);
 
-        doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doDeposit(address(0), assets[1], 600 * 10 ** 18);
 
-        // set Oracle price for asset deposited
-        setPrice(assets[0], 100, wormholeData);
-
-        // set Oracle price for asset intended to be borrowed
-        setPrice(assets[1], 90, wormholeData);
-
+      
         // call borrow
-        doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doBorrow(vault, assets[1], 500 * 10 ** 18);
 
     }
 
@@ -122,101 +142,60 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         address vault = msg.sender;
 
-        // call register
-        doRegister(assets[0], wormholeData);
-        doRegister(assets[1], wormholeData);
+        doRegister(assets[0]);
+        doRegister(assets[1]);
 
-        // register spoke
-        doRegisterSpoke(wormholeData, wormholeSpokeData);
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 91);
 
-        // call deposit
-        doDeposit(vault, assets[0].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doRegisterSpoke();
 
-        doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assets[0], 500 * 10 ** 18);
+        doDeposit(address(0), assets[1], 600 * 10 ** 18);
 
-        // set Oracle price for asset deposited
-        setPrice(assets[0], 100, wormholeData);
-
-        // set Oracle price for asset intended to be borrowed
-        setPrice(assets[1], 91, wormholeData);
-
-        // call borrow
-        doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doBorrow(vault, assets[1], 500 * 10 ** 18);
 
     }
 
     function testRDBW() public {
         address vault = msg.sender;
 
-        // call register
-        doRegister(assets[0], wormholeData);
-        doRegister(assets[1], wormholeData);
+        doRegister(assets[0]);
+        doRegister(assets[1]);
 
-        // register spoke
-        doRegisterSpoke(wormholeData, wormholeSpokeData);
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
 
-        // call deposit
-        doDeposit(vault, assets[0].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doRegisterSpoke();
 
-        doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assets[0], 500 * 10 ** 18);
+        doDeposit(address(0), assets[1], 600 * 10 ** 18);
 
-        // set Oracle price for asset deposited
-        wormholeData.hub.setOraclePrice(assets[0].pythId, Price({
-            price: 100,
-            conf: 10, 
-            expo: 1,
-            publishTime: 1
-        }));
-
-        // set Oracle price for asset intended to be borrowed
-        wormholeData.hub.setOraclePrice(assets[1].pythId, Price({
-            price: 90,
-            conf: 5,
-            expo: 0,
-            publishTime: 1
-        }));
-
-        // call borrow
-        doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doBorrow(vault, assets[1], 500 * 10 ** 18);
     
-        doWithdraw(vault, assets[0].assetAddress, 500 * 10 ** 16, wormholeData, wormholeSpokeData);
+        doWithdraw(vault, assets[0], 500 * 10 ** 16);
     }
 
     function testFailRDBW() public {
         address vault = msg.sender;
 
-        // call register
-        doRegister(assets[0], wormholeData);
-        doRegister(assets[1], wormholeData);
+        doRegister(assets[0]);
+        doRegister(assets[1]);
 
-        // register spoke
-        doRegisterSpoke(wormholeData, wormholeSpokeData);
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
 
-        // call deposit
-        doDeposit(vault, assets[0].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doRegisterSpoke();
 
-        doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doDeposit(vault, assets[0], 500 * 10 ** 18);
+        doDeposit(address(0), assets[1], 600 * 10 ** 18);
 
-        // set Oracle price for asset deposited
-        wormholeData.hub.setOraclePrice(assets[0].pythId, Price({
-            price: 100,
-            conf: 10, 
-            expo: 1,
-            publishTime: 1
-        }));
 
-        // set Oracle price for asset intended to be borrowed
-        wormholeData.hub.setOraclePrice(assets[1].pythId, Price({
-            price: 90,
-            conf: 5,
-            expo: 0,
-            publishTime: 1
-        }));
 
         // call borrow
-        doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
+        doBorrow(vault, assets[1], 500 * 10 ** 18);
     
-        doWithdraw(vault, assets[0].assetAddress, 500 * 10 ** 16 + 1, wormholeData, wormholeSpokeData);
+        doWithdraw(vault, assets[0], 500 * 10 ** 16 + 1);
     }
     
     /*
