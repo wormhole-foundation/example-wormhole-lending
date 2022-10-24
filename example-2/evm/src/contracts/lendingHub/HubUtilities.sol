@@ -138,7 +138,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        return (amounts.deposited - amounts.borrowed >= assetAmount) && (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price; // / (10**assetInfo.decimals));
+        return (amounts.deposited - amounts.borrowed >= assetAmount) && (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price); // / (10**assetInfo.decimals));
     }
 
     /** 
