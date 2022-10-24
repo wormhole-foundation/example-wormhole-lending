@@ -15,12 +15,12 @@ import "./HubGetters.sol";
 import "./HubUtilities.sol"; 
 
 contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
-    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_, uint256 collateralizationRatioPrecision_) {
+    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_, uint256 collateralizationRatioPrecision_, uint8 maxDecimals) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
         setPyth(mockPythAddress_);
-
+        setMaxDecimals(maxDecimals);
         setConsistencyLevel(consistencyLevel_);
         setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
         setCollateralizationRatioPrecision(collateralizationRatioPrecision_);
@@ -49,6 +49,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
         require(!registered_info.exists, "Asset already registered");
+
+        require(decimals <= getMaxDecimals(), "Too many decimals for this asset");
 
         allowAsset(assetAddress);
 

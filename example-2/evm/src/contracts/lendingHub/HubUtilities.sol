@@ -106,9 +106,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
-            effectiveNotionalDeposited += denormalizedDeposited * price; // / (10**assetInfo.decimals);
+            effectiveNotionalDeposited += denormalizedDeposited * price * 10 ** (getMaxDecimals() - assetInfo.decimals); // / (10**assetInfo.decimals);
 
-            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / getCollateralizationRatioPrecision(); // / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
+            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price * 10 ** (getMaxDecimals() - assetInfo.decimals) / getCollateralizationRatioPrecision(); 
 
         }    
 
@@ -138,7 +138,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        return (amounts.deposited - amounts.borrowed >= assetAmount) && (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price); // / (10**assetInfo.decimals));
+        return (amounts.deposited - amounts.borrowed >= assetAmount) && (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * price * (10 ** getMaxDecimals())); 
     }
 
     /** 
@@ -160,7 +160,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
      
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
         
-        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price * assetInfo.collateralizationRatio / getCollateralizationRatioPrecision())); // / (10**assetInfo.decimals) / (getCollateralizationRatioPrecision())));
+        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * price * assetInfo.collateralizationRatio * (10**getMaxDecimals()) / getCollateralizationRatioPrecision() ));
 
     }
 

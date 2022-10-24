@@ -68,6 +68,10 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         _state.collateralizationRatioPrecision = collateralizationRatioPrecision;
     }
 
+    function getMaxDecimals(uint8 maxDecimals) internal {
+        _state.MAX_DECIMALS = maxDecimals;
+    }
+
     function setVaultAmounts(address vaultOwner, address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.vault[vaultOwner][assetAddress] = vaultAmount;
     } 
