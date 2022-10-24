@@ -26,7 +26,8 @@ contract HubGetters is Context, HubStructs, HubState {
         return ITokenBridge(payable(_state.provider.tokenBridge));
     }
 
-    function consistencyLevel() internal view returns (uint8) {
+    // TODO: This is public for testing
+    function consistencyLevel() public view returns (uint8) {
         return _state.consistencyLevel;
     }
 
@@ -54,7 +55,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.consumedMessages[vmHash];
     }
 
-    function getAssetInfo(address assetAddress) internal view returns (AssetInfo memory) {
+    function getAssetInfo(address assetAddress) public view returns (AssetInfo memory) {
         return _state.assetInfos[assetAddress];
     }
 
@@ -82,11 +83,18 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.interestAccrualIndexPrecision;
     }
 
-    function getVaultAmounts(address vaultOwner, address assetAddress) internal view returns (VaultAmount memory) {
+    // TODO: This is public for testing
+    function getVaultAmounts(address vaultOwner, address assetAddress) public view returns (VaultAmount memory) {
         return _state.vault[vaultOwner][assetAddress];
     } 
 
-    function getGlobalAmounts(address assetAddress) internal view returns (VaultAmount memory) {
+    // TODO: This is public for testing
+    function getGlobalAmounts(address assetAddress) public view returns (VaultAmount memory) {
         return _state.totalAssets[assetAddress];
+    }
+
+    // getting oracle price (TODO: remove if we get oracle contract up and running)
+    function getOraclePrice(bytes32 oracleId) public view returns (Price memory price) {
+        return _state.oracle[oracleId];
     }
 }

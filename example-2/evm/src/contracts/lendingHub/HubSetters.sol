@@ -3,8 +3,9 @@ pragma solidity ^0.8.0;
 
 import "./HubState.sol";
 import "./HubStructs.sol";
+import "./HubGetters.sol";
 
-contract HubSetters is HubStructs, HubState {
+contract HubSetters is HubStructs, HubState, HubGetters {
     function setOwner(address owner) internal {
         _state.owner = owner;
     }
@@ -35,6 +36,12 @@ contract HubSetters is HubStructs, HubState {
 
     function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
         _state.assetInfos[assetAddress] = info;
+        AccrualIndices memory accrualIndices;
+        accrualIndices.deposited = 1*getInterestAccrualIndexPrecision();
+        accrualIndices.borrowed = 1*getInterestAccrualIndexPrecision();
+        accrualIndices.lastBlock = block.timestamp;
+
+        setInterestAccrualIndices(assetAddress, accrualIndices);
     }
 
     function consumeMessageHash(bytes32 vmHash) internal {
@@ -53,11 +60,24 @@ contract HubSetters is HubStructs, HubState {
         _state.indices[assetAddress] = indices;
     }
 
+    function setInterestAccrualIndexPrecision(uint256 interestAccrualIndexPrecision) internal {
+        _state.interestAccrualIndexPrecision = interestAccrualIndexPrecision;
+    }
+
+    function setCollateralizationRatioPrecision(uint256 collateralizationRatioPrecision) internal {
+        _state.collateralizationRatioPrecision = collateralizationRatioPrecision;
+    }
+
     function setVaultAmounts(address vaultOwner, address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.vault[vaultOwner][assetAddress] = vaultAmount;
     } 
 
     function setGlobalAmounts(address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.totalAssets[assetAddress] = vaultAmount;
-    } 
+    }
+
+    // setting oracle price (TODO: remove if we get oracle contract up and running)
+    function setOraclePrice(bytes32 oracleId, Price memory price) public {
+        _state.oracle[oracleId] = price;
+    }
 }

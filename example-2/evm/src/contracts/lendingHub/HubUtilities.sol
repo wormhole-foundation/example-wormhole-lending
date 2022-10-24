@@ -11,6 +11,8 @@ import "./HubState.sol";
 import "./HubGetters.sol";
 import "./HubSetters.sol";
 
+import "forge-std/console.sol";
+
 contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     /** 
     * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued). 
@@ -62,14 +64,18 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     function getOraclePrices(address assetAddress) internal view returns (uint64) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
-        IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetInfo.pythId);
+        // getting oracle price via hubgetters fn (TODO: remove if we get oracle contract up and running)
+        Price memory oraclePrice = getOraclePrice(assetInfo.pythId);
+        // IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetInfo.pythId);
 
         // sanity check the price feeds
-        require(feed.price.price > 0, "negative prices detected");
+        require(oraclePrice.price > 0, "negative prices detected");
+        // require(feed.price.price > 0, "negative prices detected");
 
         // Users of Pyth prices should read: https://docs.pyth.network/consumers/best-practices
         // before using the price feed. Blindly using the price alone is not recommended.
-        return uint64(feed.price.price);
+        return uint64(oraclePrice.price);
+        // return uint64(feed.price.price);
     }
 
     /** 
@@ -80,14 +86,15 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function getVaultEffectiveNotionals(address vaultOwner) internal view returns (uint256, uint256) {
 
+        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
         address[] memory allowList = getAllowList();
-
         for(uint i=0; i<allowList.length; i++) {
             address asset = allowList[i];
 
+            
             VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, asset);
 
             uint64 price = getOraclePrices(asset);
@@ -99,10 +106,10 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
-            effectiveNotionalDeposited += denormalizedDeposited * price / (10**assetInfo.decimals);
+            effectiveNotionalDeposited += denormalizedDeposited * price; // / (10**assetInfo.decimals);
 
-            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
-      
+            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / getCollateralizationRatioPrecision(); // / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
+
         }    
 
         return (effectiveNotionalDeposited, effectiveNotionalBorrowed);
@@ -120,6 +127,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */ // TODO: cycle through all assets in the vault
     function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
 
+        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         uint64 price = getOraclePrices(assetAddress);
@@ -130,7 +138,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        return (amounts.deposited - amounts.borrowed >= assetAmount) && (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price / (10**assetInfo.decimals));
+        return (amounts.deposited - amounts.borrowed >= assetAmount) && (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price; // / (10**assetInfo.decimals));
     }
 
     /** 
@@ -141,16 +149,18 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * @return {bool} True or false depending on if this borrow keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices) 
     * (where the borrow values are multiplied by their collateralization ratio) and also if there is enough asset in the total reserve of the protocol to complete the borrow
     */
-    function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
+    function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool) {       
+        
+        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         uint64 price = getOraclePrices(assetAddress);
-
+     
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
-
+     
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
-
-        return (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price * assetInfo.collateralizationRatio / (10**assetInfo.decimals));
+        
+        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price * assetInfo.collateralizationRatio / getCollateralizationRatioPrecision())); // / (10**assetInfo.decimals) / (getCollateralizationRatioPrecision())));
 
     }
 
@@ -166,6 +176,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function allowedToLiquidate(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) internal view returns (bool) {
         
+        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault); 
 
         require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");
@@ -182,7 +193,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            notionalRepaid += amount * price / (10**assetInfo.decimals);
+            notionalRepaid += amount * price; // / (10**assetInfo.decimals);
         }
 
         // get notional received
@@ -194,15 +205,17 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            notionalReceived += amount * price / (10**assetInfo.decimals);
+            notionalReceived += amount * price; // / (10**assetInfo.decimals);
         }
 
-        // TODO: could add check that amount received > amount repaid
-        // TODO: probably want to make the max liquidation bonus << min collateralization ratios
+        // safety check to ensure liquidator doesn't play themselves
+        require(notionalReceived >= notionalRepaid, "Liquidator receipt less than amount they repaid");
+
+        // TODO: probably want to make the max liquidation bonus << min collateralization ratios--how to do this with multiple collat ratios??
         // check if notional received <= notional repaid * max liquidation bonus
         uint256 maxLiquidationBonus = getMaxLiquidationBonus();
 
-        return (notionalReceived <= maxLiquidationBonus * notionalRepaid);
+        return (notionalReceived <= maxLiquidationBonus * notionalRepaid / getCollateralizationRatioPrecision());
     }
 
     /**
@@ -219,6 +232,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     // TODO: Write docstrings for these functions
 
     function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
+
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
 
@@ -243,6 +257,20 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
 
         uint256 deposited = getTotalAssetsDeposited(assetAddress);
+        AccrualIndices memory accrualIndices = getInterestAccrualIndices(assetAddress);
+
+        if(secondsElapsed == 0) {
+            // no need to update anything
+            return;
+        }
+
+        accrualIndices.lastBlock = block.timestamp;
+
+        if(deposited == 0) {
+            // avoid divide by 0 due to 0 deposits
+            return;
+        }
+
         uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
 
         setLastActivityBlockTimestamp(assetAddress, block.timestamp);
@@ -251,10 +279,8 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
 
-        AccrualIndices memory accrualIndices = getInterestAccrualIndices(assetAddress);
         accrualIndices.borrowed += interestFactor;
         accrualIndices.deposited += (interestFactor * borrowed) / deposited;
-        accrualIndices.lastBlock = block.timestamp;
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }
@@ -275,12 +301,19 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);
 
-        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(bytes20(parsed.emitterAddress))));
+        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.emitterAddress))));
 
-        require(!messageHashConsumed(parsed.hash), "message already confused");
+        require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
 
         return parsed.payload;
+    }
+
+    function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
+        payload = tokenBridge().completeTransferWithPayload(encodedMessage);
+
+        // do some stuff
+        
     }
 
     /*
