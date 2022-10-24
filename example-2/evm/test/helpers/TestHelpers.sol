@@ -273,6 +273,42 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         wormholeData.hub.completeDeposit(encodedVM);
     }
 
+    // create Deposit payload and package it into TokenBridgePayload into WH message and send the deposit
+    function doRepay(address vault, TestAsset memory asset, uint256 assetAmount)
+        internal
+        returns (bytes memory encodedVM)
+    {
+        address assetAddress = asset.assetAddress;
+        // create Deposit payload
+        PayloadHeader memory header = PayloadHeader({
+            payloadID: uint8(4),
+            sender: vault //address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
+        });
+        RepayPayload memory myPayload =
+            RepayPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeRepayPayload(myPayload);
+
+        // get wrapped info
+        ITokenImplementation wrapped = getWrappedInfo(assetAddress);
+
+        // TokenBridgePayload
+        ITokenBridge.TransferWithPayload memory transfer = ITokenBridge.TransferWithPayload({
+            payloadID: 3,
+            amount: assetAmount,
+            tokenAddress: wrapped.nativeContract(),
+            tokenChain: wrapped.chainId(),
+            to: bytes32(uint256(uint160(address(wormholeData.hub)))),
+            toChain: wormholeData.wormholeContract.chainId(),
+            fromAddress: bytes32(uint256(uint160(msg.sender))),
+            payload: serialized
+        });
+
+        encodedVM = getSignedWHMsgTransferTokenBridge(transfer);
+
+        // complete deposit
+        wormholeData.hub.completeRepay(encodedVM);
+    }
+
     // create Borrow payload and package it into TokenBridgePayload into WH message and send the borrow
     function doBorrow(address vault, TestAsset memory asset, uint256 assetAmount)
         internal

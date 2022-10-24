@@ -125,7 +125,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * (where the borrow values are multiplied by their collateralization ratio) and also if there is enough asset in the vault to complete the withdrawal
     * and also if there is enough asset in the total reserve of the protocol to complete the withdrawal
     */ // TODO: cycle through all assets in the vault
-    function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
+    function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool, bool) {       
 
         // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
@@ -138,7 +138,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        return (amounts.deposited - amounts.borrowed >= assetAmount) && (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * price * (10 ** getMaxDecimals())); 
+        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * price * (10 ** getMaxDecimals()))); 
     }
 
     /** 

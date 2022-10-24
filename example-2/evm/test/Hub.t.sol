@@ -186,6 +186,48 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     
         doWithdraw(vault, assets[0], 500 * 10 ** 16 + 1);
     }
+
+    function testRDBPW() public {
+        address vault = msg.sender;
+
+        doRegister(assets[0]);
+        doRegister(assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doRegisterSpoke();
+
+        doDeposit(vault, assets[0], 500 * 10 ** 18);
+        doDeposit(address(0), assets[1], 600 * 10 ** 18);
+
+        doBorrow(vault, assets[1], 500 * 10 ** 18);
+
+        doRepay(vault, assets[1], 500 * 10 ** 18);
+    
+        doWithdraw(vault, assets[0], 500 * 10 ** 18);
+    }
+
+    function testFailRDBPW() public {
+        address vault = msg.sender;
+
+        doRegister(assets[0]);
+        doRegister(assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doRegisterSpoke();
+
+        doDeposit(vault, assets[0], 500 * 10 ** 18);
+        doDeposit(address(0), assets[1], 600 * 10 ** 18);
+
+        doBorrow(vault, assets[1], 500 * 10 ** 18);
+
+        doRepay(vault, assets[1], 500 * 10 ** 18 - 1);
+    
+        doWithdraw(vault, assets[0], 500 * 10 ** 18);
+    }
     
     /*
     *       TESTING ENCODING AND DECODING OF MESSAGES

@@ -147,7 +147,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         // encodedMessage is Token Bridge payload 3 full msg
         bytes memory vmPayload = getTransferPayload(encodedMessage);
 
-        RepayPayload memory params = decodeRepayPayload(vmPayload);
+        bytes memory serialized = extractSerializedFromTransferWithPayload(vmPayload);
+
+        RepayPayload memory params = decodeRepayPayload(serialized);
         
         repay(params.header.sender, params.assetAddress, params.assetAmount);
     }
@@ -194,7 +196,10 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         checkValidAddress(assetAddress);
 
         // recheck if withdraw is valid given up to date prices? bc the prices can move in the time for VAA to come
-        require(allowedToWithdraw(withdrawer, assetAddress, amount), "Not enough in vault");
+        (bool check1, bool check2, bool check3) = allowedToWithdraw(withdrawer, assetAddress, amount);
+        require(check1, "Not enough in vault");
+        require(check2, "Not enough in global supply");
+        require(check3, "Vault is undercollateralized if this withdraw goes through");
 
         // update the interest accrual indices
         updateAccrualIndices(assetAddress);
@@ -277,7 +282,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
         globalAmounts.borrowed -= normalizedAmount;
 
-
+        setVaultAmounts(repayer, assetAddress, vaultAmounts);
+        setGlobalAmounts(assetAddress, globalAmounts);
     }
 
     /**
