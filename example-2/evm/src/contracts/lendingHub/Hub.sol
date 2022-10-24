@@ -26,6 +26,18 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setCollateralizationRatioPrecision(collateralizationRatioPrecision_);
     }
 
+    /**
+    * Registers asset on the hub. Only registered assets are allowed to be stored in the protocol.
+    *
+    * @param assetAddress - The address to be checked
+    * @param collateralizationRatio - The constant c multiplied by collateralizationRatioPrecision, 
+    * where c is such that we allow users to borrow $1 worth of any assets against $c worth of this asset 
+    * (according to Pyth prices) 
+    * @param reserveFactor - TODO: Explain what this is
+    * @param pythId - Id of the relevant Pyth price feed (USD <-> asset) TODO: Make this explanation more precise
+    * @param decimals - Precision that the asset amount is stored in TODO: Make this explanation more precise
+    * @return sequence The sequence number of the wormhole message documenting the registration of the asset
+    */ 
     function registerAsset(
         address assetAddress,
         uint256 collateralizationRatio,
@@ -70,11 +82,22 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         sequence = sendWormholeMessage(serialized);
     }
 
+    /**
+    * Registers a spoke contract. Only wormhole messages from registered spoke contracts are allowed.
+    *
+    * @param chainId - The chain id which the spoke is deployed on
+    * @param spokeContractAddress - The address of the spoke contract on its chain 
+    */ 
     function registerSpoke(uint16 chainId, address spokeContractAddress) public {
         require(msg.sender == owner(), "invalid owner");
         registerSpokeContract(chainId, spokeContractAddress);
     }
 
+    /**
+    * Completes a deposit that was initiated on a spoke
+    *
+    * @param encodedMessage - Encoded token bridge VAA (payload3) with the tokens deposited and deposit information
+    */ 
     function completeDeposit(bytes memory encodedMessage) public { // calldata encodedMessage
 
         // encodedMessage is WH full msg, returns token bridge transfer msg
@@ -87,6 +110,11 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         deposit(params.header.sender, params.assetAddress, params.assetAmount);
     }
 
+    /**
+    * Completes a withdraw that was initiated on a spoke
+    *
+    * @param encodedMessage - Encoded VAA with the withdraw information
+    */
     function completeWithdraw(bytes calldata encodedMessage) public {
 
         WithdrawPayload memory params = decodeWithdrawPayload(getWormholePayload(encodedMessage));
@@ -94,6 +122,11 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         withdraw(params.header.sender, params.assetAddress, params.assetAmount);
     }
 
+    /**
+    * Completes a borrow that was initiated on a spoke
+    *
+    * @param encodedMessage - Encoded VAA with the borrow information
+    */
     function completeBorrow(bytes calldata encodedMessage) public {
 
         // encodedMessage is WH full msg, returns arbitrary bytes
@@ -102,6 +135,11 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         borrow(params.header.sender, params.assetAddress, params.assetAmount);
     }
 
+    /**
+    * Completes a repay that was initiated on a spoke
+    *
+    * @param encodedMessage - Encoded token bridge VAA (payload3) with the repayed tokens and repay information
+    */
     function completeRepay(bytes calldata encodedMessage) public {
 
         // encodedMessage is Token Bridge payload 3 full msg
@@ -112,6 +150,13 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         repay(params.header.sender, params.assetAddress, params.assetAmount);
     }
 
+    /**
+    * Updates vault amounts for a deposit from depositor of the asset at 'assetAddress' and amount 'amount'
+    *
+    * @param depositor - the address of the depositor
+    * @param assetAddress - the address of the asset 
+    * @param amount - the amount of the asset
+    */
     function deposit(address depositor, address assetAddress, uint256 amount) internal {
         // TODO: What to do if this fails?
         
@@ -136,8 +181,13 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setGlobalAmounts(assetAddress, globalAmounts);
     }
 
-    
-
+    /**
+    * Updates vault amounts for a withdraw from withdrawer of the asset at 'assetAddress' and amount 'amount'
+    *
+    * @param withdrawer - the address of the withdrawer
+    * @param assetAddress - the address of the asset 
+    * @param amount - the amount of the asset
+    */
     function withdraw(address withdrawer, address assetAddress, uint256 amount) internal {
         checkValidAddress(assetAddress);
 
@@ -164,6 +214,13 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         transferTokens(withdrawer, assetAddress, amount);
     }
 
+    /**
+    * Updates vault amounts for a borrow from borrower of the asset at 'assetAddress' and amount 'amount'
+    *
+    * @param borrower - the address of the borrower
+    * @param assetAddress - the address of the asset 
+    * @param amount - the amount of the asset
+    */
     function borrow(address borrower, address assetAddress, uint256 amount) internal {
         checkValidAddress(assetAddress);
 
@@ -194,6 +251,13 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         transferTokens(borrower, assetAddress, amount);
     }
 
+    /**
+    * Updates vault amounts for a repay from repayer of the asset at 'assetAddress' and amount 'amount'
+    *
+    * @param repayer - the address of the repayer
+    * @param assetAddress - the address of the asset 
+    * @param amount - the amount of the asset
+    */
     function repay(address repayer, address assetAddress, uint256 amount) internal {
         checkValidAddress(assetAddress);
 
@@ -214,6 +278,17 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
     }
 
+    /**
+    * Liquidates a vault. The sender of this transaction pays, for each i, assetRepayAmount[i] of the asset assetRepayAddresses[i]
+    * and receives, for each i, assetReceiptAmount[i] of the asset at assetReceiptAddresses[i].
+    * A check is made to see if this liquidation attempt should be allowed
+    *
+    * @param vault - the address of the vault
+    * @param assetRepayAddresses - An array of the addresses of the assets being paid by the liquidator 
+    * @param assetRepayAmounts - An array of the amounts of the assets being paid by the liquidator 
+    * @param assetReceiptAddresses - An array of the addresses of the assets being received by the liquidator 
+    * @param assetReceiptAmounts - An array of the amounts of the assets being received by the liquidator
+    */
     function liquidation(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) public {
         // check if asset addresses all valid
         // TODO: eventually check all addresses in one function checkValidAddresses that checks for no duplicates also
