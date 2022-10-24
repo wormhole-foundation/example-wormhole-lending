@@ -43,7 +43,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     function testRegisterAsset() public {
 
         // register asset
-        doRegister(assets[0], wormholeData, wormholeSpokeData);
+        doRegister(assets[0], wormholeData);
 
         AssetInfo memory info = wormholeData.hub.getAssetInfo(assets[0].assetAddress);
 
@@ -65,7 +65,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address vault = msg.sender;
         address assetAddress = assets[0].assetAddress;
         // call register
-        doRegister(assets[0], wormholeData, wormholeSpokeData);
+        doRegister(assets[0], wormholeData);
 
         VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
@@ -95,8 +95,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address vault = msg.sender;
 
         // call register
-        doRegister(assets[0], wormholeData, wormholeSpokeData);
-        doRegister(assets[1], wormholeData, wormholeSpokeData);
+        doRegister(assets[0], wormholeData);
+        doRegister(assets[1], wormholeData);
 
         // register spoke
         doRegisterSpoke(wormholeData, wormholeSpokeData);
@@ -107,20 +107,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
 
         // set Oracle price for asset deposited
-        wormholeData.hub.setOraclePrice(assets[0].pythId, Price({
-            price: 100,
-            conf: 10, 
-            expo: 1,
-            publishTime: 1
-        }));
+        setPrice(assets[0], 100, wormholeData);
 
         // set Oracle price for asset intended to be borrowed
-        wormholeData.hub.setOraclePrice(assets[1].pythId, Price({
-            price: 90,
-            conf: 5,
-            expo: 0,
-            publishTime: 1
-        }));
+        setPrice(assets[1], 90, wormholeData);
 
         // call borrow
         doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
@@ -133,8 +123,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address vault = msg.sender;
 
         // call register
-        doRegister(assets[0], wormholeData, wormholeSpokeData);
-        doRegister(assets[1], wormholeData, wormholeSpokeData);
+        doRegister(assets[0], wormholeData);
+        doRegister(assets[1], wormholeData);
 
         // register spoke
         doRegisterSpoke(wormholeData, wormholeSpokeData);
@@ -145,20 +135,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit(address(0), assets[1].assetAddress, 600 * 10 ** 18, wormholeData, wormholeSpokeData);
 
         // set Oracle price for asset deposited
-        wormholeData.hub.setOraclePrice(assets[0].pythId, Price({
-            price: 100,
-            conf: 10, 
-            expo: 1,
-            publishTime: 1
-        }));
+        setPrice(assets[0], 100, wormholeData);
 
         // set Oracle price for asset intended to be borrowed
-        wormholeData.hub.setOraclePrice(assets[1].pythId, Price({
-            price: 91,
-            conf: 5,
-            expo: 0,
-            publishTime: 1
-        }));
+        setPrice(assets[1], 91, wormholeData);
 
         // call borrow
         doBorrow(vault, assets[1].assetAddress, 500 * 10 ** 18, wormholeData, wormholeSpokeData);
@@ -169,8 +149,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address vault = msg.sender;
 
         // call register
-        doRegister(assets[0], wormholeData, wormholeSpokeData);
-        doRegister(assets[1], wormholeData, wormholeSpokeData);
+        doRegister(assets[0], wormholeData);
+        doRegister(assets[1], wormholeData);
 
         // register spoke
         doRegisterSpoke(wormholeData, wormholeSpokeData);
@@ -206,8 +186,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address vault = msg.sender;
 
         // call register
-        doRegister(assets[0], wormholeData, wormholeSpokeData);
-        doRegister(assets[1], wormholeData, wormholeSpokeData);
+        doRegister(assets[0], wormholeData);
+        doRegister(assets[1], wormholeData);
 
         // register spoke
         doRegisterSpoke(wormholeData, wormholeSpokeData);

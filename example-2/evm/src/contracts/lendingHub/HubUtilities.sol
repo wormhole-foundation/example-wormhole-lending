@@ -193,7 +193,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            notionalRepaid += amount * price; // / (10**assetInfo.decimals);
+            notionalRepaid += amount * price * 10 ** (getMaxDecimals() - assetInfo.decimals); 
         }
 
         // get notional received
@@ -205,7 +205,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            notionalReceived += amount * price; // / (10**assetInfo.decimals);
+            notionalReceived += amount * price * 10 ** (getMaxDecimals() - assetInfo.decimals); 
         }
 
         // safety check to ensure liquidator doesn't play themselves

@@ -162,7 +162,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         );
     }
 
-    function getWrappedInfo(address assetAddress) internal view returns (ITokenImplementation wrapped) {
+    function getWrappedInfo(address assetAddress) internal pure returns (ITokenImplementation wrapped) {
         //
         wrapped = ITokenImplementation(assetAddress);
         //console.log("wrapped chain id", wrapped.chainId());
@@ -173,7 +173,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     function getMessageFromTransferTokenBridge(
         ITokenBridge.TransferWithPayload memory transfer,
         WormholeSpokeData memory wormholeSpokeData
-    ) internal returns (bytes memory message) {
+    ) internal pure returns (bytes memory message) {
         message = encodePayload3Message(
             transfer,
             IWormhole.WormholeBodyParams({
@@ -201,7 +201,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             uint8(15),
             payload);
 
-        encodedVM = getSignedWHMsg(message, wormholeData, wormholeSpokeData);
+        encodedVM = getSignedWHMsg(message, wormholeData);
     }
     
     function getSignedWHMsgTransferTokenBridge(
@@ -211,13 +211,12 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     ) internal returns (bytes memory encodedVM) {
         bytes memory message = getMessageFromTransferTokenBridge(transfer, wormholeSpokeData);
 
-        encodedVM = getSignedWHMsg(message, wormholeData, wormholeSpokeData);
+        encodedVM = getSignedWHMsg(message, wormholeData);
     }
 
     function getSignedWHMsg(
         bytes memory message,
-        WormholeData memory wormholeData,
-        WormholeSpokeData memory wormholeSpokeData
+        WormholeData memory wormholeData
     ) internal returns (bytes memory encodedVM) {
         // get hash for signature
         bytes32 messageHash = keccak256(abi.encodePacked(keccak256(message)));
@@ -251,8 +250,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     // TODO: Do we need this? Maybe remove this helper function
     function doRegister(
         TestAsset memory asset,
-        WormholeData memory wormholeData,
-        WormholeSpokeData memory wormholeSpokeData
+        WormholeData memory wormholeData
     ) internal {
         // register asset
         wormholeData.hub.registerAsset(asset.assetAddress, asset.collateralizationRatio, asset.reserveFactor, asset.pythId, asset.decimals);
@@ -356,4 +354,16 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         // complete withdraw
         wormholeData.hub.completeWithdraw(encodedVM);
     }
+
+    function setPrice(TestAsset memory asset, int64 price, WormholeData memory wormholeData) internal {
+        
+        wormholeData.hub.setOraclePrice(asset.pythId, Price({
+            price: price,
+            conf: 10, 
+            expo: 1,
+            publishTime: 1
+        }));
+    }
+    
+        
 }
