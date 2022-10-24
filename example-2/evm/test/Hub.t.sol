@@ -84,9 +84,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         require(vaultAfter.deposited == 502, "502 wasn't deposited (in the vault)");
     }
 
-    function testD() public {
-        // TODO: how to use expectRevert when error is triggered in other file
-        // vm.expectRevert("Unregistered asset");
+    function testFailD() public {
+        // Should fail because there is no registered asset
 
         address vault = msg.sender;
         doDeposit(vault, assets[0].assetAddress, 502, wormholeData, wormholeSpokeData);

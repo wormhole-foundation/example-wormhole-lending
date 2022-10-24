@@ -68,7 +68,7 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         _state.collateralizationRatioPrecision = collateralizationRatioPrecision;
     }
 
-    function getMaxDecimals(uint8 maxDecimals) internal {
+    function setMaxDecimals(uint8 maxDecimals) internal {
         _state.MAX_DECIMALS = maxDecimals;
     }
 
