@@ -107,7 +107,6 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
     function testFailD() public {
         // Should fail because there is no registered asset
-
         address vault = msg.sender;
         doDeposit(vault, assets[0], 502);
     }
@@ -115,7 +114,6 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     function testRDB() public {
         address vault = msg.sender;
 
-        // call register
         doRegister(assets[0]);
         doRegister(assets[1]);
 
@@ -124,15 +122,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
-  
-
-        // call deposit
         doDeposit(vault, assets[0], 500 * 10 ** 18);
-
         doDeposit(address(0), assets[1], 600 * 10 ** 18);
 
-      
-        // call borrow
         doBorrow(vault, assets[1], 500 * 10 ** 18);
 
     }
@@ -190,9 +182,6 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit(vault, assets[0], 500 * 10 ** 18);
         doDeposit(address(0), assets[1], 600 * 10 ** 18);
 
-
-
-        // call borrow
         doBorrow(vault, assets[1], 500 * 10 ** 18);
     
         doWithdraw(vault, assets[0], 500 * 10 ** 16 + 1);
