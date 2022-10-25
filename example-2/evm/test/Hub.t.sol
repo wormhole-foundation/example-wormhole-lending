@@ -198,19 +198,47 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doRegisterSpoke();
 
+        VaultAmount memory global0;
+        VaultAmount memory vault0;
+        VaultAmount memory global1;
+        VaultAmount memory vault1;
+
+        // check before any actions
+        global0 = hub.getGlobalAmounts(assets[0].assetAddress);
+        vault0 = hub.getVaultAmounts(vault, assets[0].assetAddress);
+        global1 = hub.getGlobalAmounts(assets[1].assetAddress);
+        vault1 = hub.getVaultAmounts(vault, assets[1].assetAddress);
+        require((global0.deposited == 0) && (global0.borrowed == 0), "Should be nothing deposited/borrowed for asset 0");
+        require((global1.deposited == 0) && (global1.borrowed == 0), "Should be nothing deposited/borrowed for asset 1");
+        require((vault0.deposited == 0) && (vault0.borrowed == 0), "Should be nothing deposited/borrowed for asset 0 for vault");
+        require((vault1.deposited == 0) && (vault1.borrowed == 0), "Should be nothing deposited/borrowed for asset 1 for vault");
+
         doDeposit(vault, assets[0], 500 * 10 ** 18);
         doDeposit(address(0), assets[1], 600 * 10 ** 18);
+
+        // check after first deposits
+        global0 = hub.getGlobalAmounts(assets[0].assetAddress);
+        vault0 = hub.getVaultAmounts(vault, assets[0].assetAddress);
+        global1 = hub.getGlobalAmounts(assets[1].assetAddress);
+        vault1 = hub.getVaultAmounts(vault, assets[1].assetAddress);
+        require((global0.deposited == 500 * 10 ** 18) && (global0.borrowed == 0), "Wrong numbers for asset 0 global");
+        require((global1.deposited == 600 * 10 ** 18) && (global1.borrowed == 0), "Wrong numbers for asset 1 global");
+        require((vault0.deposited == 500 * 10**18) && (vault0.borrowed == 0), "Wrong numbers for asset 0 for vault");
+        require((vault1.deposited == 0) && (vault1.borrowed == 0), "Wrong numbers for asset 1 for vault");
 
         doBorrow(vault, assets[1], 500 * 10 ** 18);
 
         doRepay(vault, assets[1], 500 * 10 ** 18);
     
         doWithdraw(vault, assets[0], 500 * 10 ** 18);
+
+        
     }
 
     function testFailRDBPW() public {
         // Should fail because still some debt out so cannot withdraw all your deposited assets
         address vault = msg.sender;
+        address vaultOther = address(0);
 
         doRegister(assets[0]);
         doRegister(assets[1]);
@@ -222,7 +250,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doDeposit(vault, assets[0], 500 * 10 ** 18);
         // deposit by another address
-        doDeposit(address(0), assets[1], 600 * 10 ** 18);
+        doDeposit(vaultOther, assets[1], 600 * 10 ** 18);
 
         doBorrow(vault, assets[1], 500 * 10 ** 18);
 
@@ -230,6 +258,70 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRepay(vault, assets[1], 500 * 10 ** 18 - 1);
     
         doWithdraw(vault, assets[0], 500 * 10 ** 18);
+    }
+
+    function testFailRDBL() public {
+        // should fail because vault not underwater
+
+        address vault = msg.sender;
+        address vaultOther = address(0);
+
+        doRegister(assets[0]);
+        doRegister(assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doRegisterSpoke();
+
+        doDeposit(vaultOther, assets[0], 500 * 10**18);
+        doDeposit(vault, assets[1], 600 * 10**18);
+    
+        doBorrow(vaultOther, assets[1], 500 * 10**18);
+
+        // liquidation attempted by msg.sender
+        address[] memory assetRepayAddresses = new address[](1);
+        assetRepayAddresses[0] = assets[1].assetAddress;
+        uint256[] memory assetRepayAmounts = new uint256[](1);
+        assetRepayAmounts[0] = 500 * 10**18;
+        address[] memory assetReceiptAddresses = new address[](1);
+        assetReceiptAddresses[0] = assets[0].assetAddress;
+        uint256[] memory assetReceiptAmounts = new uint256[](1);
+        assetReceiptAmounts[0] = 1;
+        hub.liquidation(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+    }
+
+    function testRDBL() public {
+
+        address vault = msg.sender;
+        address vaultOther = address(0);
+
+        doRegister(assets[0]);
+        doRegister(assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doRegisterSpoke();
+
+        doDeposit(vaultOther, assets[0], 500 * 10**18);
+        doDeposit(vault, assets[1], 600 * 10**18);
+    
+        doBorrow(vaultOther, assets[1], 500 * 10**18);
+
+        // move the price up for borrowed asset
+        setPrice(assets[1], 95);
+
+        // liquidation attempted by msg.sender
+        address[] memory assetRepayAddresses = new address[](1);
+        assetRepayAddresses[0] = assets[1].assetAddress;
+        uint256[] memory assetRepayAmounts = new uint256[](1);
+        assetRepayAmounts[0] = 500 * 10**18;
+        address[] memory assetReceiptAddresses = new address[](1);
+        assetReceiptAddresses[0] = assets[0].assetAddress;
+        uint256[] memory assetReceiptAmounts = new uint256[](1);
+        assetReceiptAmounts[0] = 490 * 10**18;
+        hub.liquidation(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
     }
     
     /*
