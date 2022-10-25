@@ -101,14 +101,11 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
             assetAmount: assetAmount
         });
 
-<<<<<<< HEAD
-=======
         // create WH message
         bytes memory serialized = encodeRepayPayload(repayPayload);
 
         sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
     }
->>>>>>> 4a50fa5 (Implementation of spoke methods without tokenbridge)
 
     function sendWormholeMessage(bytes memory payload)
         internal
