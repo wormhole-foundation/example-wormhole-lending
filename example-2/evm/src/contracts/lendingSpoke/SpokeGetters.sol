@@ -5,7 +5,7 @@ import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
-import "../lendingHub/HubStructs.sol"
+import "../lendingHub/HubStructs.sol";
 import "./SpokeState.sol";
 
 contract SpokeGetters is SpokeState, Context, HubStructs {
@@ -35,6 +35,10 @@ contract SpokeGetters is SpokeState, Context, HubStructs {
 
     function hubContractAddress() internal view returns (address) {
         return _state.hubContractAddress;
+    }
+
+    function messageHashConsumed(bytes32 vmHash) internal view returns (bool) {
+        return _state.consumedMessages[vmHash];
     }
 
     function getAssetInfo(address assetAddress) public view returns (AssetInfo memory) {

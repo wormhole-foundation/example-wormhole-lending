@@ -22,7 +22,7 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
     }
 
     function completeRegisterAsset(bytes calldata encodedMessage) public {
-        bytes memory vmPayload = tokenBridge().completeTransferWithPayload(encodedMessage);
+        bytes memory vmPayload = getWormholePayload(encodedMessage);
         RegisterAssetPayload memory params = decodeRegisterAssetPayload(vmPayload);
         allowAsset(params.assetAddress);
         AssetInfo memory info = AssetInfo({
@@ -124,5 +124,17 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
 
     function sendTokenBridgeMessage(address assetAddress, uint256 assetAmount, bytes memory payload) internal {
         tokenBridge().transferTokensWithPayload(assetAddress, assetAmount, hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload);
+    }
+
+    function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
+        (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
+        require(valid, reason);
+
+        require((hubChainId() == parsed.emitterChainId) && (hubContractAddress() == address(uint160(uint256(parsed.emitterAddress)))), "Not from Hub");
+
+        require(!messageHashConsumed(parsed.hash), "message already consumed");
+        consumeMessageHash(parsed.hash);
+
+        return parsed.payload;
     }
 }

@@ -29,6 +29,9 @@ contract SpokeStorage is HubStructs {
 
         address hubContractAddress;
 
+        // wormhole message hashes
+        mapping(bytes32 => bool) consumedMessages;
+
         // @dev storage gap
         uint256[50] ______gap;
     }
