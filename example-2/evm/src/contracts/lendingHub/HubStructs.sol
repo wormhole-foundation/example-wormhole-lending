@@ -68,7 +68,7 @@ contract HubStructs {
         uint256 assetAmount;
     }
 
-    struct RegisterAssetMessage {
+    struct RegisterAssetPayload {
         // messageId = 5
         PayloadHeader header;
         address assetAddress;

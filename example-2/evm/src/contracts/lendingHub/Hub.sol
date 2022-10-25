@@ -68,7 +68,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             sender: address(this)
         });
 
-        RegisterAssetMessage memory registerAssetMessage = RegisterAssetMessage({
+        RegisterAssetPayload memory registerAssetPayload = RegisterAssetPayload({
             header: payloadHeader,
             assetAddress: assetAddress,
             collateralizationRatio: collateralizationRatio,
@@ -78,7 +78,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         });
 
         // create WH message
-        bytes memory serialized = encodeRegisterAssetMessage(registerAssetMessage);
+        bytes memory serialized = encodeRegisterAssetPayload(registerAssetPayload);
 
         sequence = sendWormholeMessage(serialized);
     }
