@@ -92,9 +92,9 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         uint8 wormholeFinality = 1;
         uint256 interestAccrualIndexPrecision = 10 ** 18;
         uint256 collateralizationRatioPrecision = 10 ** 18;
-        uint8 maxDecimals = 24;
+        uint8 initialMaxDecimals = 24;
         hub =
-        new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality, interestAccrualIndexPrecision, collateralizationRatioPrecision, maxDecimals);
+        new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality, interestAccrualIndexPrecision, collateralizationRatioPrecision, initialMaxDecimals);
 
         wormholeData = WormholeData({
             guardianSigner: guardianSigner,

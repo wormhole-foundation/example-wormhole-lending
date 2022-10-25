@@ -86,7 +86,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function getVaultEffectiveNotionals(address vaultOwner) internal view returns (uint256, uint256) {
 
-        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
@@ -127,7 +126,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */ // TODO: cycle through all assets in the vault
     function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool, bool) {       
 
-        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         uint64 price = getOraclePrices(assetAddress);
@@ -151,7 +149,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool) {       
         
-        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         uint64 price = getOraclePrices(assetAddress);
@@ -176,7 +173,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function allowedToLiquidate(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) internal view returns (bool) {
         
-        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault); 
 
         require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");

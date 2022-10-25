@@ -53,6 +53,12 @@ contract HubSetters is HubStructs, HubState, HubGetters {
             reserveFactor: 0
         });
 
+        // set the max decimals to max of current max and new asset decimals
+        uint8 currentMaxDecimals = getMaxDecimals();
+        if(info.decimals > currentMaxDecimals) {
+            setMaxDecimals(info.decimals);
+        }
+
         setInterestRateModel(assetAddress, interestRateModel);
     }
 
