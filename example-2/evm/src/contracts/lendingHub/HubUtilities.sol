@@ -226,6 +226,15 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
     // TODO: Write docstrings for these functions
 
+    function checkDuplicates(address[] memory assetAddresses) internal view {
+        // check if asset address array contains duplicates
+        for(uint256 i=0; i<assetAddresses.length; i++) {
+            for(uint256 j=0; j<i; j++) {
+                require(assetAddresses[i] != assetAddresses[j], "Address array has duplicate addresses");
+            }
+        }
+    }
+
     function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
 
         require(getSpokeContract(chainId) == sender, "Invalid spoke");

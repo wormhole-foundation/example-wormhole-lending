@@ -305,6 +305,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         for(uint i=0; i<assetReceiptAddresses.length; i++){
             checkValidAddress(assetReceiptAddresses[i]);
         }
+        checkDuplicates(assetRepayAddresses);
 
         // update the interest accrual indices
         // TODO: Make more efficient

@@ -180,7 +180,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             uint32(0),
             uint32(0),
             wormholeSpokeData.foreignChainId,
-            wormholeSpokeData.foreignTokenBridgeAddress, // TODO: Fix this address; this should be the spoke address
+            bytes32(uint256(uint160(address(0x1)))), // this should be the spoke address
             uint64(1),
             uint8(15),
             payload
@@ -226,7 +226,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     function doRegisterSpoke() internal {
         // register asset
         wormholeData.hub.registerSpoke(
-            wormholeSpokeData.foreignChainId, address(uint160(uint256(wormholeSpokeData.foreignTokenBridgeAddress)))
+            wormholeSpokeData.foreignChainId, address(0x1)
         );
     }
 
