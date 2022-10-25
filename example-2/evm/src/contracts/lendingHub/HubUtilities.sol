@@ -86,7 +86,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function getVaultEffectiveNotionals(address vaultOwner) internal view returns (uint256, uint256) {
 
-        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         uint256 effectiveNotionalDeposited = 0;
         uint256 effectiveNotionalBorrowed = 0;
 
@@ -106,9 +105,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
-            effectiveNotionalDeposited += denormalizedDeposited * price; // / (10**assetInfo.decimals);
+            effectiveNotionalDeposited += denormalizedDeposited * price * 10 ** (getMaxDecimals() - assetInfo.decimals); // / (10**assetInfo.decimals);
 
-            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price / getCollateralizationRatioPrecision(); // / (10**assetInfo.decimals * getCollateralizationRatioPrecision());
+            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price * 10 ** (getMaxDecimals() - assetInfo.decimals) / getCollateralizationRatioPrecision(); 
 
         }    
 
@@ -125,9 +124,8 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * (where the borrow values are multiplied by their collateralization ratio) and also if there is enough asset in the vault to complete the withdrawal
     * and also if there is enough asset in the total reserve of the protocol to complete the withdrawal
     */ // TODO: cycle through all assets in the vault
-    function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
+    function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool, bool) {       
 
-        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         uint64 price = getOraclePrices(assetAddress);
@@ -138,7 +136,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        return (amounts.deposited - amounts.borrowed >= assetAmount) && (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount) && (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price; // / (10**assetInfo.decimals));
+        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * price * (10 ** getMaxDecimals()))); 
     }
 
     /** 
@@ -151,7 +149,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool) {       
         
-        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         uint64 price = getOraclePrices(assetAddress);
@@ -160,7 +157,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
      
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
         
-        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), (vaultDepositedValue - vaultBorrowedValue >= assetAmount * price * assetInfo.collateralizationRatio / getCollateralizationRatioPrecision())); // / (10**assetInfo.decimals) / (getCollateralizationRatioPrecision())));
+        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * price * assetInfo.collateralizationRatio * (10**getMaxDecimals()) / getCollateralizationRatioPrecision() ));
 
     }
 
@@ -176,7 +173,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function allowedToLiquidate(address vault, address[] memory assetRepayAddresses, uint256[] memory assetRepayAmounts, address[] memory assetReceiptAddresses, uint256[] memory assetReceiptAmounts) internal view returns (bool) {
         
-        // TODO: CONVERT EVERYTHING TO LCM DECIMALS MULTIPLE AND RETURN THAT
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault); 
 
         require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");
@@ -193,7 +189,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            notionalRepaid += amount * price; // / (10**assetInfo.decimals);
+            notionalRepaid += amount * price * 10 ** (getMaxDecimals() - assetInfo.decimals); 
         }
 
         // get notional received
@@ -205,13 +201,12 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            notionalReceived += amount * price; // / (10**assetInfo.decimals);
+            notionalReceived += amount * price * 10 ** (getMaxDecimals() - assetInfo.decimals); 
         }
 
         // safety check to ensure liquidator doesn't play themselves
         require(notionalReceived >= notionalRepaid, "Liquidator receipt less than amount they repaid");
 
-        // TODO: probably want to make the max liquidation bonus << min collateralization ratios--how to do this with multiple collat ratios??
         // check if notional received <= notional repaid * max liquidation bonus
         uint256 maxLiquidationBonus = getMaxLiquidationBonus();
 

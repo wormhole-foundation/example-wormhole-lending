@@ -83,6 +83,10 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.interestAccrualIndexPrecision;
     }
 
+    function getMaxDecimals() internal view returns (uint8) {
+        return _state.MAX_DECIMALS;
+    }
+
     // TODO: This is public for testing
     function getVaultAmounts(address vaultOwner, address assetAddress) public view returns (VaultAmount memory) {
         return _state.vault[vaultOwner][assetAddress];

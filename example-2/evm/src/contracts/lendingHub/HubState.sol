@@ -61,6 +61,9 @@ contract HubStorage is HubStructs {
         // collateralization ratio precision
         uint256 collateralizationRatioPrecision;
 
+        // maximum decimals out of assets
+        uint8 MAX_DECIMALS;
+
         // storage gap
         uint256[50] ______gap;
 
