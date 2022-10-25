@@ -5,10 +5,10 @@ import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
-
+import "../lendingHub/HubStructs.sol"
 import "./SpokeState.sol";
 
-contract SpokeGetters is SpokeState, Context {
+contract SpokeGetters is SpokeState, Context, HubStructs {
     function owner() public view returns (address) {
         return _state.owner;
     }
@@ -35,5 +35,20 @@ contract SpokeGetters is SpokeState, Context {
 
     function hubContractAddress() internal view returns (address) {
         return _state.hubContractAddress;
+    }
+
+    function getAssetInfo(address assetAddress) public view returns (AssetInfo memory) {
+        return _state.assetInfos[assetAddress];
+    }
+
+    /**
+    * Check if an address has been registered on the Hub yet (through the registerAsset function)
+    * Errors out if assetAddress has not been registered yet
+    * @param assetAddress - The address to be checked
+    */
+    function checkValidAddress(address assetAddress) internal view {
+        // check if asset address is allowed
+        AssetInfo memory registered_info = getAssetInfo(assetAddress);
+        require(registered_info.exists, "Unregistered asset");
     }
 }

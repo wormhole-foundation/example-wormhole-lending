@@ -36,6 +36,7 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
     }
 
     function depositCollateral(address assetAddress, uint256 assetAmount) public {
+        checkValidAddress(assetAddress);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 1,
             sender: address(this)
@@ -54,6 +55,7 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
     }
 
     function withdrawCollateral(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
+        checkValidAddress(assetAddress);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 2,
             sender: address(this)
@@ -72,6 +74,7 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
     }
 
     function borrow(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
+        checkValidAddress(assetAddress);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 3,
             sender: address(this)
@@ -90,6 +93,7 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
     }
 
     function repay(address assetAddress, uint256 assetAmount) public {
+        checkValidAddress(assetAddress);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 4,
             sender: address(this)
