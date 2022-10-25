@@ -90,6 +90,10 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         _state.MAX_DECIMALS = maxDecimals;
     }
 
+    function setMaxLiquidationBonus(uint256 maxLiquidationBonus) internal {
+        _state.maxLiquidationBonus = maxLiquidationBonus;
+    }
+
     function setVaultAmounts(address vaultOwner, address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.vault[vaultOwner][assetAddress] = vaultAmount;
     } 
