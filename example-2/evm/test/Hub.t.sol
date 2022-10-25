@@ -209,6 +209,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     }
 
     function testFailRDBPW() public {
+        // Should fail because still some debt out so cannot withdraw all your deposited assets
         address vault = msg.sender;
 
         doRegister(assets[0]);
@@ -220,10 +221,12 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegisterSpoke();
 
         doDeposit(vault, assets[0], 500 * 10 ** 18);
+        // deposit by another address
         doDeposit(address(0), assets[1], 600 * 10 ** 18);
 
         doBorrow(vault, assets[1], 500 * 10 ** 18);
 
+        // doesn't fully repay
         doRepay(vault, assets[1], 500 * 10 ** 18 - 1);
     
         doWithdraw(vault, assets[0], 500 * 10 ** 18);
