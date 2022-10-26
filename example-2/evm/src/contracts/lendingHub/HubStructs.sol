@@ -15,10 +15,10 @@ contract HubStructs {
 
     struct AssetInfo {
         uint256 collateralizationRatio;
-        uint256 reserveFactor;
         bytes32 pythId;
         // pyth id info
         uint8 decimals;
+        InterestRateModel interestRateModel;
         bool exists;
     }
 
@@ -27,7 +27,7 @@ contract HubStructs {
         uint64 rateIntercept;
         uint64 rateCoefficientA;
         // TODO: add more complexity for example?
-        uint64 reserveFactor;
+        uint256 reserveFactor;
     }
 
 
@@ -73,8 +73,11 @@ contract HubStructs {
         PayloadHeader header;
         address assetAddress;
         uint256 collateralizationRatio;
-        uint256 reserveFactor;
         bytes32 pythId;
+        uint64 ratePrecision;
+        uint64 rateIntercept;
+        uint64 rateCoefficientA;
+        uint256 reserveFactor;
         uint8 decimals;
     }
 

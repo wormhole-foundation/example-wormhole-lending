@@ -59,8 +59,11 @@ contract HubMessages is HubStructs {
                 encodePayloadHeader(message.header),
                 message.assetAddress,
                 message.collateralizationRatio,
-                message.reserveFactor,
                 message.pythId,
+                message.ratePrecision,
+                message.rateIntercept,
+                message.rateCoefficientA,
+                message.reserveFactor,
                 message.decimals
             );
     }
@@ -193,18 +196,36 @@ contract HubMessages is HubStructs {
 
         params.collateralizationRatio = collateralizationRatio;
 
-        // parse the reserve factor
-        uint256 reserveFactor = serialized.toUint256(index);
-        index += 32;
-
-        params.reserveFactor = reserveFactor;
-
         // parse the Pyth Id
         // TODO: is this valid?? better way to do the conversion from bytes to bytes32
         bytes32 pythId = bytes32(serialized.toUint256(index)); //serialized[index:index+4];
         index += 4;
 
         params.pythId = pythId;
+
+        // parse the rate precision
+        uint64 ratePrecision = serialized.toUint64(index);
+        index += 8;
+
+        params.ratePrecision = ratePrecision;
+
+        // parse the rate intercept
+        uint64 rateIntercept = serialized.toUint64(index);
+        index += 8;
+
+        params.rateIntercept = rateIntercept;
+
+        // parse the rate coefficient A
+        uint64 rateCoefficientA = serialized.toUint64(index);
+        index += 8;
+
+        params.rateCoefficientA = rateCoefficientA;
+
+        // parse the reserve factor
+        uint256 reserveFactor = serialized.toUint256(index);
+        index += 32;
+
+        params.reserveFactor = reserveFactor;
 
         // parse the decimals
         uint8 decimals = serialized.toUint8(index);

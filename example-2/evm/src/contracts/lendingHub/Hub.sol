@@ -53,11 +53,18 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         allowAsset(assetAddress);
 
+        InterestRateModel memory interestRateModel = InterestRateModel({
+            ratePrecision: 1 * 10**18,
+            rateIntercept: 0,
+            rateCoefficientA: 0,
+            reserveFactor: reserveFactor
+        });
+
         AssetInfo memory info = AssetInfo({
             collateralizationRatio: collateralizationRatio,
-            reserveFactor: reserveFactor,
             pythId: pythId,
             decimals: decimals,
+            interestRateModel: interestRateModel,
             exists: true
         });
 
@@ -72,8 +79,11 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             header: payloadHeader,
             assetAddress: assetAddress,
             collateralizationRatio: collateralizationRatio,
-            reserveFactor: reserveFactor,
             pythId: pythId,
+            ratePrecision: interestRateModel.ratePrecision,
+            rateIntercept: interestRateModel.rateIntercept,
+            rateCoefficientA: interestRateModel.rateCoefficientA,
+            reserveFactor: interestRateModel.reserveFactor,
             decimals: decimals
         });
 
