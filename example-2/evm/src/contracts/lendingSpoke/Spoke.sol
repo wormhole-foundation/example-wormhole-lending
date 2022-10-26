@@ -30,7 +30,8 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
             ratePrecision: params.ratePrecision,
             rateIntercept: params.rateIntercept,
             rateCoefficientA: params.rateCoefficientA,
-            reserveFactor: params.reserveFactor
+            reserveFactor: params.reserveFactor,
+            reservePrecision: params.reservePrecision
         });
 
         AssetInfo memory info = AssetInfo({

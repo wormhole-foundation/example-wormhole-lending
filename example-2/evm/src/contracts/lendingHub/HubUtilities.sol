@@ -246,7 +246,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         return (
             secondsElapsed
-                * (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited)
+                * (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited) / interestRateModel.ratePrecision
         ) / 365 / 24 / 60 / 60;
     }
 
@@ -277,8 +277,13 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
 
+        AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+        uint256 reserveFactor = assetInfo.interestRateModel.reserveFactor;
+        uint256 reservePrecision = assetInfo.interestRateModel.reservePrecision;
+
         accrualIndices.borrowed += interestFactor;
-        accrualIndices.deposited += (interestFactor * borrowed) / deposited;
+        // discount by the reserve factor (TODO: confirm this is an appropriate way to use reserveFactor--do reserve assets just stay at this address?)
+        accrualIndices.deposited += (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }

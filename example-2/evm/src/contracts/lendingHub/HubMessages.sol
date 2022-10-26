@@ -64,6 +64,7 @@ contract HubMessages is HubStructs {
                 message.rateIntercept,
                 message.rateCoefficientA,
                 message.reserveFactor,
+                message.reservePrecision,
                 message.decimals
             );
     }
@@ -226,6 +227,12 @@ contract HubMessages is HubStructs {
         index += 32;
 
         params.reserveFactor = reserveFactor;
+
+        // parse the reserve precision
+        uint256 reservePrecision = serialized.toUint256(index);
+        index += 32;
+
+        params.reservePrecision = reservePrecision;
 
         // parse the decimals
         uint8 decimals = serialized.toUint8(index);

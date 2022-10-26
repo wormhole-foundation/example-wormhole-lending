@@ -59,7 +59,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             ratePrecision: 1 * 10**18,
             rateIntercept: 0,
             rateCoefficientA: 0,
-            reserveFactor: reserveFactor
+            reserveFactor: reserveFactor,
+            reservePrecision: 1 * 10**18
         });
 
         AssetInfo memory info = AssetInfo({
@@ -86,6 +87,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             rateIntercept: interestRateModel.rateIntercept,
             rateCoefficientA: interestRateModel.rateCoefficientA,
             reserveFactor: interestRateModel.reserveFactor,
+            reservePrecision: interestRateModel.reservePrecision,
             decimals: decimals
         });
 
