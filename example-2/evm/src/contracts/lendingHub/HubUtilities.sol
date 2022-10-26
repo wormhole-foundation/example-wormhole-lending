@@ -124,7 +124,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * (where the deposit values are divided by the deposit collateralization ratio and the borrow values are multiplied by the borrow collateralization ratio) 
     * and also if there is enough asset in the vault to complete the withdrawal
     * and also if there is enough asset in the total reserve of the protocol to complete the withdrawal
-    */ // TODO: cycle through all assets in the vault
+    */
     function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool, bool) {       
 
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);

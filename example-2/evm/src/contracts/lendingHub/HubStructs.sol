@@ -27,7 +27,6 @@ contract HubStructs {
         uint64 ratePrecision;
         uint64 rateIntercept;
         uint64 rateCoefficientA;
-        // TODO: add more complexity for example?
         uint256 reserveFactor;
         uint256 reservePrecision;
     }

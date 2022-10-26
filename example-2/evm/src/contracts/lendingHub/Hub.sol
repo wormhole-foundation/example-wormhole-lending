@@ -38,8 +38,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     * @param collateralizationRatioBorrow - The constant c divided by collateralizationRatioPrecision, 
     * where c is such that for every $1 worth of effective deposits we allow $c worth of this asset borrowed 
     * (according to Pyth prices) 
-    * @param reserveFactor - TODO: Explain what this is
-    * @param pythId - Id of the relevant Pyth price feed (USD <-> asset) TODO: Make this explanation more precise
+    * @param reserveFactor - The portion of the paid interest by borrowers that is diverted to the protocol for rainy day,
+    * the remainder is distributed among lenders of the asset
+    * @param pythId - Id of the relevant oracle price feed (USD <-> asset) TODO: Make this explanation more precise
     * @param decimals - Precision that the asset amount is stored in TODO: Make this explanation more precise
     * @return sequence The sequence number of the wormhole message documenting the registration of the asset
     */ 
@@ -48,6 +49,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         uint256 collateralizationRatioDeposit,
         uint256 collateralizationRatioBorrow,
         uint256 reserveFactor,
+        uint256 reservePrecision,
         bytes32 pythId,
         uint8 decimals
     ) public returns (uint64 sequence) {
@@ -63,7 +65,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             rateIntercept: 0,
             rateCoefficientA: 0,
             reserveFactor: reserveFactor,
-            reservePrecision: 1 * 10**18
+            reservePrecision: reservePrecision
         });
 
         AssetInfo memory info = AssetInfo({
