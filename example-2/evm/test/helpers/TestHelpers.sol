@@ -13,7 +13,7 @@ import {HubMessages} from "../../src/contracts/lendingHub/HubMessages.sol";
 import {HubUtilities} from "../../src/contracts/lendingHub/HubUtilities.sol";
 import {MyERC20} from "./MyERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 import {ITokenImplementation} from "../../src/interfaces/ITokenImplementation.sol";
@@ -183,7 +183,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             uint32(0),
             uint32(0),
             wormholeSpokeData.foreignChainId,
-            wormholeSpokeData.foreignTokenBridgeAddress, // TODO: Fix this address; this should be the spoke address
+            bytes32(uint256(uint160(address(0x1)))), // this should be the spoke address
             uint64(1),
             uint8(15),
             payload
@@ -229,7 +229,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     function doRegisterSpoke() internal {
         // register asset
         wormholeData.hub.registerSpoke(
-            wormholeSpokeData.foreignChainId, address(uint160(uint256(wormholeSpokeData.foreignTokenBridgeAddress)))
+            wormholeSpokeData.foreignChainId, address(0x1)
         );
     }
 
@@ -296,6 +296,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
         // get wrapped info
         ITokenImplementation wrapped = getWrappedInfo(assetAddress);
+
 
         // TokenBridgePayload
         ITokenBridge.TransferWithPayload memory transfer = ITokenBridge.TransferWithPayload({

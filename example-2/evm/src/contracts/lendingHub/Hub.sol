@@ -139,9 +139,11 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */
     function completeWithdraw(bytes calldata encodedMessage) public {
 
-        WithdrawPayload memory params = decodeWithdrawPayload(getWormholePayload(encodedMessage));
+        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
+        bytes memory serialized = parsed.payload;
+        WithdrawPayload memory params = decodeWithdrawPayload(serialized);
 
-        withdraw(params.header.sender, params.assetAddress, params.assetAmount);
+        withdraw(params.header.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
     }
 
     /**
@@ -152,9 +154,11 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     function completeBorrow(bytes calldata encodedMessage) public {
 
         // encodedMessage is WH full msg, returns arbitrary bytes
-        BorrowPayload memory params = decodeBorrowPayload(getWormholePayload(encodedMessage));
+        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
+        bytes memory serialized = parsed.payload;
+        BorrowPayload memory params = decodeBorrowPayload(serialized);
 
-        borrow(params.header.sender, params.assetAddress, params.assetAmount);
+        borrow(params.header.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
     }
 
     /**
@@ -212,7 +216,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     * @param assetAddress - the address of the asset 
     * @param amount - the amount of the asset
     */
-    function withdraw(address withdrawer, address assetAddress, uint256 amount) internal {
+    function withdraw(address withdrawer, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         checkValidAddress(assetAddress);
 
         // recheck if withdraw is valid given up to date prices? bc the prices can move in the time for VAA to come
@@ -238,7 +242,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setVaultAmounts(withdrawer, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
 
-        transferTokens(withdrawer, assetAddress, amount);
+        transferTokens(withdrawer, assetAddress, amount, recipientChain);
     }
 
     /**
@@ -248,7 +252,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     * @param assetAddress - the address of the asset 
     * @param amount - the amount of the asset
     */
-    function borrow(address borrower, address assetAddress, uint256 amount) internal {
+    function borrow(address borrower, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         checkValidAddress(assetAddress);
 
         // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
@@ -275,7 +279,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setGlobalAmounts(assetAddress, globalAmounts);
 
         // TODO: token transfers
-        transferTokens(borrower, assetAddress, amount);
+        transferTokens(borrower, assetAddress, amount, recipientChain);
     }
 
     /**
@@ -326,6 +330,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         for(uint i=0; i<assetReceiptAddresses.length; i++){
             checkValidAddress(assetReceiptAddresses[i]);
         }
+        checkDuplicates(assetRepayAddresses);
 
         // update the interest accrual indices
         // TODO: Make more efficient
