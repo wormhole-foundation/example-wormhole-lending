@@ -26,6 +26,10 @@ contract HubGetters is Context, HubStructs, HubState {
         return ITokenBridge(payable(_state.provider.tokenBridge));
     }
 
+    function tokenBridgeAddress() public view returns (address) {
+        return _state.provider.tokenBridge;
+    }
+
     // TODO: This is public for testing
     function consistencyLevel() public view returns (uint8) {
         return _state.consistencyLevel;

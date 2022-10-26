@@ -118,8 +118,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */
     function completeWithdraw(bytes calldata encodedMessage) public {
 
-        IWormhole.VM parsed = getWormholeParsed(encodedMessage);
-        WithdrawPayload memory params = decodeWithdrawPayload(parsed.payload);
+        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
+        bytes memory serialized = parsed.payload;
+        WithdrawPayload memory params = decodeWithdrawPayload(serialized);
 
         withdraw(params.header.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
     }
@@ -132,8 +133,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     function completeBorrow(bytes calldata encodedMessage) public {
 
         // encodedMessage is WH full msg, returns arbitrary bytes
-        IWormhole.VM parsed = getWormholeParsed(encodedMessage);
-        BorrowPayload memory params = decodeBorrowPayload(parsed.payload);
+        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
+        bytes memory serialized = parsed.payload;
+        BorrowPayload memory params = decodeBorrowPayload(serialized);
 
         borrow(params.header.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
     }
@@ -256,7 +258,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setGlobalAmounts(assetAddress, globalAmounts);
 
         // TODO: token transfers
-        transferTokens(borrower, assetAddress, amount, recepientChain);
+        transferTokens(borrower, assetAddress, amount, recipientChain);
     }
 
     /**

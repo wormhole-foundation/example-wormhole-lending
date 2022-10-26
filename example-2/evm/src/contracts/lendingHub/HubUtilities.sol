@@ -3,6 +3,9 @@ pragma solidity ^0.8.0;
 
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
 import "../../interfaces/IMockPyth.sol";
@@ -281,7 +284,8 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     }
 
     function transferTokens(address receiver, address assetAddress, uint256 amount, uint16 recipientChain) internal {
-        tokenBridge().transferTokens(assetAddress, amount, recipientChain, receiver, 0, 0);
+        SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), amount);
+        tokenBridge().transferTokens(assetAddress, amount, recipientChain, bytes32(uint256(uint160(receiver))), 0, 0);
     }
 
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
@@ -292,7 +296,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         );
     }
 
-    function getWormholeParsed(bytes calldata encodedMessage) internal returns (bytes memory) {
+    function getWormholeParsed(bytes calldata encodedMessage) internal returns (IWormhole.VM memory) {
         (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);
 
@@ -302,6 +306,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         consumeMessageHash(parsed.hash);
 
         return parsed;
+
     }
 
     function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
