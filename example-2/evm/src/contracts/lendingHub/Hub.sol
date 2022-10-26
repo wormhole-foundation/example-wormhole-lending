@@ -15,7 +15,7 @@ import "./HubGetters.sol";
 import "./HubUtilities.sol"; 
 
 contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
-    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_, uint256 collateralizationRatioPrecision_, uint8 initialMaxDecimals_, uint256 maxLiquidationBonus_) {
+    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_, uint256 collateralizationRatioPrecision_, uint8 initialMaxDecimals_, uint256 maxLiquidationBonus_, uint256 maxLiquidationPortion, uint256 maxLiquidationPortionPrecision) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
@@ -25,24 +25,31 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
         setCollateralizationRatioPrecision(collateralizationRatioPrecision_);
         setMaxLiquidationBonus(maxLiquidationBonus_); // use the precision of the collateralization ratio
+        setMaxLiquidationPortion(maxLiquidationPortion);
+        setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision);
     }
 
     /**
     * Registers asset on the hub. Only registered assets are allowed to be stored in the protocol.
     *
     * @param assetAddress - The address to be checked
-    * @param collateralizationRatio - The constant c multiplied by collateralizationRatioPrecision, 
-    * where c is such that we allow users to borrow $1 worth of any assets against $c worth of this asset 
+    * @param collateralizationRatioDeposit - The constant c divided by collateralizationRatioPrecision, 
+    * where c is such that we account $1 worth of effective deposits per actual $c worth of this asset deposited
+    * @param collateralizationRatioBorrow - The constant c divided by collateralizationRatioPrecision, 
+    * where c is such that for every $1 worth of effective deposits we allow $c worth of this asset borrowed 
     * (according to Pyth prices) 
-    * @param reserveFactor - TODO: Explain what this is
-    * @param pythId - Id of the relevant Pyth price feed (USD <-> asset) TODO: Make this explanation more precise
+    * @param reserveFactor - The portion of the paid interest by borrowers that is diverted to the protocol for rainy day,
+    * the remainder is distributed among lenders of the asset
+    * @param pythId - Id of the relevant oracle price feed (USD <-> asset) TODO: Make this explanation more precise
     * @param decimals - Precision that the asset amount is stored in TODO: Make this explanation more precise
     * @return sequence The sequence number of the wormhole message documenting the registration of the asset
     */ 
     function registerAsset(
         address assetAddress,
-        uint256 collateralizationRatio,
+        uint256 collateralizationRatioDeposit,
+        uint256 collateralizationRatioBorrow,
         uint256 reserveFactor,
+        uint256 reservePrecision,
         bytes32 pythId,
         uint8 decimals
     ) public returns (uint64 sequence) {
@@ -53,11 +60,20 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         allowAsset(assetAddress);
 
-        AssetInfo memory info = AssetInfo({
-            collateralizationRatio: collateralizationRatio,
+        InterestRateModel memory interestRateModel = InterestRateModel({
+            ratePrecision: 1 * 10**18,
+            rateIntercept: 0,
+            rateCoefficientA: 0,
             reserveFactor: reserveFactor,
+            reservePrecision: reservePrecision
+        });
+
+        AssetInfo memory info = AssetInfo({
+            collateralizationRatioDeposit: collateralizationRatioDeposit,
+            collateralizationRatioBorrow: collateralizationRatioBorrow,
             pythId: pythId,
             decimals: decimals,
+            interestRateModel: interestRateModel,
             exists: true
         });
 
@@ -71,9 +87,14 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         RegisterAssetPayload memory registerAssetPayload = RegisterAssetPayload({
             header: payloadHeader,
             assetAddress: assetAddress,
-            collateralizationRatio: collateralizationRatio,
-            reserveFactor: reserveFactor,
+            collateralizationRatioDeposit: collateralizationRatioDeposit,
+            collateralizationRatioBorrow: collateralizationRatioBorrow,
             pythId: pythId,
+            ratePrecision: interestRateModel.ratePrecision,
+            rateIntercept: interestRateModel.rateIntercept,
+            rateCoefficientA: interestRateModel.rateCoefficientA,
+            reserveFactor: interestRateModel.reserveFactor,
+            reservePrecision: interestRateModel.reservePrecision,
             decimals: decimals
         });
 

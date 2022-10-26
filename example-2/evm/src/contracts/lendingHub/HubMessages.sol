@@ -58,9 +58,14 @@ contract HubMessages is HubStructs {
                 uint8(5), // payloadID
                 encodePayloadHeader(message.header),
                 message.assetAddress,
-                message.collateralizationRatio,
-                message.reserveFactor,
+                message.collateralizationRatioDeposit,
+                message.collateralizationRatioBorrow,
                 message.pythId,
+                message.ratePrecision,
+                message.rateIntercept,
+                message.rateCoefficientA,
+                message.reserveFactor,
+                message.reservePrecision,
                 message.decimals
             );
     }
@@ -187,17 +192,17 @@ contract HubMessages is HubStructs {
 
         params.assetAddress = assetAddress;
 
-        // parse the collateralization rato
-        uint256 collateralizationRatio = serialized.toUint256(index);
+        // parse the collateralization ratio (deposit)
+        uint256 collateralizationRatioDeposit = serialized.toUint256(index);
         index += 32;
 
-        params.collateralizationRatio = collateralizationRatio;
+        params.collateralizationRatioDeposit = collateralizationRatioDeposit;
 
-        // parse the reserve factor
-        uint256 reserveFactor = serialized.toUint256(index);
+        // parse the collateralization ratio (borrow)
+        uint256 collateralizationRatioBorrow = serialized.toUint256(index);
         index += 32;
 
-        params.reserveFactor = reserveFactor;
+        params.collateralizationRatioBorrow = collateralizationRatioBorrow;
 
         // parse the Pyth Id
         // TODO: is this valid?? better way to do the conversion from bytes to bytes32
@@ -205,6 +210,36 @@ contract HubMessages is HubStructs {
         index += 4;
 
         params.pythId = pythId;
+
+        // parse the rate precision
+        uint64 ratePrecision = serialized.toUint64(index);
+        index += 8;
+
+        params.ratePrecision = ratePrecision;
+
+        // parse the rate intercept
+        uint64 rateIntercept = serialized.toUint64(index);
+        index += 8;
+
+        params.rateIntercept = rateIntercept;
+
+        // parse the rate coefficient A
+        uint64 rateCoefficientA = serialized.toUint64(index);
+        index += 8;
+
+        params.rateCoefficientA = rateCoefficientA;
+
+        // parse the reserve factor
+        uint256 reserveFactor = serialized.toUint256(index);
+        index += 32;
+
+        params.reserveFactor = reserveFactor;
+
+        // parse the reserve precision
+        uint256 reservePrecision = serialized.toUint256(index);
+        index += 32;
+
+        params.reservePrecision = reservePrecision;
 
         // parse the decimals
         uint8 decimals = serialized.toUint8(index);
