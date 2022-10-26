@@ -14,7 +14,8 @@ contract HubStructs {
     }
 
     struct AssetInfo {
-        uint256 collateralizationRatio;
+        uint256 collateralizationRatioDeposit;
+        uint256 collateralizationRatioBorrow;
         bytes32 pythId;
         // pyth id info
         uint8 decimals;
@@ -73,7 +74,8 @@ contract HubStructs {
         // messageId = 5
         PayloadHeader header;
         address assetAddress;
-        uint256 collateralizationRatio;
+        uint256 collateralizationRatioDeposit;
+        uint256 collateralizationRatioBorrow;
         bytes32 pythId;
         uint64 ratePrecision;
         uint64 rateIntercept;

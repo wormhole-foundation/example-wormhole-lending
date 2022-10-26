@@ -39,7 +39,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
             TestAsset({
                 assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
                 asset: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
-                collateralizationRatio: 110 * 10 ** 16,
+                collateralizationRatioDeposit: 100 * 10 ** 16,
+                collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
                 reserveFactor: 0,
                 pythId: bytes32("BNB")
@@ -50,7 +51,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
             TestAsset({
                 assetAddress: 0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, // WSOL
                 asset: IERC20(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
-                collateralizationRatio: 110 * 10 ** 16,
+                collateralizationRatioDeposit: 100 * 10 ** 16,
+                collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
                 reserveFactor: 0,
                 pythId: bytes32("SOL")
@@ -69,7 +71,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         AssetInfo memory info = hub.getAssetInfo(assets[0].assetAddress);
 
         require(
-            (info.collateralizationRatio == assets[0].collateralizationRatio) && (info.decimals == assets[0].decimals) && (info.pythId == assets[0].pythId) && (info.exists),
+            (info.collateralizationRatioDeposit == assets[0].collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == assets[0].collateralizationRatioBorrow) && (info.decimals == assets[0].decimals) && (info.pythId == assets[0].pythId) && (info.exists),
             "didn't register properly"
         );
     }

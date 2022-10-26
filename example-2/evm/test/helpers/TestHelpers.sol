@@ -28,7 +28,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     struct TestAsset {
         address assetAddress;
         IERC20 asset;
-        uint256 collateralizationRatio;
+        uint256 collateralizationRatioDeposit;
+        uint256 collateralizationRatioBorrow;
         uint8 decimals;
         uint256 reserveFactor;
         bytes32 pythId;
@@ -236,7 +237,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     function doRegister(TestAsset memory asset) internal {
         // register asset
         wormholeData.hub.registerAsset(
-            asset.assetAddress, asset.collateralizationRatio, asset.reserveFactor, asset.pythId, asset.decimals
+            asset.assetAddress, asset.collateralizationRatioDeposit, asset.collateralizationRatioBorrow, asset.reserveFactor, asset.pythId, asset.decimals
         );
     }
 

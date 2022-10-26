@@ -33,8 +33,10 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     * Registers asset on the hub. Only registered assets are allowed to be stored in the protocol.
     *
     * @param assetAddress - The address to be checked
-    * @param collateralizationRatio - The constant c multiplied by collateralizationRatioPrecision, 
-    * where c is such that we allow users to borrow $1 worth of any assets against $c worth of this asset 
+    * @param collateralizationRatioDeposit - The constant c divided by collateralizationRatioPrecision, 
+    * where c is such that we account $1 worth of effective deposits per actual $c worth of this asset deposited
+    * @param collateralizationRatioBorrow - The constant c divided by collateralizationRatioPrecision, 
+    * where c is such that for every $1 worth of effective deposits we allow $c worth of this asset borrowed 
     * (according to Pyth prices) 
     * @param reserveFactor - TODO: Explain what this is
     * @param pythId - Id of the relevant Pyth price feed (USD <-> asset) TODO: Make this explanation more precise
@@ -43,7 +45,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */ 
     function registerAsset(
         address assetAddress,
-        uint256 collateralizationRatio,
+        uint256 collateralizationRatioDeposit,
+        uint256 collateralizationRatioBorrow,
         uint256 reserveFactor,
         bytes32 pythId,
         uint8 decimals
@@ -64,7 +67,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         });
 
         AssetInfo memory info = AssetInfo({
-            collateralizationRatio: collateralizationRatio,
+            collateralizationRatioDeposit: collateralizationRatioDeposit,
+            collateralizationRatioBorrow: collateralizationRatioBorrow,
             pythId: pythId,
             decimals: decimals,
             interestRateModel: interestRateModel,
@@ -81,7 +85,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         RegisterAssetPayload memory registerAssetPayload = RegisterAssetPayload({
             header: payloadHeader,
             assetAddress: assetAddress,
-            collateralizationRatio: collateralizationRatio,
+            collateralizationRatioDeposit: collateralizationRatioDeposit,
+            collateralizationRatioBorrow: collateralizationRatioBorrow,
             pythId: pythId,
             ratePrecision: interestRateModel.ratePrecision,
             rateIntercept: interestRateModel.rateIntercept,

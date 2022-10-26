@@ -58,7 +58,8 @@ contract HubMessages is HubStructs {
                 uint8(5), // payloadID
                 encodePayloadHeader(message.header),
                 message.assetAddress,
-                message.collateralizationRatio,
+                message.collateralizationRatioDeposit,
+                message.collateralizationRatioBorrow,
                 message.pythId,
                 message.ratePrecision,
                 message.rateIntercept,
@@ -191,11 +192,17 @@ contract HubMessages is HubStructs {
 
         params.assetAddress = assetAddress;
 
-        // parse the collateralization rato
-        uint256 collateralizationRatio = serialized.toUint256(index);
+        // parse the collateralization ratio (deposit)
+        uint256 collateralizationRatioDeposit = serialized.toUint256(index);
         index += 32;
 
-        params.collateralizationRatio = collateralizationRatio;
+        params.collateralizationRatioDeposit = collateralizationRatioDeposit;
+
+        // parse the collateralization ratio (borrow)
+        uint256 collateralizationRatioBorrow = serialized.toUint256(index);
+        index += 32;
+
+        params.collateralizationRatioBorrow = collateralizationRatioBorrow;
 
         // parse the Pyth Id
         // TODO: is this valid?? better way to do the conversion from bytes to bytes32

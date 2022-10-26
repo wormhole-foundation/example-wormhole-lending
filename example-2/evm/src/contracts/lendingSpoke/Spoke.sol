@@ -35,7 +35,8 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
         });
 
         AssetInfo memory info = AssetInfo({
-            collateralizationRatio: params.collateralizationRatio,
+            collateralizationRatioDeposit: params.collateralizationRatioDeposit,
+            collateralizationRatioBorrow: params.collateralizationRatioBorrow,
             pythId: params.pythId,
             decimals: params.decimals,
             interestRateModel: interestRateModel,
