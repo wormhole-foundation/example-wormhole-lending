@@ -280,8 +280,8 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }
 
-    function transferTokens(address receiver, address assetAddress, uint256 amount) internal {
-        //tokenBridge().transferTokensWithPayload(assetAddress, amount, recipientChain, recipient, nonce, payload);
+    function transferTokens(address receiver, address assetAddress, uint256 amount, uint16 recipientChain) internal {
+        tokenBridge().transferTokens(assetAddress, amount, recipientChain, receiver, 0, 0);
     }
 
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
@@ -292,7 +292,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         );
     }
 
-    function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
+    function getWormholeParsed(bytes calldata encodedMessage) internal returns (bytes memory) {
         (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);
 
@@ -301,7 +301,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
 
-        return parsed.payload;
+        return parsed;
     }
 
     function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
