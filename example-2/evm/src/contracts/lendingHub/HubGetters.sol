@@ -72,7 +72,8 @@ contract HubGetters is Context, HubStructs, HubState {
     }
 
     function getInterestRateModel(address assetAddress) internal view returns (InterestRateModel memory) {
-        return _state.interestRateModels[assetAddress];
+        AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+        return assetInfo.interestRateModel;
     }
 
     function getInterestAccrualIndices(address assetAddress) internal view returns (AccrualIndices memory) {
@@ -97,8 +98,15 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.totalAssets[assetAddress];
     }
 
-    // getting oracle price (TODO: remove if we get oracle contract up and running)
     function getOraclePrice(bytes32 oracleId) public view returns (Price memory price) {
         return _state.oracle[oracleId];
+    }
+
+    function getMaxLiquidationPortion() internal view returns (uint256) {
+        return _state.maxLiquidationPortion;
+    }
+
+    function getMaxLiquidationPortionPrecision() internal view returns (uint256) {
+        return _state.maxLiquidationPortionPrecision;
     }
 }

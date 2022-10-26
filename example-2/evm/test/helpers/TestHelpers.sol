@@ -28,7 +28,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     struct TestAsset {
         address assetAddress;
         IERC20 asset;
-        uint256 collateralizationRatio;
+        uint256 collateralizationRatioDeposit;
+        uint256 collateralizationRatioBorrow;
         uint8 decimals;
         uint256 reserveFactor;
         bytes32 pythId;
@@ -94,8 +95,10 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         uint256 collateralizationRatioPrecision = 10 ** 18;
         uint8 initialMaxDecimals = 24;
         uint256 maxLiquidationBonus = 105 * 10**16;
+        uint256 maxLiquidationPortion = 100;
+        uint256 maxLiquidationPortionPrecision = 100;
         hub =
-        new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality, interestAccrualIndexPrecision, collateralizationRatioPrecision, initialMaxDecimals, maxLiquidationBonus);
+        new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality, interestAccrualIndexPrecision, collateralizationRatioPrecision, initialMaxDecimals, maxLiquidationBonus, maxLiquidationPortion, maxLiquidationPortionPrecision);
 
         wormholeData = WormholeData({
             guardianSigner: guardianSigner,
@@ -232,9 +235,11 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
     // TODO: Do we need this? Maybe remove this helper function
     function doRegister(TestAsset memory asset) internal {
+        uint256 reservePrecision = 1 * 10**18;
+
         // register asset
         wormholeData.hub.registerAsset(
-            asset.assetAddress, asset.collateralizationRatio, asset.reserveFactor, asset.pythId, asset.decimals
+            asset.assetAddress, asset.collateralizationRatioDeposit, asset.collateralizationRatioBorrow, asset.reserveFactor, reservePrecision, asset.pythId, asset.decimals
         );
     }
 

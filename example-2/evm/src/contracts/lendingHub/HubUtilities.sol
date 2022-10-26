@@ -105,9 +105,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
-            effectiveNotionalDeposited += denormalizedDeposited * price * 10 ** (getMaxDecimals() - assetInfo.decimals); // / (10**assetInfo.decimals);
+            effectiveNotionalDeposited += denormalizedDeposited * price * 10 ** (getMaxDecimals() - assetInfo.decimals) * getCollateralizationRatioPrecision() / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
 
-            effectiveNotionalBorrowed += denormalizedBorrowed * assetInfo.collateralizationRatio * price * 10 ** (getMaxDecimals() - assetInfo.decimals) / getCollateralizationRatioPrecision(); 
+            effectiveNotionalBorrowed += denormalizedBorrowed * price * 10 ** (getMaxDecimals() - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision(); 
 
         }    
 
@@ -121,9 +121,10 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * @param {address} assetAddress - The address of the relevant asset
     * @param {uint256} assetAmount - The amount of the relevant asset
     * @return {bool} True or false depending on if this withdrawal keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices) 
-    * (where the borrow values are multiplied by their collateralization ratio) and also if there is enough asset in the vault to complete the withdrawal
+    * (where the deposit values are divided by the deposit collateralization ratio and the borrow values are multiplied by the borrow collateralization ratio) 
+    * and also if there is enough asset in the vault to complete the withdrawal
     * and also if there is enough asset in the total reserve of the protocol to complete the withdrawal
-    */ // TODO: cycle through all assets in the vault
+    */
     function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool, bool) {       
 
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
@@ -145,7 +146,8 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * @param {address} assetAddress - The address of the relevant asset
     * @param {uint256} assetAmount - The amount of the relevant asset
     * @return {bool} True or false depending on if this borrow keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices) 
-    * (where the borrow values are multiplied by their collateralization ratio) and also if there is enough asset in the total reserve of the protocol to complete the borrow
+    * (where the deposit values are divided by the deposit collateralization ratio and the borrow values are multiplied by the borrow collateralization ratio) 
+    * and also if there is enough asset in the total reserve of the protocol to complete the borrow
     */
     function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool, bool) {       
         
@@ -157,7 +159,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
      
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
         
-        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * price * assetInfo.collateralizationRatio * (10**getMaxDecimals()) / getCollateralizationRatioPrecision() ));
+        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * price * (10**getMaxDecimals()) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision() ));
 
     }
 
@@ -207,6 +209,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         // safety check to ensure liquidator doesn't play themselves
         require(notionalReceived >= notionalRepaid, "Liquidator receipt less than amount they repaid");
 
+        // check to ensure that amount of debt repaid <= maxLiquidationPortion * amount of debt / liquidationPortionPrecision
+        require(notionalRepaid <= getMaxLiquidationPortion() * vaultBorrowedValue / getMaxLiquidationPortionPrecision(), "Liquidator cannot claim more than maxLiquidationPortion of the total debt of the vault");
+
         // check if notional received <= notional repaid * max liquidation bonus
         uint256 maxLiquidationBonus = getMaxLiquidationBonus();
 
@@ -243,7 +248,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         return (
             secondsElapsed
-                * (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited)
+                * (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited) / interestRateModel.ratePrecision
         ) / 365 / 24 / 60 / 60;
     }
 
@@ -274,8 +279,13 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
 
+        AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+        uint256 reserveFactor = assetInfo.interestRateModel.reserveFactor;
+        uint256 reservePrecision = assetInfo.interestRateModel.reservePrecision;
+
         accrualIndices.borrowed += interestFactor;
-        accrualIndices.deposited += (interestFactor * borrowed) / deposited;
+        // discount by the reserve factor (TODO: confirm this is an appropriate way to use reserveFactor--do reserve assets just stay at this address?)
+        accrualIndices.deposited += (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }

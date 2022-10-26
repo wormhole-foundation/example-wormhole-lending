@@ -37,8 +37,6 @@ contract HubSetters is HubStructs, HubState, HubGetters {
     function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
         _state.assetInfos[assetAddress] = info;
 
-        // TODO: Take the deposit and borrow indices as input
-        // TODO: Take the interest rate model as input
         AccrualIndices memory accrualIndices;
         accrualIndices.deposited = 1*getInterestAccrualIndexPrecision();
         accrualIndices.borrowed = 1*getInterestAccrualIndexPrecision();
@@ -46,20 +44,11 @@ contract HubSetters is HubStructs, HubState, HubGetters {
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
 
-        InterestRateModel memory interestRateModel = InterestRateModel({
-            ratePrecision: 1 * 10 ** 18, // TODO: This variable seems completely unused at the moment? 
-            rateIntercept: 0,
-            rateCoefficientA: 0,
-            reserveFactor: 0
-        });
-
         // set the max decimals to max of current max and new asset decimals
         uint8 currentMaxDecimals = getMaxDecimals();
         if(info.decimals > currentMaxDecimals) {
             setMaxDecimals(info.decimals);
         }
-
-        setInterestRateModel(assetAddress, interestRateModel);
     }
 
     function consumeMessageHash(bytes32 vmHash) internal {
@@ -102,12 +91,15 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         _state.totalAssets[assetAddress] = vaultAmount;
     }
 
-    function setInterestRateModel(address assetAddress, InterestRateModel memory interestRateModel) internal {
-        _state.interestRateModels[assetAddress] = interestRateModel;
-    }
-
-    // setting oracle price (TODO: remove if we get oracle contract up and running)
     function setOraclePrice(bytes32 oracleId, Price memory price) public {
         _state.oracle[oracleId] = price;
+    }
+
+    function setMaxLiquidationPortion(uint256 maxLiquidationPortion) internal returns (uint256) {
+        _state.maxLiquidationPortion = maxLiquidationPortion;
+    }
+
+    function setMaxLiquidationPortionPrecision(uint256 maxLiquidationPortionPrecision) internal returns (uint256) {
+        _state.maxLiquidationPortionPrecision = maxLiquidationPortionPrecision;
     }
 }

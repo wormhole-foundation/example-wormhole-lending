@@ -25,11 +25,21 @@ contract Spoke is HubStructs, HubMessages, SpokeSetters, SpokeGetters {
         bytes memory vmPayload = getWormholePayload(encodedMessage);
         RegisterAssetPayload memory params = decodeRegisterAssetPayload(vmPayload);
         allowAsset(params.assetAddress);
-        AssetInfo memory info = AssetInfo({
-            collateralizationRatio: params.collateralizationRatio,
+
+        InterestRateModel memory interestRateModel = InterestRateModel({
+            ratePrecision: params.ratePrecision,
+            rateIntercept: params.rateIntercept,
+            rateCoefficientA: params.rateCoefficientA,
             reserveFactor: params.reserveFactor,
+            reservePrecision: params.reservePrecision
+        });
+
+        AssetInfo memory info = AssetInfo({
+            collateralizationRatioDeposit: params.collateralizationRatioDeposit,
+            collateralizationRatioBorrow: params.collateralizationRatioBorrow,
             pythId: params.pythId,
             decimals: params.decimals,
+            interestRateModel: interestRateModel,
             exists: true
         });
         registerAssetInfo(params.assetAddress, info);        
