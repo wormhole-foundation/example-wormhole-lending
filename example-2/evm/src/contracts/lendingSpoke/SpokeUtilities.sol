@@ -8,6 +8,9 @@ import "./SpokeState.sol";
 import "./SpokeGetters.sol";
 import "./SpokeSetters.sol";
 
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeSetters {
     
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
@@ -19,6 +22,7 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
     }
 
     function sendTokenBridgeMessage(address assetAddress, uint256 assetAmount, bytes memory payload) internal {
+        SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), assetAmount);
         tokenBridge().transferTokensWithPayload(
             assetAddress, assetAmount, hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );

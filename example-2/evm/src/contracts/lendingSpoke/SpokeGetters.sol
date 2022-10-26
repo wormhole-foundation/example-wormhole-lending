@@ -25,6 +25,10 @@ contract SpokeGetters is Context, HubStructs, SpokeState {
         return ITokenBridge(payable(_state.provider.tokenBridge));
     }
 
+    function tokenBridgeAddress() public view returns (address) {
+        return _state.provider.tokenBridge;
+    }
+
     function consistencyLevel() internal view returns (uint8) {
         return _state.consistencyLevel;
     }
