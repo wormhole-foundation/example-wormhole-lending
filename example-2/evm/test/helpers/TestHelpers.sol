@@ -14,6 +14,8 @@ import {HubUtilities} from "../../src/contracts/lendingHub/HubUtilities.sol";
 import {MyERC20} from "./MyERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC20PresetMinterPauser} from "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
+
 import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 import {ITokenImplementation} from "../../src/interfaces/ITokenImplementation.sol";
@@ -27,9 +29,10 @@ import {WormholeSimulator} from "./WormholeSimulator.sol";
 contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     struct TestAsset {
         address assetAddress;
-        IERC20 asset;
+        ERC20PresetMinterPauser asset;
         uint256 collateralizationRatioDeposit;
         uint256 collateralizationRatioBorrow;
+        
         uint8 decimals;
         uint256 reserveFactor;
         bytes32 pythId;

@@ -13,7 +13,7 @@ import {HubMessages} from "../src/contracts/lendingHub/HubMessages.sol";
 import {HubUtilities} from "../src/contracts/lendingHub/HubUtilities.sol";
 import {MyERC20} from "./helpers/MyERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
+import {ERC20PresetMinterPauser} from "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 import {IWormhole} from "../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../src/interfaces/ITokenBridge.sol";
 import {ITokenImplementation} from "../src/interfaces/ITokenImplementation.sol";
@@ -38,7 +38,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         assets.push(
             TestAsset({
                 assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
-                asset: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
+                asset: ERC20PresetMinterPauser(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
                 collateralizationRatioDeposit: 100 * 10 ** 16,
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
@@ -50,7 +50,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         assets.push(
             TestAsset({
                 assetAddress: 0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, // WSOL
-                asset: IERC20(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
+                asset: ERC20PresetMinterPauser(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
                 collateralizationRatioDeposit: 100 * 10 ** 16,
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
@@ -58,6 +58,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
                 pythId: bytes32("SOL")
             })
         );
+
+        assets[0].asset.mint(address(this), 1000 * 10 ** assets[0].asset.decimals());
+        assets[1].asset.mint(address(this), 1000 * 10 **assets[1].asset.decimals());
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)

@@ -18,4 +18,9 @@ contract MyERC20 is ERC20 {
     function decimals() public view override returns (uint8) {
         return _decimals;
     }
+
+    function mint(address account, uint256 amount) public returns (bool) {
+        _mint(account, amount);
+        return true;
+    }
 }
