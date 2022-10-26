@@ -15,7 +15,7 @@ import "./HubGetters.sol";
 import "./HubUtilities.sol"; 
 
 contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
-    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_, uint256 collateralizationRatioPrecision_, uint8 initialMaxDecimals_, uint256 maxLiquidationBonus_) {
+    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_, uint256 collateralizationRatioPrecision_, uint8 initialMaxDecimals_, uint256 maxLiquidationBonus_, uint256 maxLiquidationPortion, uint256 maxLiquidationPortionPrecision) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
@@ -25,6 +25,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
         setCollateralizationRatioPrecision(collateralizationRatioPrecision_);
         setMaxLiquidationBonus(maxLiquidationBonus_); // use the precision of the collateralization ratio
+        setMaxLiquidationPortion(maxLiquidationPortion);
+        setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision);
     }
 
     /**

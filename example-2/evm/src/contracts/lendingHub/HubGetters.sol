@@ -101,4 +101,12 @@ contract HubGetters is Context, HubStructs, HubState {
     function getOraclePrice(bytes32 oracleId) public view returns (Price memory price) {
         return _state.oracle[oracleId];
     }
+
+    function getMaxLiquidationPortion() internal view returns (uint256) {
+        return _state.maxLiquidationPortion;
+    }
+
+    function getMaxLiquidationPortionPrecision() internal view returns (uint256) {
+        return _state.maxLiquidationPortionPrecision;
+    }
 }

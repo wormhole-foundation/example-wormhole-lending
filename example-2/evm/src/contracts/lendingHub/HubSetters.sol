@@ -37,8 +37,6 @@ contract HubSetters is HubStructs, HubState, HubGetters {
     function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
         _state.assetInfos[assetAddress] = info;
 
-        // TODO: Take the deposit and borrow indices as input
-        // TODO: Take the interest rate model as input
         AccrualIndices memory accrualIndices;
         accrualIndices.deposited = 1*getInterestAccrualIndexPrecision();
         accrualIndices.borrowed = 1*getInterestAccrualIndexPrecision();
@@ -93,8 +91,15 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         _state.totalAssets[assetAddress] = vaultAmount;
     }
 
-    // setting oracle price (TODO: remove if we get oracle contract up and running)
     function setOraclePrice(bytes32 oracleId, Price memory price) public {
         _state.oracle[oracleId] = price;
+    }
+
+    function setMaxLiquidationPortion(uint256 maxLiquidationPortion) internal returns (uint256) {
+        _state.maxLiquidationPortion = maxLiquidationPortion;
+    }
+
+    function setMaxLiquidationPortionPrecision(uint256 maxLiquidationPortionPrecision) internal returns (uint256) {
+        _state.maxLiquidationPortionPrecision = maxLiquidationPortionPrecision;
     }
 }

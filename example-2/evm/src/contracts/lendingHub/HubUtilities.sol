@@ -207,6 +207,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         // safety check to ensure liquidator doesn't play themselves
         require(notionalReceived >= notionalRepaid, "Liquidator receipt less than amount they repaid");
 
+        // check to ensure that amount of debt repaid <= maxLiquidationPortion * amount of debt / liquidationPortionPrecision
+        require(notionalRepaid <= getMaxLiquidationPortion() * vaultBorrowedValue / getMaxLiquidationPortionPrecision(), "Liquidator cannot claim more than maxLiquidationPortion of the total debt of the vault");
+
         // check if notional received <= notional repaid * max liquidation bonus
         uint256 maxLiquidationBonus = getMaxLiquidationBonus();
 

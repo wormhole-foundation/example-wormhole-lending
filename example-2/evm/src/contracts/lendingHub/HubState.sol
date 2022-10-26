@@ -67,8 +67,14 @@ contract HubStorage is HubStructs {
         // storage gap
         uint256[50] ______gap;
 
-        // MockOracle (TODO: remove if we get oracle contract up and running)
+        // MockOracle
         mapping(bytes32 => Price) oracle;
+
+        // max portion of debt liquidator is allowed to repay
+        uint256 maxLiquidationPortion;
+
+        // precision for maxLiquidationPortion
+        uint256 maxLiquidationPortionPrecision;
     }
 }
 
