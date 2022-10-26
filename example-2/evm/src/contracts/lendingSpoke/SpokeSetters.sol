@@ -5,7 +5,7 @@ import "./SpokeState.sol";
 import "../lendingHub/HubStructs.sol";
 
 
-contract SpokeSetters is SpokeState, HubStructs {
+contract SpokeSetters is HubStructs, SpokeState {
     function setOwner(address owner) internal {
         _state.owner = owner;
     }

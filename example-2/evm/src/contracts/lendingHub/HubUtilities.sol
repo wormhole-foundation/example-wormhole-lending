@@ -3,6 +3,9 @@ pragma solidity ^0.8.0;
 
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
 import "../../interfaces/IMockPyth.sol";
@@ -231,6 +234,15 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
     // TODO: Write docstrings for these functions
 
+    function checkDuplicates(address[] memory assetAddresses) internal view {
+        // check if asset address array contains duplicates
+        for(uint256 i=0; i<assetAddresses.length; i++) {
+            for(uint256 j=0; j<i; j++) {
+                require(assetAddresses[i] != assetAddresses[j], "Address array has duplicate addresses");
+            }
+        }
+    }
+
     function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
 
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
@@ -290,8 +302,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }
 
-    function transferTokens(address receiver, address assetAddress, uint256 amount) internal {
-        //tokenBridge().transferTokensWithPayload(assetAddress, amount, recipientChain, recipient, nonce, payload);
+    function transferTokens(address receiver, address assetAddress, uint256 amount, uint16 recipientChain) internal {
+        SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), amount);
+        tokenBridge().transferTokens(assetAddress, amount, recipientChain, bytes32(uint256(uint160(receiver))), 0, 0);
     }
 
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
@@ -302,7 +315,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         );
     }
 
-    function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
+    function getWormholeParsed(bytes calldata encodedMessage) internal returns (IWormhole.VM memory) {
         (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);
 
@@ -311,7 +324,8 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
 
-        return parsed.payload;
+        return parsed;
+
     }
 
     function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
