@@ -391,6 +391,11 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             address assetAddress = assetRepayAddresses[i];
             uint256 assetAmount = assetRepayAmounts[i];
 
+            SafeERC20.safeIncreaseAllowance(
+                IERC20(assetAddress), 
+                msg.sender, 
+                assetAmount
+            );
             SafeERC20.safeTransferFrom(
                 IERC20(assetAddress),
                 msg.sender,
@@ -404,9 +409,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             address assetAddress = assetReceiptAddresses[i];
             uint256 assetAmount = assetReceiptAmounts[i];
 
-            SafeERC20.safeTransferFrom(
+            SafeERC20.safeTransfer(
                 IERC20(assetAddress),
-                address(this),
                 msg.sender,
                 assetAmount
             );
