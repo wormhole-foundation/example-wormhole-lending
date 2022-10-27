@@ -24,7 +24,6 @@ import {WormholeSimulator} from "./helpers/WormholeSimulator.sol";
 
 import {TestHelpers} from "./helpers/TestHelpers.sol";
 
-
 contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, TestHelpers {
     using BytesLib for bytes;
 
@@ -38,7 +37,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         assets.push(
             TestAsset({
                 assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
-                asset: ERC20PresetMinterPauser(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
+                asset: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
                 collateralizationRatioDeposit: 100 * 10 ** 16,
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
@@ -50,7 +49,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         assets.push(
             TestAsset({
                 assetAddress: 0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, // WSOL
-                asset: ERC20PresetMinterPauser(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
+                asset: IERC20(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
                 collateralizationRatioDeposit: 100 * 10 ** 16,
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
@@ -59,8 +58,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
             })
         );
 
-        assets[0].asset.mint(address(this), 1000 * 10 ** assets[0].asset.decimals());
-        assets[1].asset.mint(address(this), 1000 * 10 **assets[1].asset.decimals());
+        deal(0x442F7f22b1EE2c842bEAFf52880d4573E9201158, address(this), 1000 * 10**assets[0].decimals);
+        deal(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, address(this), 1000 * 10**assets[1].decimals);
+        // assets[0].asset.mint(address(this), 1000 * 10 ** assets[0].asset.decimals());
+        // assets[1].asset.mint(address(this), 1000 * 10 **assets[1].asset.decimals());
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)
@@ -301,6 +302,12 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address vault = msg.sender;
         address vaultOther = address(0);
 
+        // prank mint with tokens
+        deal(0x442F7f22b1EE2c842bEAFf52880d4573E9201158, vault, 1000 * 10**20);
+        deal(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, vault, 2000 * 10**20);
+        deal(0x442F7f22b1EE2c842bEAFf52880d4573E9201158, vaultOther, 3000 * 10**20);
+        deal(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, vaultOther, 4000 * 10**20);
+
         doRegister(assets[0]);
         doRegister(assets[1]);
 
@@ -326,7 +333,36 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         assetReceiptAddresses[0] = assets[0].assetAddress;
         uint256[] memory assetReceiptAmounts = new uint256[](1);
         assetReceiptAmounts[0] = 490 * 10**18;
+
+        // prank approve contract to spend tokens
+        vm.prank(vault);
+        IERC20(assets[1].assetAddress).approve(address(hub), 500 * 10**18);
+        // uint256 allowanceAmount = IERC20(assets[1].assetAddress).allowance(vault, address(hub));
+
+        // get vault token balances pre liquidation
+        uint256 balance_vault_0_pre = IERC20(assets[0].assetAddress).balanceOf(vault);
+        uint256 balance_vault_1_pre = IERC20(assets[1].assetAddress).balanceOf(vault);
+        // get hub contract token balances pre liquidation
+        uint256 balance_hub_0_pre = IERC20(assets[0].assetAddress).balanceOf(address(hub));
+        uint256 balance_hub_1_pre = IERC20(assets[1].assetAddress).balanceOf(address(hub));
+
+        vm.prank(vault);
         hub.liquidation(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+    
+        // get vault token balances post liquidation
+        uint256 balance_vault_0_post = IERC20(assets[0].assetAddress).balanceOf(vault);
+        uint256 balance_vault_1_post = IERC20(assets[1].assetAddress).balanceOf(vault);
+        // get hub contract token balances post liquidation
+        uint256 balance_hub_0_post = IERC20(assets[0].assetAddress).balanceOf(address(hub));
+        uint256 balance_hub_1_post = IERC20(assets[1].assetAddress).balanceOf(address(hub));
+    
+        console.log("balance of vault for token 0 went from ", balance_vault_0_pre, " to ", balance_vault_0_post);
+        console.log("balance of vault for token 1 went from ", balance_vault_1_pre, " to ", balance_vault_1_post);
+        console.log("balance of hub for token 0 went from ", balance_hub_0_pre, " to ", balance_hub_0_post);
+        console.log("balance of hub for token 1 went from ", balance_hub_1_pre, " to ", balance_hub_1_post);
+
+        require(balance_vault_0_pre + balance_hub_0_pre == balance_vault_0_post + balance_hub_0_post, "Asset 0 total amounts should not change after liquidation");
+        require(balance_vault_1_pre + balance_hub_1_pre == balance_vault_1_post + balance_hub_1_post, "Asset 1 total amounts should not change after liquidation");
     }
     
     /*

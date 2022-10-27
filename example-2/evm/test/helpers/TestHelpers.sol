@@ -29,7 +29,7 @@ import {WormholeSimulator} from "./WormholeSimulator.sol";
 contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     struct TestAsset {
         address assetAddress;
-        ERC20PresetMinterPauser asset;
+        IERC20 asset;
         uint256 collateralizationRatioDeposit;
         uint256 collateralizationRatioBorrow;
         
