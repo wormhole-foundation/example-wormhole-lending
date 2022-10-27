@@ -246,8 +246,12 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         );
     }
 
+    function doDeposit(address vault, TestAsset memory asset, uint256 assetAmount) internal returns (bytes memory encodedVM) {
+        doDeposit(vault, asset, assetAmount, false, "");
+    }
+
     // create Deposit payload and package it into TokenBridgePayload into WH message and send the deposit
-    function doDeposit(address vault, TestAsset memory asset, uint256 assetAmount)
+    function doDeposit(address vault, TestAsset memory asset, uint256 assetAmount, bool expectRevert, string memory revertString)
         internal
         returns (bytes memory encodedVM)
     {
@@ -279,16 +283,23 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         encodedVM = getSignedWHMsgTransferTokenBridge(transfer);
 
         // complete deposit
+        if(expectRevert) {
+            wormholeData.vm.expectRevert(bytes(revertString));
+        }
         wormholeData.hub.completeDeposit(encodedVM);
     }
 
+    function doRepay(address vault, TestAsset memory asset, uint256 assetAmount) internal returns (bytes memory encodedVM) {
+        doRepay(vault, asset, assetAmount, false, "");
+    }
+
     // create Deposit payload and package it into TokenBridgePayload into WH message and send the deposit
-    function doRepay(address vault, TestAsset memory asset, uint256 assetAmount)
+    function doRepay(address vault, TestAsset memory asset, uint256 assetAmount, bool expectRevert, string memory revertString)
         internal
         returns (bytes memory encodedVM)
     {
         address assetAddress = asset.assetAddress;
-        // create Deposit payload
+        // create Repay payload
         PayloadHeader memory header = PayloadHeader({
             payloadID: uint8(4),
             sender: vault //address(uint160(uint(keccak256(abi.encodePacked(block.timestamp)))))
@@ -315,12 +326,19 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
         encodedVM = getSignedWHMsgTransferTokenBridge(transfer);
 
-        // complete deposit
+        // complete repay
+        if(expectRevert) {
+            wormholeData.vm.expectRevert(bytes(revertString));
+        }
         wormholeData.hub.completeRepay(encodedVM);
     }
 
+    function doBorrow(address vault, TestAsset memory asset, uint256 assetAmount) internal returns (bytes memory encodedVM) {
+        doBorrow(vault, asset, assetAmount, false, "");
+    }
+
     // create Borrow payload and package it into TokenBridgePayload into WH message and send the borrow
-    function doBorrow(address vault, TestAsset memory asset, uint256 assetAmount)
+    function doBorrow(address vault, TestAsset memory asset, uint256 assetAmount, bool expectRevert, string memory revertString)
         internal
         returns (bytes memory encodedVM)
     {
@@ -352,11 +370,18 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         encodedVM = getSignedWHMsgCoreBridge(serialized);
 
         // complete borrow
+         if(expectRevert) {
+            wormholeData.vm.expectRevert(bytes(revertString));
+        }
         wormholeData.hub.completeBorrow(encodedVM);
     }
 
+    function doWithdraw(address vault, TestAsset memory asset, uint256 assetAmount) internal returns (bytes memory encodedVM) {
+        doWithdraw(vault, asset, assetAmount, false, "");
+    }
+
     // create Withdraw payload and package it into TokenBridgePayload into WH message and send the withdraw
-    function doWithdraw(address vault, TestAsset memory asset, uint256 assetAmount)
+    function doWithdraw(address vault, TestAsset memory asset, uint256 assetAmount, bool expectRevert, string memory revertString)
         internal
         returns (bytes memory encodedVM)
     {
@@ -370,6 +395,9 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         encodedVM = getSignedWHMsgCoreBridge(serialized);
 
         // complete withdraw
+        if(expectRevert) {
+            wormholeData.vm.expectRevert(bytes(revertString));
+        }
         wormholeData.hub.completeWithdraw(encodedVM);
     }
 

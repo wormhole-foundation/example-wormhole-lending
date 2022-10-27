@@ -58,10 +58,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
             })
         );
 
-        deal(0x442F7f22b1EE2c842bEAFf52880d4573E9201158, address(this), 1000 * 10**assets[0].decimals);
-        deal(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, address(this), 1000 * 10**assets[1].decimals);
-        // assets[0].asset.mint(address(this), 1000 * 10 ** assets[0].asset.decimals());
-        // assets[1].asset.mint(address(this), 1000 * 10 **assets[1].asset.decimals());
+        deal(assets[0].assetAddress, address(this), 1000 * 10**assets[0].decimals);
+        deal(assets[1].assetAddress, address(this), 1000 * 10**assets[1].decimals);
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)
@@ -111,10 +109,11 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         require(vaultAfter.deposited == 502, "502 wasn't deposited (in the vault)");
     }
 
-    function testFailD() public {
+    function testDRevert() public {
         // Should fail because there is no registered asset
+        
         address vault = msg.sender;
-        doDeposit(vault, assets[0], 502);
+        doDeposit(vault, assets[0], 502, true, "Unregistered asset");
     }
 
     function testRDB() public {
@@ -135,7 +134,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
     }
 
-    function testFailRDB() public {
+    function testRDBRevert() public {
         // Should fail because the price of the borrow asset is a little too high
 
         address vault = msg.sender;
@@ -151,7 +150,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit(vault, assets[0], 500 * 10 ** 18);
         doDeposit(address(0), assets[1], 600 * 10 ** 18);
 
-        doBorrow(vault, assets[1], 500 * 10 ** 18);
+        doBorrow(vault, assets[1], 500 * 10 ** 18, true, "Vault is undercollateralized if this borrow goes through");
 
     }
 
@@ -174,7 +173,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doWithdraw(vault, assets[0], 500 * 10 ** 16);
     }
 
-    function testFailRDBW() public {
+    function testRDBWRevert() public {
         address vault = msg.sender;
 
         doRegister(assets[0]);
@@ -190,7 +189,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doBorrow(vault, assets[1], 500 * 10 ** 18);
     
-        doWithdraw(vault, assets[0], 500 * 10 ** 16 + 1);
+        doWithdraw(vault, assets[0], 500 * 10 ** 16 + 1, true, "Vault is undercollateralized if this withdraw goes through");
     }
 
     function testRDBPW() public {
@@ -241,7 +240,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         
     }
 
-    function testFailRDBPW() public {
+    function testRDBPWRevert() public {
         // Should fail because still some debt out so cannot withdraw all your deposited assets
         address vault = msg.sender;
         address vaultOther = address(0);
@@ -263,10 +262,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         // doesn't fully repay
         doRepay(vault, assets[1], 500 * 10 ** 18 - 1);
     
-        doWithdraw(vault, assets[0], 500 * 10 ** 18);
+        doWithdraw(vault, assets[0], 500 * 10 ** 18, true, "Vault is undercollateralized if this withdraw goes through");
     }
 
-    function testFailRDBL() public {
+    function testRDBLRevert() public {
         // should fail because vault not underwater
 
         address vault = msg.sender;
@@ -294,6 +293,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         assetReceiptAddresses[0] = assets[0].assetAddress;
         uint256[] memory assetReceiptAmounts = new uint256[](1);
         assetReceiptAmounts[0] = 1;
+        vm.expectRevert(bytes("vault not underwater"));
         hub.liquidation(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
     }
 
@@ -303,10 +303,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address vaultOther = address(0);
 
         // prank mint with tokens
-        deal(0x442F7f22b1EE2c842bEAFf52880d4573E9201158, vault, 1000 * 10**20);
-        deal(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, vault, 2000 * 10**20);
-        deal(0x442F7f22b1EE2c842bEAFf52880d4573E9201158, vaultOther, 3000 * 10**20);
-        deal(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, vaultOther, 4000 * 10**20);
+        deal(assets[0].assetAddress, vault, 1000 * 10**20);
+        deal(assets[1].assetAddress, vault, 2000 * 10**20);
+        deal(assets[0].assetAddress, vaultOther, 3000 * 10**20);
+        deal(assets[1].assetAddress, vaultOther, 4000 * 10**20);
 
         doRegister(assets[0]);
         doRegister(assets[1]);
