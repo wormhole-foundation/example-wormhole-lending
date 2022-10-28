@@ -72,14 +72,11 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     }
 
     function testRegisterAssetWithSpoke() public {
-        vm.recordLogs();
-        doRegister(assets[0]);
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[0]);
 
         WormholeSpokeData memory spokeData = setSpokeData(0);
-        hub.registerSpoke(spokeData.foreignChainId, address(spokeData.spoke));
+        doRegisterSpoke();
         
+        bytes memory encodedMessage = doRegister(assets[0]);
         spokeData.spoke.completeRegisterAsset(encodedMessage);
 
 

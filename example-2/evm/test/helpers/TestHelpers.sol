@@ -275,13 +275,17 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     }
 
     // TODO: Do we need this? Maybe remove this helper function
-    function doRegister(TestAsset memory asset) internal {
+    function doRegister(TestAsset memory asset) internal returns(bytes memory) {
         uint256 reservePrecision = 1 * 10**18;
 
         // register asset
+        wormholeData.vm.recordLogs();
         wormholeData.hub.registerAsset(
             asset.assetAddress, asset.collateralizationRatioDeposit, asset.collateralizationRatioBorrow, asset.reserveFactor, reservePrecision, asset.pythId, asset.decimals
         );
+        Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
+        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[0]);
+        return encodedMessage;
     }
 
     function doDeposit(address vault, TestAsset memory asset, uint256 assetAmount) internal returns (bytes memory encodedVM) {
