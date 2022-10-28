@@ -207,7 +207,7 @@ contract HubMessages is HubStructs {
         // parse the Pyth Id
         // TODO: is this valid?? better way to do the conversion from bytes to bytes32
         bytes32 pythId = bytes32(serialized.toUint256(index)); //serialized[index:index+4];
-        index += 4;
+        index += 32;
 
         params.pythId = pythId;
 

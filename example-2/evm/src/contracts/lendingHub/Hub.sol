@@ -123,6 +123,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     function completeDeposit(bytes memory encodedMessage) public { // calldata encodedMessage
 
         // encodedMessage is WH full msg, returns token bridge transfer msg
+
         bytes memory vmPayload = getTransferPayload(encodedMessage);
 
         bytes memory serialized = extractSerializedFromTransferWithPayload(vmPayload);
@@ -130,6 +131,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         DepositPayload memory params = decodeDepositPayload(serialized);
 
         deposit(params.header.sender, params.assetAddress, params.assetAmount);
+
     }
 
     /**
