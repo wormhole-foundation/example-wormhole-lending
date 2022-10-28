@@ -24,6 +24,8 @@ import {WormholeSimulator} from "./helpers/WormholeSimulator.sol";
 
 import {TestHelpers} from "./helpers/TestHelpers.sol";
 
+import {Spoke} from "../src/contracts/lendingSpoke/Spoke.sol";
+
 contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, TestHelpers {
     using BytesLib for bytes;
 
@@ -34,6 +36,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
     function setUp() public {
         hub = testSetUp(vm);
+
+
+        //console.log("CHAIN ID");
+        //console.log(vm.chainId());
         assets.push(
             TestAsset({
                 assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
@@ -60,6 +66,31 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         deal(assets[0].assetAddress, address(this), 1000 * 10**assets[0].decimals);
         deal(assets[1].assetAddress, address(this), 1000 * 10**assets[1].decimals);
+
+        addSpoke(6, vm.envAddress("TESTING_WORMHOLE_ADDRESS"), vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
+        setSpokeData(0);
+    }
+
+    function testRegisterAssetWithSpoke() public {
+        vm.recordLogs();
+        doRegister(assets[0]);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[0]);
+
+        WormholeSpokeData memory spokeData = setSpokeData(0);
+        hub.registerSpoke(spokeData.foreignChainId, address(spokeData.spoke));
+        
+        spokeData.spoke.completeRegisterAsset(encodedMessage);
+
+
+        AssetInfo memory info = spokeData.spoke.getAssetInfo(assets[0].assetAddress);
+        console.log(info.collateralizationRatioDeposit);
+        console.log(info.collateralizationRatioBorrow);
+        console.log(info.decimals);
+        require(
+            (info.collateralizationRatioDeposit == assets[0].collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == assets[0].collateralizationRatioBorrow) && (info.decimals == assets[0].decimals) && (info.pythId == assets[0].pythId) && (info.exists),
+            "didn't register properly"
+        );
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)
@@ -122,7 +153,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegister(assets[0]);
         doRegister(assets[1]);
 
-        doRegisterSpoke();
+        doRegisterFakeSpoke();
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
@@ -145,7 +176,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         setPrice(assets[0], 100);
         setPrice(assets[1], 91);
 
-        doRegisterSpoke();
+        doRegisterFakeSpoke();
 
         doDeposit(vault, assets[0], 500 * 10 ** 18);
         doDeposit(address(0), assets[1], 600 * 10 ** 18);
@@ -163,7 +194,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
-        doRegisterSpoke();
+        doRegisterFakeSpoke();
 
         doDeposit(vault, assets[0], 500 * 10 ** 18);
         doDeposit(address(0), assets[1], 600 * 10 ** 18);
@@ -182,7 +213,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
-        doRegisterSpoke();
+        doRegisterFakeSpoke();
 
         doDeposit(vault, assets[0], 500 * 10 ** 18);
         doDeposit(address(0), assets[1], 600 * 10 ** 18);
@@ -201,7 +232,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
-        doRegisterSpoke();
+        doRegisterFakeSpoke();
 
         VaultAmount memory global0;
         VaultAmount memory vault0;
@@ -251,7 +282,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
-        doRegisterSpoke();
+        doRegisterFakeSpoke();
 
         doDeposit(vault, assets[0], 500 * 10 ** 18);
         // deposit by another address
@@ -277,7 +308,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
-        doRegisterSpoke();
+        doRegisterFakeSpoke();
 
         doDeposit(vaultOther, assets[0], 500 * 10**18);
         doDeposit(vault, assets[1], 600 * 10**18);
@@ -314,7 +345,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
-        doRegisterSpoke();
+        doRegisterFakeSpoke();
 
         doDeposit(vaultOther, assets[0], 500 * 10**18);
         doDeposit(vault, assets[1], 600 * 10**18);
