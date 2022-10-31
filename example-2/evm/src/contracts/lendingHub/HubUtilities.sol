@@ -66,18 +66,33 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     */
     function getOraclePrices(address assetAddress) internal view returns (uint64) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+        
+        uint8 oracleMode = getOracleMode();
 
-        // getting oracle price via hubgetters fn (TODO: remove if we get oracle contract up and running)
-        Price memory oraclePrice = getOraclePrice(assetInfo.pythId);
-        // IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetInfo.pythId);
+        int64 priceValue;
 
-        // sanity check the price feeds
-        require(oraclePrice.price > 0, "negative prices detected");
-        // require(feed.price.price > 0, "negative prices detected");
+        if(oracleMode == 0) {
+            // using Pyth price        
+            PythStructs.Price memory oraclePrice = getPythPriceStruct(assetInfo.pythId);
 
+            priceValue = oraclePrice.price;
+        }
+        else if(oracleMode == 1) {
+            // using mock Pyth price
+            PythStructs.Price memory oraclePrice = getMockPythPriceStruct(assetInfo.pythId);
+
+            priceValue = oraclePrice.price;
+        }
+        else {
+            // using fake oracle price
+            Price memory oraclePrice = getOraclePrice(assetInfo.pythId);
+            
+            priceValue = oraclePrice.price;
+        }
+        
         // Users of Pyth prices should read: https://docs.pyth.network/consumers/best-practices
         // before using the price feed. Blindly using the price alone is not recommended.
-        return uint64(oraclePrice.price);
+        return uint64(priceValue);
         // return uint64(feed.price.price);
     }
 
@@ -180,6 +195,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault); 
 
+        console.log(vaultDepositedValue, vaultBorrowedValue);
         require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");
         
         uint256 notionalRepaid = 0;
@@ -333,6 +349,33 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         // do some stuff
         
+    }
+
+    function setMockPythFeed(
+        bytes32 id,
+        int64 price,
+        uint64 conf,
+        int32 expo,
+        int64 emaPrice,
+        uint64 emaConf,
+        uint64 publishTime
+    ) public {
+        bytes memory priceFeedData = _state.provider.mockPyth.createPriceFeedUpdateData(
+            id,
+            price,
+            conf,
+            expo,
+            emaPrice,
+            emaConf,
+            publishTime
+        );
+
+        bytes[] memory updateData = new bytes[](1);
+        updateData[0] = priceFeedData;
+
+        _state.provider.mockPyth.updatePriceFeeds(updateData);
+
+        PythStructs.Price memory bbb = getMockPythPriceStruct(id);
     }
 
     /*
