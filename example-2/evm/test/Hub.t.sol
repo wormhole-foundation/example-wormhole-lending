@@ -90,6 +90,34 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         );
     }
 
+    function testDepositWithSpoke() public {
+
+        Spoke spoke = setSpokeData(0).spoke;
+        doRegisterSpoke();
+        
+        bytes memory encodedRegisterMessage = doRegister(assets[0]);
+        spoke.completeRegisterAsset(encodedRegisterMessage);
+
+        address assetAddress = assets[0].assetAddress;
+
+        VaultAmount memory globalBefore = hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = hub.getVaultAmounts(address(this), assetAddress);
+
+        // call deposit
+        bytes memory encodedDepositMessage = spoke.depositCollateral(assetAddress, 1);
+        hub.completeDeposit(encodedDepositMessage);
+
+        VaultAmount memory globalAfter = hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = hub.getVaultAmounts(address(this), assetAddress);
+        // TODO: why does specifying msg.sender fix all?? Seems it assumes incorrect msg.sender by default
+        
+        require(globalBefore.deposited == 0, "Deposited not initialized to 0");
+        require(globalAfter.deposited == 1 , "502 wasn't deposited (globally)");
+
+        require(vaultBefore.deposited == 0, "Deposited not initialized to 0");
+        require(vaultAfter.deposited == 1, "502 wasn't deposited (in the vault)");
+    }
+
     // test register SPOKE (make sure nothing is possible without doing this)
 
     // test register asset

@@ -81,7 +81,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 5,
-            sender: address(this)
+            sender: msg.sender
         });
 
         RegisterAssetPayload memory registerAssetPayload = RegisterAssetPayload({
