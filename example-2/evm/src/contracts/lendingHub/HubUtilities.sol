@@ -64,35 +64,41 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * @return {uint64} The price (in USD) of the asset, from Pyth 
     * TODO: Elaborate on the above line 
     */
-    function getOraclePrices(address assetAddress) internal view returns (uint64) {
+    function getOraclePrices(address assetAddress) internal view returns (uint64, uint64) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
         
         uint8 oracleMode = getOracleMode();
 
         int64 priceValue;
+        uint64 confValue;
 
         if(oracleMode == 0) {
             // using Pyth price        
             PythStructs.Price memory oraclePrice = getPythPriceStruct(assetInfo.pythId);
 
             priceValue = oraclePrice.price;
+            confValue = oraclePrice.conf;
         }
         else if(oracleMode == 1) {
             // using mock Pyth price
             PythStructs.Price memory oraclePrice = getMockPythPriceStruct(assetInfo.pythId);
 
             priceValue = oraclePrice.price;
+            confValue = oraclePrice.conf;
         }
         else {
             // using fake oracle price
             Price memory oraclePrice = getOraclePrice(assetInfo.pythId);
             
             priceValue = oraclePrice.price;
+            confValue = oraclePrice.conf;
         }
+
+        require(priceValue >= 0, "no negative price assets allowed in XC borrow-lend");
         
         // Users of Pyth prices should read: https://docs.pyth.network/consumers/best-practices
         // before using the price feed. Blindly using the price alone is not recommended.
-        return uint64(priceValue);
+        return (uint64(priceValue), confValue);
         // return uint64(feed.price.price);
     }
 
@@ -114,7 +120,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             
             VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, asset);
 
-            uint64 price = getOraclePrices(asset);
+            uint64 price;
+            uint64 conf;
+            (price, conf) = getOraclePrices(asset);
             
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
@@ -123,9 +131,12 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
-            effectiveNotionalDeposited += denormalizedDeposited * price * 10 ** (getMaxDecimals() - assetInfo.decimals) * getCollateralizationRatioPrecision() / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
+            // use conservative (from protocol's perspective) prices for collateral (low) and debt (high)
+            uint64 priceCollateral = price - 424*conf/100;
+            uint64 priceDebt = price + 424*conf/100;
 
-            effectiveNotionalBorrowed += denormalizedBorrowed * price * 10 ** (getMaxDecimals() - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision(); 
+            effectiveNotionalDeposited += denormalizedDeposited * priceCollateral * 10 ** (getMaxDecimals() - assetInfo.decimals) * getCollateralizationRatioPrecision() / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += denormalizedBorrowed * priceDebt * 10 ** (getMaxDecimals() - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision(); 
 
         }    
 
@@ -147,7 +158,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
-        uint64 price = getOraclePrices(assetAddress);
+        uint64 price;
+        uint64 conf;
+        (price, conf) = getOraclePrices(assetAddress);
 
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner); 
 
@@ -155,7 +168,10 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * price * (10 ** getMaxDecimals()))); 
+        // use conservative (from protocol's perspective) price for collateral (low)
+        uint64 priceCollateral = price - 424*conf/100;
+
+        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * priceCollateral * (10 ** getMaxDecimals()))); 
     }
 
     /** 
@@ -171,13 +187,18 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
-        uint64 price = getOraclePrices(assetAddress);
+        uint64 price;
+        uint64 conf;
+        (price, conf) = getOraclePrices(assetAddress);
      
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
      
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
         
-        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * price * (10**getMaxDecimals()) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision() ));
+        // use conservative (from protocol's perspective) price for debt (high)
+        uint64 priceDebt = price + 424*conf/100;
+
+        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * priceDebt * (10**getMaxDecimals()) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision() ));
 
     }
 
@@ -206,7 +227,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             address asset = assetRepayAddresses[i];
             uint256 amount = assetRepayAmounts[i];
 
-            uint64 price = getOraclePrices(asset);
+            uint64 price;
+            uint64 conf;
+            (price, conf) = getOraclePrices(asset);
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
@@ -218,7 +241,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             address asset = assetReceiptAddresses[i];
             uint256 amount = assetReceiptAmounts[i];
 
-            uint64 price = getOraclePrices(asset);
+            uint64 price;
+            uint64 conf;
+            (price, conf) = getOraclePrices(asset);
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
