@@ -3,6 +3,10 @@ pragma solidity ^0.8.0;
 
 import "./HubStructs.sol";
 
+import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
+import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
+import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
+
 contract HubEvents {}
 
 contract HubStorage is HubStructs {
@@ -10,7 +14,8 @@ contract HubStorage is HubStructs {
         uint16 chainId;
         address payable wormhole;
         address tokenBridge;
-        address pyth;
+        IPyth pyth;
+        MockPyth mockPyth;
     }
 
     struct State {
@@ -27,6 +32,9 @@ contract HubStorage is HubStructs {
 
         // mock Pyth address
         address mockPythAddress;
+
+        // oracle mode: 0 for Pyth, 1 for mock Pyth, 2 for fake oracle
+        uint8 oracleMode;
 
         // max liquidation bonus
         uint256 maxLiquidationBonus;
@@ -75,6 +83,12 @@ contract HubStorage is HubStructs {
 
         // precision for maxLiquidationPortion
         uint256 maxLiquidationPortionPrecision;
+
+        // number of conf intervals to shift for lower and upper bound prices
+        uint64 nConf;
+
+        // precision for nConf
+        uint64 nConfPrecision;
     }
 }
 

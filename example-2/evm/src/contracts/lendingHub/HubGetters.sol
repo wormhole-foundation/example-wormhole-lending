@@ -9,6 +9,8 @@ import "../../interfaces/IMockPyth.sol";
 import "./HubStructs.sol";
 import "./HubState.sol";
 
+import "forge-std/console.sol";
+
 contract HubGetters is Context, HubStructs, HubState {
     function owner() public view returns (address) {
         return _state.owner;
@@ -18,7 +20,7 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.provider.chainId;
     }
 
-    function wormhole() internal view returns (IWormhole) {
+    function wormhole() public view returns (IWormhole) {
         return IWormhole(_state.provider.wormhole);
     }
 
@@ -30,32 +32,35 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.provider.tokenBridge;
     }
 
-    // TODO: This is public for testing
+    function setOracleMode() public view returns (uint8) {
+        return _state.oracleMode;
+    }
+
     function consistencyLevel() public view returns (uint8) {
         return _state.consistencyLevel;
     }
 
-    function getAllowList() internal view returns (address[] memory) {
+    function getAllowList() public view returns (address[] memory) {
         return _state.allowList;
     }
 
-    function getMaxLiquidationBonus() internal view returns (uint256) {
+    function getMaxLiquidationBonus() public view returns (uint256) {
         return _state.maxLiquidationBonus;
     }
 
-    function getCollateralizationRatioPrecision() internal view returns (uint256) {
+    function getCollateralizationRatioPrecision() public view returns (uint256) {
         return _state.collateralizationRatioPrecision;
     }
 
-    function getSpokeContract(uint16 chainId) internal view returns (address) {
+    function getSpokeContract(uint16 chainId) public view returns (address) {
         return _state.spokeContracts[chainId];
     }
 
-     function mockPyth() internal view returns (IMockPyth) {
+    function mockPyth() public view returns (IMockPyth) {
         return IMockPyth(_state.mockPythAddress);
     }
 
-    function messageHashConsumed(bytes32 vmHash) internal view returns (bool) {
+    function messageHashConsumed(bytes32 vmHash) public view returns (bool) {
         return _state.consumedMessages[vmHash];
     }
 
@@ -63,54 +68,68 @@ contract HubGetters is Context, HubStructs, HubState {
         return _state.assetInfos[assetAddress];
     }
 
-    function getLastActivityBlockTimestamp(address assetAddress) internal view returns (uint256) {
+    function getLastActivityBlockTimestamp(address assetAddress) public view returns (uint256) {
         return _state.lastActivityBlockTimestamps[assetAddress];
     }
 
-    function getTotalAssetsDeposited(address assetAddress) internal view returns (uint256) {
+    function getTotalAssetsDeposited(address assetAddress) public view returns (uint256) {
         return _state.totalAssets[assetAddress].deposited;
     }
 
-    function getTotalAssetsBorrowed(address assetAddress) internal view returns (uint256) {
+    function getTotalAssetsBorrowed(address assetAddress) public view returns (uint256) {
         return _state.totalAssets[assetAddress].borrowed;
     }
 
-    function getInterestRateModel(address assetAddress) internal view returns (InterestRateModel memory) {
+    function getInterestRateModel(address assetAddress) public view returns (InterestRateModel memory) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
         return assetInfo.interestRateModel;
     }
 
-    function getInterestAccrualIndices(address assetAddress) internal view returns (AccrualIndices memory) {
+    function getInterestAccrualIndices(address assetAddress) public view returns (AccrualIndices memory) {
         return _state.indices[assetAddress];
     }
 
-    function getInterestAccrualIndexPrecision() internal view returns (uint256) {
+    function getInterestAccrualIndexPrecision() public view returns (uint256) {
         return _state.interestAccrualIndexPrecision;
     }
 
-    function getMaxDecimals() internal view returns (uint8) {
+    function getMaxDecimals() public view returns (uint8) {
         return _state.MAX_DECIMALS;
     }
 
-    // TODO: This is public for testing
     function getVaultAmounts(address vaultOwner, address assetAddress) public view returns (VaultAmount memory) {
         return _state.vault[vaultOwner][assetAddress];
     } 
 
-    // TODO: This is public for testing
     function getGlobalAmounts(address assetAddress) public view returns (VaultAmount memory) {
         return _state.totalAssets[assetAddress];
+    }
+
+    function getMaxLiquidationPortion() public view returns (uint256) {
+        return _state.maxLiquidationPortion;
+    }
+
+    function getMaxLiquidationPortionPrecision() public view returns (uint256) {
+        return _state.maxLiquidationPortionPrecision;
+    }
+
+    function getOracleMode() public view returns (uint8) {
+        return _state.oracleMode;
+    }
+
+    function getPythPriceStruct(bytes32 pythId) public view returns (PythStructs.Price memory) {
+        return _state.provider.pyth.getPrice(pythId);
     }
 
     function getOraclePrice(bytes32 oracleId) public view returns (Price memory price) {
         return _state.oracle[oracleId];
     }
 
-    function getMaxLiquidationPortion() internal view returns (uint256) {
-        return _state.maxLiquidationPortion;
+    function getMockPythPriceStruct(bytes32 pythId) public view returns (PythStructs.Price memory) {
+        return _state.provider.mockPyth.getPrice(pythId);
     }
 
-    function getMaxLiquidationPortionPrecision() internal view returns (uint256) {
-        return _state.maxLiquidationPortionPrecision;
+    function getNConf() public view returns (uint64, uint64) {
+        return (_state.nConf, _state.nConfPrecision);
     }
 }
