@@ -463,7 +463,12 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         wormholeData.hub.completeWithdraw(encodedVM);
     }
 
-    function setPrice(TestAsset memory asset, int64 price, uint64 conf) internal {
-        wormholeData.hub.setOraclePrice(asset.pythId, Price({price: price, conf: conf, expo: 0, publishTime: block.timestamp}));
+    function setPrice(TestAsset memory asset, int64 price, uint64 conf, int32 expo, int64 emaPrice, uint64 emaConf, uint64 publishTime, uint8 oracleMode) internal {
+        if(oracleMode == 1){
+            wormholeData.hub.setMockPythFeed(asset.pythId, price, conf, expo, emaPrice, emaConf, publishTime);
+        }
+        else if(oracleMode == 2){
+            wormholeData.hub.setOraclePrice(asset.pythId, Price({price: price, conf: conf, expo: expo, publishTime: publishTime}));
+        }
     }
 }

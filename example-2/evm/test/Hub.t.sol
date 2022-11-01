@@ -171,31 +171,26 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doRegisterFakeSpoke();
 
-        if(oracleMode == 1){
-            blockTs += 1;
+        blockTs += 1;
 
-            // asset 0
-            int64 price0 = 100;
-            uint64 conf0 = 0;
-            int32 expo0 = 0;
-            int64 emaPrice0 = 100;
-            uint64 emaConf0 = 100;
-            uint64 publishTime0 = blockTs;
-            hub.setMockPythFeed(assets[0].pythId, price0, conf0, expo0, emaPrice0, emaConf0, publishTime0);
+        // asset 0
+        int64 price0 = 100;
+        uint64 conf0 = 0;
+        int32 expo0 = 0;
+        int64 emaPrice0 = 100;
+        uint64 emaConf0 = 100;
+        uint64 publishTime0 = blockTs;
+        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
 
-            // asset 1
-            int64 price1 = 90;
-            uint64 conf1 = 0;
-            int32 expo1 = 0;
-            int64 emaPrice1 = 100;
-            uint64 emaConf1 = 100;
-            uint64 publishTime1 = blockTs;
-            hub.setMockPythFeed(assets[1].pythId, price1, conf1, expo1, emaPrice1, emaConf1, publishTime1);
-        }
-        else if(oracleMode == 2){
-            setPrice(assets[0], 100, 0);
-            setPrice(assets[1], 90, 0);
-        }
+        // asset 1
+        int64 price1 = 90;
+        uint64 conf1 = 0;
+        int32 expo1 = 0;
+        int64 emaPrice1 = 100;
+        uint64 emaConf1 = 100;
+        uint64 publishTime1 = blockTs;
+        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+
 
         doDeposit(vault, assets[0], 500 * 10 ** 18);
         doDeposit(address(0), assets[1], 600 * 10 ** 18);
@@ -211,32 +206,27 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doRegister(assets[0]);
         doRegister(assets[1]);
+        
+        blockTs += 1;
 
-        if(oracleMode == 1){
-            blockTs += 1;
+        // asset 0
+        int64 price0 = 100;
+        uint64 conf0 = 0;
+        int32 expo0 = 0;
+        int64 emaPrice0 = 100;
+        uint64 emaConf0 = 100;
+        uint64 publishTime0 = blockTs;
+        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
 
-            // asset 0
-            int64 price0 = 100;
-            uint64 conf0 = 0;
-            int32 expo0 = 0;
-            int64 emaPrice0 = 100;
-            uint64 emaConf0 = 100;
-            uint64 publishTime0 = blockTs;
-            hub.setMockPythFeed(assets[0].pythId, price0, conf0, expo0, emaPrice0, emaConf0, publishTime0);
+        // asset 1
+        int64 price1 = 91;
+        uint64 conf1 = 0;
+        int32 expo1 = 0;
+        int64 emaPrice1 = 100;
+        uint64 emaConf1 = 100;
+        uint64 publishTime1 = blockTs;
+        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
 
-            // asset 1
-            int64 price1 = 91;
-            uint64 conf1 = 0;
-            int32 expo1 = 0;
-            int64 emaPrice1 = 100;
-            uint64 emaConf1 = 100;
-            uint64 publishTime1 = blockTs;
-            hub.setMockPythFeed(assets[1].pythId, price1, conf1, expo1, emaPrice1, emaConf1, publishTime1);
-        }
-        else if(oracleMode == 2){
-            setPrice(assets[0], 100, 0);
-            setPrice(assets[1], 91, 0);
-        }
 
         doRegisterFakeSpoke();
 
@@ -253,31 +243,26 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegister(assets[0]);
         doRegister(assets[1]);
 
-        if(oracleMode == 1){
-            blockTs += 1;
+        blockTs += 1;
 
-            // asset 0
-            int64 price0 = 100;
-            uint64 conf0 = 0;
-            int32 expo0 = 0;
-            int64 emaPrice0 = 100;
-            uint64 emaConf0 = 100;
-            uint64 publishTime0 = blockTs;
-            hub.setMockPythFeed(assets[0].pythId, price0, conf0, expo0, emaPrice0, emaConf0, publishTime0);
+        // asset 0
+        int64 price0 = 100;
+        uint64 conf0 = 0;
+        int32 expo0 = 0;
+        int64 emaPrice0 = 100;
+        uint64 emaConf0 = 100;
+        uint64 publishTime0 = blockTs;
+        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
 
-            // asset 1
-            int64 price1 = 90;
-            uint64 conf1 = 0;
-            int32 expo1 = 0;
-            int64 emaPrice1 = 100;
-            uint64 emaConf1 = 100;
-            uint64 publishTime1 = blockTs;
-            hub.setMockPythFeed(assets[1].pythId, price1, conf1, expo1, emaPrice1, emaConf1, publishTime1);
-        }
-        else if(oracleMode == 2){
-            setPrice(assets[0], 100, 0);
-            setPrice(assets[1], 90, 0);
-        }
+        // asset 1
+        int64 price1 = 90;
+        uint64 conf1 = 0;
+        int32 expo1 = 0;
+        int64 emaPrice1 = 100;
+        uint64 emaConf1 = 100;
+        uint64 publishTime1 = blockTs;
+        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+
 
         doRegisterFakeSpoke();
 
@@ -295,31 +280,26 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegister(assets[0]);
         doRegister(assets[1]);
 
-        if(oracleMode == 1){
-            blockTs += 1;
+        blockTs += 1;
 
-            // asset 0
-            int64 price0 = 100;
-            uint64 conf0 = 0;
-            int32 expo0 = 0;
-            int64 emaPrice0 = 100;
-            uint64 emaConf0 = 100;
-            uint64 publishTime0 = blockTs;
-            hub.setMockPythFeed(assets[0].pythId, price0, conf0, expo0, emaPrice0, emaConf0, publishTime0);
+        // asset 0
+        int64 price0 = 100;
+        uint64 conf0 = 0;
+        int32 expo0 = 0;
+        int64 emaPrice0 = 100;
+        uint64 emaConf0 = 100;
+        uint64 publishTime0 = blockTs;
+        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
 
-            // asset 1
-            int64 price1 = 90;
-            uint64 conf1 = 0;
-            int32 expo1 = 0;
-            int64 emaPrice1 = 100;
-            uint64 emaConf1 = 100;
-            uint64 publishTime1 = blockTs;
-            hub.setMockPythFeed(assets[1].pythId, price1, conf1, expo1, emaPrice1, emaConf1, publishTime1);
-        }
-        else if(oracleMode == 2){
-            setPrice(assets[0], 100, 0);
-            setPrice(assets[1], 90, 0);
-        }
+        // asset 1
+        int64 price1 = 90;
+        uint64 conf1 = 0;
+        int32 expo1 = 0;
+        int64 emaPrice1 = 100;
+        uint64 emaConf1 = 100;
+        uint64 publishTime1 = blockTs;
+        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+
 
         doRegisterFakeSpoke();
 
@@ -337,31 +317,25 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegister(assets[0]);
         doRegister(assets[1]);
 
-        if(oracleMode == 1){
-            blockTs += 1;
+        blockTs += 1;
 
-            // asset 0
-            int64 price0 = 100;
-            uint64 conf0 = 0;
-            int32 expo0 = 0;
-            int64 emaPrice0 = 100;
-            uint64 emaConf0 = 100;
-            uint64 publishTime0 = blockTs;
-            hub.setMockPythFeed(assets[0].pythId, price0, conf0, expo0, emaPrice0, emaConf0, publishTime0);
+        // asset 0
+        int64 price0 = 100;
+        uint64 conf0 = 0;
+        int32 expo0 = 0;
+        int64 emaPrice0 = 100;
+        uint64 emaConf0 = 100;
+        uint64 publishTime0 = blockTs;
+        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
 
-            // asset 1
-            int64 price1 = 90;
-            uint64 conf1 = 0;
-            int32 expo1 = 0;
-            int64 emaPrice1 = 100;
-            uint64 emaConf1 = 100;
-            uint64 publishTime1 = blockTs;
-            hub.setMockPythFeed(assets[1].pythId, price1, conf1, expo1, emaPrice1, emaConf1, publishTime1);
-        }
-        else if(oracleMode == 2){
-            setPrice(assets[0], 100, 0);
-            setPrice(assets[1], 90, 0);
-        }
+        // asset 1
+        int64 price1 = 90;
+        uint64 conf1 = 0;
+        int32 expo1 = 0;
+        int64 emaPrice1 = 100;
+        uint64 emaConf1 = 100;
+        uint64 publishTime1 = blockTs;
+        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
 
         doRegisterFakeSpoke();
 
@@ -410,31 +384,26 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegister(assets[0]);
         doRegister(assets[1]);
 
-        if(oracleMode == 1){
-            blockTs += 1;
+        blockTs += 1;
 
-            // asset 0
-            int64 price0 = 100;
-            uint64 conf0 = 0;
-            int32 expo0 = 0;
-            int64 emaPrice0 = 100;
-            uint64 emaConf0 = 100;
-            uint64 publishTime0 = blockTs;
-            hub.setMockPythFeed(assets[0].pythId, price0, conf0, expo0, emaPrice0, emaConf0, publishTime0);
+        // asset 0
+        int64 price0 = 100;
+        uint64 conf0 = 0;
+        int32 expo0 = 0;
+        int64 emaPrice0 = 100;
+        uint64 emaConf0 = 100;
+        uint64 publishTime0 = blockTs;
+        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
 
-            // asset 1
-            int64 price1 = 90;
-            uint64 conf1 = 0;
-            int32 expo1 = 0;
-            int64 emaPrice1 = 100;
-            uint64 emaConf1 = 100;
-            uint64 publishTime1 = blockTs;
-            hub.setMockPythFeed(assets[1].pythId, price1, conf1, expo1, emaPrice1, emaConf1, publishTime1);
-        }
-        else if(oracleMode == 2){
-            setPrice(assets[0], 100, 0);
-            setPrice(assets[1], 90, 0);
-        }
+        // asset 1
+        int64 price1 = 90;
+        uint64 conf1 = 0;
+        int32 expo1 = 0;
+        int64 emaPrice1 = 100;
+        uint64 emaConf1 = 100;
+        uint64 publishTime1 = blockTs;
+        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+
 
         doRegisterFakeSpoke();
 
@@ -459,31 +428,26 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegister(assets[0]);
         doRegister(assets[1]);
 
-        if(oracleMode == 1){
-            blockTs += 1;
+        blockTs += 1;
 
-            // asset 0
-            int64 price0 = 100;
-            uint64 conf0 = 0;
-            int32 expo0 = 0;
-            int64 emaPrice0 = 100;
-            uint64 emaConf0 = 100;
-            uint64 publishTime0 = blockTs;
-            hub.setMockPythFeed(assets[0].pythId, price0, conf0, expo0, emaPrice0, emaConf0, publishTime0);
+        // asset 0
+        int64 price0 = 100;
+        uint64 conf0 = 0;
+        int32 expo0 = 0;
+        int64 emaPrice0 = 100;
+        uint64 emaConf0 = 100;
+        uint64 publishTime0 = blockTs;
+        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
 
-            // asset 1
-            int64 price1 = 90;
-            uint64 conf1 = 0;
-            int32 expo1 = 0;
-            int64 emaPrice1 = 100;
-            uint64 emaConf1 = 100;
-            uint64 publishTime1 = blockTs;
-            hub.setMockPythFeed(assets[1].pythId, price1, conf1, expo1, emaPrice1, emaConf1, publishTime1);
-        }
-        else if(oracleMode == 2){
-            setPrice(assets[0], 100, 0);
-            setPrice(assets[1], 90, 0);
-        }
+        // asset 1
+        int64 price1 = 90;
+        uint64 conf1 = 0;
+        int32 expo1 = 0;
+        int64 emaPrice1 = 100;
+        uint64 emaConf1 = 100;
+        uint64 publishTime1 = blockTs;
+        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+
 
         doRegisterFakeSpoke();
 
@@ -519,31 +483,26 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegister(assets[0]);
         doRegister(assets[1]);
 
-        if(oracleMode == 1){
-            blockTs += 1;
+        blockTs += 1;
 
-            // asset 0
-            int64 price0 = 100;
-            uint64 conf0 = 0;
-            int32 expo0 = 0;
-            int64 emaPrice0 = 100;
-            uint64 emaConf0 = 100;
-            uint64 publishTime0 = blockTs;
-            hub.setMockPythFeed(assets[0].pythId, price0, conf0, expo0, emaPrice0, emaConf0, publishTime0);
+        // asset 0
+        int64 price0 = 100;
+        uint64 conf0 = 0;
+        int32 expo0 = 0;
+        int64 emaPrice0 = 100;
+        uint64 emaConf0 = 100;
+        uint64 publishTime0 = blockTs;
+        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
 
-            // asset 1
-            int64 price1 = 90;
-            uint64 conf1 = 0;
-            int32 expo1 = 0;
-            int64 emaPrice1 = 100;
-            uint64 emaConf1 = 100;
-            uint64 publishTime1 = blockTs;
-            hub.setMockPythFeed(assets[1].pythId, price1, conf1, expo1, emaPrice1, emaConf1, publishTime1);
-        }
-        else if(oracleMode == 2){
-            setPrice(assets[0], 100, 0);
-            setPrice(assets[1], 90, 0);
-        }
+        // asset 1
+        int64 price1 = 90;
+        uint64 conf1 = 0;
+        int32 expo1 = 0;
+        int64 emaPrice1 = 100;
+        uint64 emaConf1 = 100;
+        uint64 publishTime1 = blockTs;
+        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+
 
         doRegisterFakeSpoke();
 
@@ -553,21 +512,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doBorrow(vaultOther, assets[1], 500 * 10**18);
 
         // move the price up for borrowed asset
-        if(oracleMode == 1){
-            blockTs += 1;
-
-            // asset 1
-            int64 price1 = 95;
-            uint64 conf1 = 0;
-            int32 expo1 = 0;
-            int64 emaPrice1 = 100;
-            uint64 emaConf1 = 100;
-            uint64 publishTime1 = blockTs;
-            hub.setMockPythFeed(assets[1].pythId, price1, conf1, expo1, emaPrice1, emaConf1, publishTime1);
-        }
-        else if(oracleMode == 2){
-            setPrice(assets[1], 95, 0);
-        }
+        blockTs += 1;
+        price1 = 95;
+        publishTime1 = blockTs;
+        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
 
         // liquidation attempted by msg.sender
         address[] memory assetRepayAddresses = new address[](1);
