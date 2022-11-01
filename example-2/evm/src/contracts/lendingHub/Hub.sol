@@ -29,8 +29,10 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         uint256 collateralizationRatioPrecision_, 
         uint8 initialMaxDecimals_, 
         uint256 maxLiquidationBonus_, 
-        uint256 maxLiquidationPortion, 
-        uint256 maxLiquidationPortionPrecision
+        uint256 maxLiquidationPortion_, 
+        uint256 maxLiquidationPortionPrecision_,
+        uint64 nConf_,
+        uint64 nConfPrecision_
     ) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
@@ -42,12 +44,14 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
         setCollateralizationRatioPrecision(collateralizationRatioPrecision_);
         setMaxLiquidationBonus(maxLiquidationBonus_); // use the precision of the collateralization ratio
-        setMaxLiquidationPortion(maxLiquidationPortion);
-        setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision);
+        setMaxLiquidationPortion(maxLiquidationPortion_);
+        setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision_);
 
         uint validTimePeriod = 60 * (10**18);
         uint singleUpdateFeeInWei = 0;
-        setMockPyth(validTimePeriod, singleUpdateFeeInWei);        
+        setMockPyth(validTimePeriod, singleUpdateFeeInWei);
+
+        setNConf(nConf_, nConfPrecision_);
     }
 
     /**

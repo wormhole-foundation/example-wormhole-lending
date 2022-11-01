@@ -131,6 +131,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         uint256 maxLiquidationPortion = 100;
         uint256 maxLiquidationPortionPrecision = 100;
         uint8 oracleMode = 1;
+        uint64 nConf = 424;
+        uint64 nConfPrecision = 100;
         //console.log(address(wormholeContract));
         //console.log(address(tokenBridgeContract));
 
@@ -148,7 +150,9 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             initialMaxDecimals, 
             maxLiquidationBonus, 
             maxLiquidationPortion, 
-            maxLiquidationPortionPrecision
+            maxLiquidationPortionPrecision,
+            nConf,
+            nConfPrecision
         );
 
         wormholeData = WormholeData({

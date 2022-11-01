@@ -128,4 +128,8 @@ contract HubGetters is Context, HubStructs, HubState {
     function getMockPythPriceStruct(bytes32 pythId) public view returns (PythStructs.Price memory) {
         return _state.provider.mockPyth.getPrice(pythId);
     }
+
+    function getNConf() public view returns (uint64, uint64) {
+        return (_state.nConf, _state.nConfPrecision);
+    }
 }

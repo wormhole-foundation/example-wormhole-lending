@@ -132,8 +132,12 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
             // use conservative (from protocol's perspective) prices for collateral (low) and debt (high)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
-            uint64 priceCollateral = price - 424*conf/100;
-            uint64 priceDebt = price + 424*conf/100;
+            uint64 nConf;
+            uint64 nConfPrecision;
+            (nConf, nConfPrecision) = getNConf();
+
+            uint64 priceCollateral = price - nConf*conf/nConfPrecision;
+            uint64 priceDebt = price + nConf*conf/nConfPrecision;
 
             effectiveNotionalDeposited += denormalizedDeposited * priceCollateral * 10 ** (getMaxDecimals() - assetInfo.decimals) * getCollateralizationRatioPrecision() / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
             effectiveNotionalBorrowed += denormalizedBorrowed * priceDebt * 10 ** (getMaxDecimals() - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision(); 
@@ -168,8 +172,12 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
+        uint64 nConf;
+        uint64 nConfPrecision;
+        (nConf, nConfPrecision) = getNConf();
+
         // use conservative (from protocol's perspective) price for collateral (low)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
-        uint64 priceCollateral = price - 424*conf/100;
+        uint64 priceCollateral = price - nConf*conf/nConfPrecision;
 
         return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * priceCollateral * (10 ** getMaxDecimals()))); 
     }
@@ -195,8 +203,12 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
      
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
         
+        uint64 nConf;
+        uint64 nConfPrecision;
+        (nConf, nConfPrecision) = getNConf();
+
         // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals
-        uint64 priceDebt = price + 424*conf/100;
+        uint64 priceDebt = price + nConf*conf/nConfPrecision;
 
         return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * priceDebt * (10**getMaxDecimals()) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision() ));
 
