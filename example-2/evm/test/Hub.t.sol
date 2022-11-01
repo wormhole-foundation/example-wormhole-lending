@@ -48,6 +48,18 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         hub = testSetUp(vm);
         assets.push(
             TestAsset({
+                assetAddress: 0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
+                asset: IERC20(0x8b82A291F83ca07Af22120ABa21632088fC92931),
+                collateralizationRatioDeposit: 100 * 10 ** 16,
+                collateralizationRatioBorrow: 110 * 10 ** 16,
+                decimals: 18,
+                reserveFactor: 0,
+                pythId: bytes32("ETH")
+            })
+        );
+
+        assets.push(
+            TestAsset({
                 assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
                 asset: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
                 collateralizationRatioDeposit: 100 * 10 ** 16,
@@ -58,20 +70,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
             })
         );
 
-        assets.push(
-            TestAsset({
-                assetAddress: 0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, // WSOL
-                asset: IERC20(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
-                collateralizationRatioDeposit: 100 * 10 ** 16,
-                collateralizationRatioBorrow: 110 * 10 ** 16,
-                decimals: 18,
-                reserveFactor: 0,
-                pythId: bytes32("SOL")
-            })
-        );
-
-        deal(assets[0].assetAddress, address(this), 1000 * 10**assets[0].decimals);
-        deal(assets[1].assetAddress, address(this), 1000 * 10**assets[1].decimals);
+       // deal(assets[0].assetAddress, address(this), 1000 * 10**assets[0].decimals);
+      //  deal(assets[1].assetAddress, address(this), 1000 * 10**assets[1].decimals);
         
         addSpoke(6, vm.envAddress("TESTING_WORMHOLE_ADDRESS"), vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
         
@@ -107,72 +107,85 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
     }
 
-    function testRDPASSPLS() public {
+    function testRD() public {
 
         registerSpokesAndAssets();
 
-        address vault = msg.sender;
+        address user = msg.sender;
 
-        deal(assets[0].assetAddress, vault, 1000);
-        deal(assets[1].assetAddress, vault, 2000);
+        deal(assets[1].assetAddress, user, 1 * 10 ** 17);
+        deal(assets[0].assetAddress, user, 5 * (10 ** 16));
+        console.log("Checkpint -1");
+        vm.prank(user);
+        assets[1].asset.approve(address(spokes[0]), 1 * 10 ** 17);
+        vm.prank(user);
+        assets[0].asset.approve(address(spokes[0]), 5 * (10 ** 16));
+        console.log("Checkpint 0");
+        VaultAmount memory globalBefore = hub.getGlobalAmounts(assets[1].assetAddress);
+        VaultAmount memory vaultBefore = hub.getVaultAmounts(user, assets[1].assetAddress);
+        console.log("Checkpint 1");
+        uint256 balance_user_0_pre = IERC20(assets[0].assetAddress).balanceOf(user);
+        uint256 balance_user_1_pre = IERC20(assets[1].assetAddress).balanceOf(user);
+        console.log("User balances for assets 0 and 1");
+        console.log(balance_user_0_pre);
+        console.log(balance_user_1_pre);
+        console.log("Checkpint 2");
+        uint256 balance_hub_0_pre = IERC20(assets[0].assetAddress).balanceOf(address(hub));
+        uint256 balance_hub_1_pre = IERC20(assets[1].assetAddress).balanceOf(address(hub));
+            console.log("Checkpint 3");
+        vm.prank(user);
+        bytes memory encodedDepositMessage = doDeposit(0, assets[1], 1 * 10 ** 17);
+        console.log("Checkpint 4");
+        vm.prank(user);
+        bytes memory encodedDepositMessage2 = doDeposit(0, assets[0], 5 * (10 ** 16));
 
-        vm.prank(vault);
-        assets[0].asset.approve(address(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS")), 1000);
-
-        
-
-        address assetAddress = assets[0].assetAddress;
-
-        VaultAmount memory globalBefore = hub.getGlobalAmounts(assetAddress);
-        VaultAmount memory vaultBefore = hub.getVaultAmounts(address(this), assetAddress);
-
-        uint256 balance_vault_0_pre = IERC20(assets[0].assetAddress).balanceOf(vault);
-        uint256 balance_vault_1_pre = IERC20(assets[1].assetAddress).balanceOf(vault);
-
-        uint256 balance_tb_0_pre = IERC20(assets[0].assetAddress).balanceOf(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
-        uint256 balance_tb_1_pre = IERC20(assets[1].assetAddress).balanceOf(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
-
-        console.log("Balance of asset 0 in vault BEFORE");
-        console.log(balance_vault_0_pre);
-        console.log("Balance of asset 1 in vault BEFORE");
-        console.log(balance_vault_1_pre);
-        console.log("Balance of asset 0 in token bridge BEFORE");
-        console.log(balance_tb_0_pre);
-        console.log("Balance of asset 1 in token bridge BEFORE");
-        console.log(balance_tb_1_pre);
-        
-
-        registerChain(6, bytes32(uint256(uint160(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS")))));
-        
-        vm.prank(vault);
-        bytes memory encodedDepositMessage = doDeposit(0, assets[0], 1);
-
-        uint256 balance_vault_0_pres = IERC20(assets[0].assetAddress).balanceOf(vault);
-        uint256 balance_vault_1_pres = IERC20(assets[1].assetAddress).balanceOf(vault);
-
-        uint256 balance_tb_0_pres = IERC20(assets[0].assetAddress).balanceOf(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
-        uint256 balance_tb_1_pres = IERC20(assets[1].assetAddress).balanceOf(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
-
-        console.log("Balance of asset 0 in vault AFTER");
-        console.log(balance_vault_0_pres);
-        console.log("Balance of asset 1 in vault AFTER");
-        console.log(balance_vault_1_pres);
-        console.log("Balance of asset 0 in token bridge AFTER");
-        console.log(balance_tb_0_pres);
-        console.log("Balance of asset 1 in token bridge AFTER");
-        console.log(balance_tb_1_pres);
-
+        console.log("Checkpint 5");
         hub.completeDeposit(encodedDepositMessage);
+        hub.completeDeposit(encodedDepositMessage2);
 
-        VaultAmount memory globalAfter = hub.getGlobalAmounts(assetAddress);
-        VaultAmount memory vaultAfter = hub.getVaultAmounts(address(this), assetAddress);
-        // TODO: why does specifying msg.sender fix all?? Seems it assumes incorrect msg.sender by default
+        console.log("TOKEN BRIDGE BALANCE NOW");
+        console.log(IERC20(assets[1].assetAddress).balanceOf(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS")));
+
+         console.log("USER BALANCE NOW");
+        console.log(IERC20(assets[1].assetAddress).balanceOf(user));
+
+         console.log("SPOKE BALANCE NOW");
+        console.log(IERC20(assets[1].assetAddress).balanceOf(address(spokes[0])));
+
+         console.log("HUB BALANCE NOW");
+        console.log(IERC20(assets[1].assetAddress).balanceOf(address(hub)));
+
+        uint256 balance_user_0_post = IERC20(assets[1].assetAddress).balanceOf(user);
+        uint256 balance_user_1_post = IERC20(assets[0].assetAddress).balanceOf(user);
+    
+        uint256 balance_hub_0_post = IERC20(assets[1].assetAddress).balanceOf(address(hub));
+        uint256 balance_hub_1_post = IERC20(assets[0].assetAddress).balanceOf(address(hub));
+
+        VaultAmount memory globalAfter = hub.getGlobalAmounts(assets[1].assetAddress);
+        VaultAmount memory vaultAfter = hub.getVaultAmounts(user, assets[1].assetAddress);
         
         require(globalBefore.deposited == 0, "Deposited not initialized to 0");
-        require(globalAfter.deposited == 1 , "502 wasn't deposited (globally)");
+        require(globalAfter.deposited == 1 * 10 ** 17 , "1 wasn't deposited (globally)");
 
         require(vaultBefore.deposited == 0, "Deposited not initialized to 0");
-        require(vaultAfter.deposited == 1, "502 wasn't deposited (in the vault)");
+        require(vaultAfter.deposited == 1 * 10 ** 17, "1 wasn't deposited (in the vault)");
+
+        require(balance_user_1_pre == 1 * 10 ** 17, "User asset 0 balance not 1 initially");
+        require(balance_user_0_pre == 5 * (10 ** 16) , "User asset 1 balance not 5 * 10^6 initially");
+
+        require(balance_hub_0_pre == 0, "Hub asset 0 balance not 0 initially");
+        require(balance_hub_1_pre == 0, "Hub asset 1 balance not 0 initially");
+
+        require(balance_user_0_post == 0, "User asset 0 balance not 0 after");
+        require(balance_user_1_post == 0 , "User asset 1 balance not 0 after");
+
+        console.log(balance_hub_0_post);
+        console.log(balance_hub_1_post);
+
+
+
+        require(balance_hub_0_post == 1 * 10 ** 17, "Hub asset 0 balance not 1 after");
+        require(balance_hub_1_post == 5 * (10 ** 16), "Hub asset 1 balance not 5 * 10^6 after");
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)

@@ -119,9 +119,6 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         // verify Token Bridge state from fork
         require(tokenBridgeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")), "wrong chainId");
 
-        console.log(tokenBridgeContract.chainId());
-        console.log(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
-
         // foreign token bridge (ethereum)
         //bytes32 foreignTokenBridgeAddress = vm.envBytes32("TESTING_FOREIGN_TOKEN_BRIDGE_ADDRESS");
         //uint16 foreignChainId = uint16(vm.envUint("TESTING_FOREIGN_CHAIN_ID"));
@@ -149,7 +146,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             vm: vm
         });
 
-
+        registerChain(6, bytes32(uint256(uint160(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS")))));
 
       
         return hub;
@@ -255,10 +252,6 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         IWormhole.Signature[] memory sigs = new IWormhole.Signature[](1);
         (sigs[0].v, sigs[0].r, sigs[0].s) = wormholeData.vm.sign(wormholeData.guardianSigner, messageHash);
         sigs[0].guardianIndex = 0;
-
-
-        console.log("GUARDIAN SET INDEX");
-        console.log(wormholeData.wormholeContract.getCurrentGuardianSetIndex());
 
         encodedVM = abi.encodePacked(
             uint8(1), // version
@@ -515,11 +508,9 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             abi.encodePacked(msg.module, msg.action, msg.chainId, msg.emitterChainId, msg.emitterAddress)
         );
 
-            console.log("Registering chain");
         bytes memory registerChainSignedMsg = getSignedWHMsg(payload);
-        console.logBytes(registerChainSignedMsg);
-        console.log("Got signed msg");
-        tokenBridge().registerChain(registerChainSignedMsg);
+
+        wormholeData.tokenBridgeContract.registerChain(registerChainSignedMsg);
         
     }
 

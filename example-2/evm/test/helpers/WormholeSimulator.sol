@@ -80,8 +80,7 @@ contract WormholeSimulator {
 
         // emitterAddress
         vm_.emitterAddress = bytes32(log.topics[1]);
-        console.log("EMITTER ADDRESS");
-        console.log(address(uint160(uint256(vm_.emitterAddress))));
+        
         // sequence
         vm_.sequence = log.data.toUint64(index + 32 - 8);
         index += 32;
