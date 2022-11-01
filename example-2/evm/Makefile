@@ -29,7 +29,7 @@ forge-test: dependencies
 
 .PHONY: forge-test-verbose
 forge-test-verbose: dependencies
-	forge test --fork-url ${TESTING_FORK_RPC} -vvvvv --via-ir
+	forge test --fork-url ${TESTING_FORK_RPC} -vvvv --match-test testRDPASSPLS --via-ir
 
 .PHONY: integration-test
 integration-test: dependencies build

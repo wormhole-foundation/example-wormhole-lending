@@ -38,4 +38,6 @@ interface ITokenBridge {
     ) external returns (bytes memory);
 
     function chainId() external view returns (uint16);
+    
+    function registerChain(bytes memory encodedVM) external;
 }

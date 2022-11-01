@@ -75,12 +75,13 @@ contract WormholeSimulator {
         return keccak256(abi.encodePacked(keccak256(body)));
     }
 
-    function parseVMFromLogs(Vm.Log memory log) internal pure returns (IWormhole.VM memory vm_) {
+    function parseVMFromLogs(Vm.Log memory log) internal view returns (IWormhole.VM memory vm_) {
         uint256 index = 0;
 
         // emitterAddress
         vm_.emitterAddress = bytes32(log.topics[1]);
-
+        console.log("EMITTER ADDRESS");
+        console.log(address(uint160(uint256(vm_.emitterAddress))));
         // sequence
         vm_.sequence = log.data.toUint64(index + 32 - 8);
         index += 32;
