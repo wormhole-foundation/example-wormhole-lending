@@ -50,7 +50,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         checkValidAddress(assetAddress);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 1,
-            sender: address(this)
+            sender: msg.sender
         });
 
         DepositPayload memory depositPayload = DepositPayload({
@@ -69,7 +69,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         checkValidAddress(assetAddress);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 2,
-            sender: address(this)
+            sender: msg.sender
         });
 
         WithdrawPayload memory withdrawPayload = WithdrawPayload({
@@ -88,7 +88,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         checkValidAddress(assetAddress);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 3,
-            sender: address(this)
+            sender: msg.sender
         });
 
         BorrowPayload memory borrowPayload = BorrowPayload({
@@ -107,7 +107,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         checkValidAddress(assetAddress);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 4,
-            sender: address(this)
+            sender: msg.sender
         });
 
         RepayPayload memory repayPayload = RepayPayload({

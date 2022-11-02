@@ -13,6 +13,16 @@ interface ITokenBridge {
         bytes payload;
     }
 
+    struct Transfer {
+        uint8 payloadID;
+        uint256 amount;
+        bytes32 tokenAddress;
+        uint16 tokenChain;
+        bytes32 to;
+        uint16 toChain;
+        uint256 fee;
+    }
+
     function transferTokens(
         address token,
         uint256 amount,
@@ -37,5 +47,9 @@ interface ITokenBridge {
         bytes memory encodedVm
     ) external returns (bytes memory);
 
+    function completeTransfer(bytes memory encodedVm) external;
+
     function chainId() external view returns (uint16);
+    
+    function registerChain(bytes memory encodedVM) external;
 }
