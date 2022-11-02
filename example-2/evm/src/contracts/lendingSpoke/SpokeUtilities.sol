@@ -29,7 +29,7 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
     }
 
     function sendTokenBridgeMessageNative(uint amount, bytes memory payload) internal {
-        tokenBridge().wrapAndTransferETHWithPayload.value(amount)(
+        tokenBridge().wrapAndTransferETHWithPayload{value: amount}(
             hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );
     }
