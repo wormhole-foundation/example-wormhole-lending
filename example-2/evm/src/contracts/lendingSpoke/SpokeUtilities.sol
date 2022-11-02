@@ -28,6 +28,12 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
         );
     }
 
+    function sendTokenBridgeMessageNative(uint amount, bytes memory payload) internal {
+        tokenBridge().wrapAndTransferETHWithPayload.value(amount)(
+            hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
+        );
+    }
+
     function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
         (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);
@@ -53,5 +59,14 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
         // check if asset address is allowed
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
         require(registered_info.exists, "Unregistered asset");
+    }
+
+
+    // function to denormalize amount, taken from wormhole/ethereum/contracts/bridge/Bridge.sol
+    function deNormalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
+        if (decimals > 8) {
+            amount *= 10 ** (decimals - 8);
+        }
+        return amount;
     }
 }

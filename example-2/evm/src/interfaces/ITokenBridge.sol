@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import "../contracts/lendingHub/HubStructs.sol";
+
 interface ITokenBridge {
     struct TransferWithPayload {
         uint8 payloadID;
@@ -38,4 +40,15 @@ interface ITokenBridge {
     ) external returns (bytes memory);
 
     function chainId() external view returns (uint16);
+
+    function wrapAndTransferETHWithPayload(
+        uint16 recipientChain,
+        bytes32 recipient,
+        uint32 nonce,
+        bytes memory payload
+    ) external returns (uint64 sequence);
+
+    function _wrapAndTransferETH(uint256 arbiterFee) external returns (HubStructs.TransferResult memory transferResult);
+
+    // function WETH() public view returns (IWETH);
 }

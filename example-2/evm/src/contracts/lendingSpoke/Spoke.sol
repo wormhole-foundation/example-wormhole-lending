@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../../interfaces/IWormhole.sol";
+import "forge-std/console.sol";
 
 import "./SpokeSetters.sol";
 import "../lendingHub/HubStructs.sol";
@@ -122,5 +123,60 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
     }
 
- 
+
+
+
+
+    // handle deposit of native asset
+    function depositCollateralNative() public payable {
+        // get assetAddress of the wrapped token for payload
+        TransferResult memory transferResult = tokenBridge()._wrapAndTransferETH(0); // figure out how to actually get this data
+        address assetAddress = address(uint160(uint256(transferResult.tokenAddress)));
+        uint256 assetAmount = deNormalizeAmount(transferResult.normalizedAmount, 18); // TODO: confirm this is in same decimals
+
+        console.log(assetAddress);
+        console.log(assetAmount);
+        
+        checkValidAddress(assetAddress);
+        PayloadHeader memory payloadHeader = PayloadHeader({
+            payloadID: 1,
+            sender: address(this)
+        });
+
+        DepositPayload memory depositPayload = DepositPayload({
+            header: payloadHeader,
+            assetAddress: assetAddress,
+            assetAmount: assetAmount
+        });
+
+        // create WH message
+        bytes memory serialized = encodeDepositPayload(depositPayload);
+
+        sendTokenBridgeMessageNative(msg.value, serialized);  
+    }
+
+    // handle repay of native asset
+    function repayNative(uint256 assetAmount) public payable {
+        // get assetAddress of the wrapped token for payload
+        TransferResult memory transferResult = tokenBridge()._wrapAndTransferETH(0);
+        address assetAddress = address(uint160(uint256(transferResult.tokenAddress)));
+        uint256 assetAmount = deNormalizeAmount(transferResult.normalizedAmount, 18); // TODO: confirm this is in same decimals
+
+        checkValidAddress(assetAddress);
+        PayloadHeader memory payloadHeader = PayloadHeader({
+            payloadID: 4,
+            sender: address(this)
+        });
+
+        RepayPayload memory repayPayload = RepayPayload({
+            header: payloadHeader,
+            assetAddress: assetAddress,
+            assetAmount: assetAmount
+        });
+
+        // create WH message
+        bytes memory serialized = encodeRepayPayload(repayPayload);
+
+        sendTokenBridgeMessageNative(msg.value, serialized);
+    }
 }
