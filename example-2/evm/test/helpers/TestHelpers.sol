@@ -255,7 +255,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             IWormhole.WormholeBodyParams({
                 timestamp: 0,
                 nonce: 0,
-                emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")),
+                emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
                 emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
                 sequence: 1,
                 consistencyLevel: 15
@@ -271,7 +271,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             IWormhole.WormholeBodyParams({
                 timestamp: 0,
                 nonce: 0,
-                emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")),
+                emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
                 emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
                 sequence: 1,
                 consistencyLevel: 15
@@ -283,7 +283,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         bytes memory message = abi.encodePacked(
             uint32(0),
             uint32(0),
-            uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")),
+            uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
             bytes32(uint256(uint160(address(this)))), // this should be the spoke address
             uint64(1),
             uint8(15),
@@ -348,7 +348,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     function doRegisterSpoke_FS() internal {
         // register asset
         wormholeData.hub.registerSpoke(
-            uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")), address(this)
+            uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), address(this)
             //2, address(0x1)
         );
     }
