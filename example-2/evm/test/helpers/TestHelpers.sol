@@ -171,7 +171,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             vm: vm
         });
 
-
+        publishTime = 1;
+        
         registerChain(6, bytes32(uint256(uint160(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))));
       
         return hub;
