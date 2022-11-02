@@ -61,6 +61,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     WormholeSpokeData[] wormholeSpokeDataArray;
     WormholeSpokeData wormholeSpokeData;
 
+    uint64 publishTime;
+
     using BytesLib for bytes;
 
     function setSpokeData(uint256 index) internal returns (WormholeSpokeData memory) {
@@ -163,6 +165,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             hub: hub,
             vm: vm
         });
+
+       
 
       
         return hub;
@@ -463,11 +467,22 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         wormholeData.hub.completeWithdraw(encodedVM);
     }
 
-    function setPrice(TestAsset memory asset, int64 price, uint64 conf, int32 expo, int64 emaPrice, uint64 emaConf, uint64 publishTime, uint8 oracleMode) internal {
-        if(oracleMode == 1){
+    function setPrice(TestAsset memory asset, int64 price) internal {
+        // TODO: Fix publish time parameter
+        publishTime += 1;
+       if(wormholeData.hub.getOracleMode() == 1) {
+            wormholeData.hub.setMockPythFeed(asset.pythId, price, 0, 0, 100, 100, publishTime);
+       } else if(wormholeData.hub.getOracleMode() == 2) {
+            wormholeData.hub.setOraclePrice(asset.pythId, Price({price: price, conf: 0, expo: 0, publishTime: publishTime}));
+       }
+    }
+
+    function setPrice(TestAsset memory asset, int64 price, uint64 conf, int32 expo, int64 emaPrice, uint64 emaConf, uint64 publishTime) internal {
+        publishTime += 1;
+        if(wormholeData.hub.getOracleMode() == 1){
             wormholeData.hub.setMockPythFeed(asset.pythId, price, conf, expo, emaPrice, emaConf, publishTime);
         }
-        else if(oracleMode == 2){
+        else if(wormholeData.hub.getOracleMode() == 2){
             wormholeData.hub.setOraclePrice(asset.pythId, Price({price: price, conf: conf, expo: expo, publishTime: publishTime}));
         }
     }
