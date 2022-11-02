@@ -172,15 +172,15 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
 
     function testRD_FS() public {
-        deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 10);
+        deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 18);
         doRegisterAsset(assets[0]);
-        doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 10);
+        doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
     }
 
     function testD_Fail_FS() public {
         // Should fail because there is no registered asset
-        deal(assets[0].assetAddress, msg.sender, 502 * 10 ** 12);
-        doDeposit_FS(msg.sender, assets[0], 502 * 10 ** 12, "Unregistered asset");
+        deal(assets[0].assetAddress, msg.sender, 502 * 10 ** 18);
+        doDeposit_FS(msg.sender, assets[0], 502 * 10 ** 18, "Unregistered asset");
     }
 
     function testRDB_FS() public {

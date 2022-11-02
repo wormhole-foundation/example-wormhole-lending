@@ -285,9 +285,13 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
         (bool check1, bool check2) = allowedToBorrow(borrower, assetAddress, amount);
         console.log("finished allowed to borrow");
+        console.log("blah0");
+        console.log(check1);
         require(check1, "Not enough in global supply");
+        console.log("blah1");
+        console.log(check2);
         require(check2, "Vault is undercollateralized if this borrow goes through");
-        console.log("blah");
+        console.log("blah2");
         // update the interest accrual indices
         updateAccrualIndices(assetAddress);
         console.log("finished allowed to borrow 1");

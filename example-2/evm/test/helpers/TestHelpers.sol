@@ -443,6 +443,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
         uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
         uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(address(vault));
+        console.log(globalAfter.deposited, globalBefore.deposited, assetAmount);
         require(globalAfter.deposited - globalBefore.deposited == assetAmount, "Amount wasn't deposited globally");
         require(vaultAfter.deposited - vaultBefore.deposited == assetAmount, "Amount wasn't deposited in vault");
         require(balanceAfter - balanceBefore == assetAmount, "Amount wasn't transferred to hub");
@@ -590,12 +591,15 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         internal
         returns (bytes memory encodedVM)
     {
+        console.log("WDFS1");
         address assetAddress = asset.assetAddress;
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
         uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
         uint256 balanceUserBefore = IERC20(assetAddress).balanceOf(address(vault));
+
+        console.log("WDFS2");
 
         // create Withdraw payload
         PayloadHeader memory header = PayloadHeader({payloadID: uint8(2), sender: vault});
@@ -605,6 +609,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
         encodedVM = getSignedWHMsgCoreBridge(serialized);
 
+        console.log("WDFS3");
 
         wormholeData.vm.recordLogs();
         // complete withdraw
@@ -613,7 +618,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         }
 
         wormholeData.hub.completeWithdraw(encodedVM);
-
+        console.log("WDFS4");
         Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
         bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
 
@@ -621,6 +626,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
         uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
         
+        console.log("WDFS5");
 
         require(globalBefore.deposited - globalAfter.deposited == assetAmount, "Amount wasn't withdrawn globally");
         require(vaultBefore.deposited - vaultAfter.deposited == assetAmount, "Amount wasn't withdrawn in vault");
@@ -628,7 +634,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
         wormholeData.vm.prank(vault);
         wormholeData.tokenBridgeContract.completeTransfer(encodedMessage);
-
+        console.log("WDFS6");
         uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(address(vault));
         require(balanceUserAfter - balanceUserBefore == assetAmount, "Amount wasn't transferred to user");
     }

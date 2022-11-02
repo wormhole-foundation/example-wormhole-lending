@@ -211,7 +211,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals
         uint256 priceDebt = uint256(price + nConf*conf/nConfPrecision);
 
-        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue) >= assetAmount * priceDebt  * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision()* (10**(getMaxDecimals() - assetInfo.decimals)) ));
+        bool check1 = (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount);
+        bool check2 = (vaultDepositedValue - vaultBorrowedValue) >= assetAmount * priceDebt  * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision()* (10**(getMaxDecimals() - assetInfo.decimals));
+        return (check1, check2);
 
     }
 
@@ -280,10 +282,13 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * Errors out if assetAddress has not been registered yet
     * @param assetAddress - The address to be checked
     */
-    function checkValidAddress(address assetAddress) internal view {
+    function checkValidAddress(address assetAddress) internal {
         // check if asset address is allowed
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
+        console.log(registered_info.exists);
         require(registered_info.exists, "Unregistered asset");
+        require(false, "WHAT");
+        console.log("got past here");
     }
 
     // TODO: Write docstrings for these functions
@@ -361,8 +366,9 @@ console.log("4.83");
 
     function transferTokens(address receiver, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), amount);
-        console.log("finished allowed to borrow 88");
+        console.log("init token transfer");
         tokenBridge().transferTokens(assetAddress, amount, recipientChain, bytes32(uint256(uint160(receiver))), 0, 0);
+        console.log("finished token transfer");
     }
 
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
