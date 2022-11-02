@@ -26,15 +26,15 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
     }
 
     function sendTokenBridgeMessage(address assetAddress, uint256 assetAmount, bytes memory payload) internal {
-        console.log("HELLO 1");
+
         SafeERC20.safeTransferFrom(IERC20(assetAddress), msg.sender, address(this), assetAmount);
-        console.log("HELLO 2");
+
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), assetAmount);
-        console.log("HELLO 3");
+
         tokenBridge().transferTokensWithPayload(
             assetAddress, assetAmount, hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );
-        console.log("HELLO 4");
+
     }
 
     function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {

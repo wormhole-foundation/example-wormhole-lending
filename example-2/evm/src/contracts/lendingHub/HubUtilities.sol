@@ -244,7 +244,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     }
 
     function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
-
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
 

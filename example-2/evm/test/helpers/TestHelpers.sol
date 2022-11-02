@@ -179,6 +179,30 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         );
     }
 
+    function encodePayload1Message(
+        ITokenBridge.Transfer memory transfer,
+        // wormhole related
+        IWormhole.WormholeBodyParams memory wormholeParams
+    ) public pure returns (bytes memory encoded) {
+        encoded = abi.encodePacked(
+            wormholeParams.timestamp,
+            wormholeParams.nonce,
+            wormholeParams.emitterChainId,
+            wormholeParams.emitterAddress,
+            wormholeParams.sequence,
+            wormholeParams.consistencyLevel,
+            abi.encodePacked(
+                transfer.payloadID,
+                transfer.amount,
+                transfer.tokenAddress,
+                transfer.tokenChain,
+                transfer.to,
+                transfer.toChain,
+                transfer.fee
+            )
+        );
+    }
+
     function encodeVM(
         uint8 version,
         uint32 timestamp,
@@ -195,23 +219,35 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     }
 
     function getWrappedInfo(address assetAddress) internal pure returns (ITokenImplementation wrapped) {
-        //
         wrapped = ITokenImplementation(assetAddress);
-        //console.log("wrapped chain id", wrapped.chainId());
-        //console.log("wrapped native contract");
-        //console.logBytes32(wrapped.nativeContract());
     }
 
     function getMessageFromTransferTokenBridge(
         ITokenBridge.TransferWithPayload memory transfer
-    ) internal view returns (bytes memory message) {
+    ) internal returns (bytes memory message) {
         message = encodePayload3Message(
             transfer,
             IWormhole.WormholeBodyParams({
                 timestamp: 0,
                 nonce: 0,
-                emitterChainId: 2,
-                emitterAddress: 0x0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585,
+                emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")),
+                emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS")))),
+                sequence: 1,
+                consistencyLevel: 15
+            })
+        );
+    }
+
+    function getMessageFromTransferTokenBridge(
+        ITokenBridge.Transfer memory transfer
+    ) internal returns (bytes memory message) {
+        message = encodePayload1Message(
+            transfer,
+            IWormhole.WormholeBodyParams({
+                timestamp: 0,
+                nonce: 0,
+                emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")),
+                emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS")))),
                 sequence: 1,
                 consistencyLevel: 15
             })
@@ -222,8 +258,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         bytes memory message = abi.encodePacked(
             uint32(0),
             uint32(0),
-            uint16(2),
-            bytes32(uint256(uint160(address(0x1)))), // this should be the spoke address
+            uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")),
+            bytes32(uint256(uint160(address(this)))), // this should be the spoke address
             uint64(1),
             uint8(15),
             payload
@@ -233,6 +269,15 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     }
 
     function getSignedWHMsgTransferTokenBridge(ITokenBridge.TransferWithPayload memory transfer)
+        internal
+        returns (bytes memory encodedVM)
+    {
+        bytes memory message = getMessageFromTransferTokenBridge(transfer);
+
+        encodedVM = getSignedWHMsg(message);
+    }
+
+    function getSignedWHMsgTransferTokenBridge(ITokenBridge.Transfer memory transfer)
         internal
         returns (bytes memory encodedVM)
     {
@@ -278,7 +323,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     function doRegisterSpoke_FS() internal {
         // register asset
         wormholeData.hub.registerSpoke(
-            2, address(0x1)
+            uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")), address(this)
+            //2, address(0x1)
         );
     }
 
@@ -292,6 +338,13 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         );
         Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
         bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+
+        AssetInfo memory info = wormholeData.hub.getAssetInfo(asset.assetAddress);
+
+        require(
+            (info.collateralizationRatioDeposit == asset.collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == asset.collateralizationRatioBorrow) && (info.decimals == asset.decimals) && (info.pythId == asset.pythId) && (info.exists) && (info.interestRateModel.ratePrecision == 1 * 10 ** 18) && (info.interestRateModel.rateIntercept == 0) && (info.interestRateModel.rateCoefficientA == 0) && (info.interestRateModel.reserveFactor == asset.reserveFactor) && (info.interestRateModel.reservePrecision == reservePrecision),
+            "didn't register properly" 
+        );
         return encodedMessage;
     }
 
@@ -318,6 +371,15 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         returns (bytes memory encodedVM)
     {
         address assetAddress = asset.assetAddress;
+
+        VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserBefore = IERC20(assetAddress).balanceOf(address(vault));
+
+        wormholeData.vm.prank(vault);
+        IERC20(assetAddress).transfer(address(wormholeData.tokenBridgeContract), assetAmount);
+
         // create Deposit payload
         PayloadHeader memory header = PayloadHeader({
             payloadID: uint8(1),
@@ -334,12 +396,12 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         // TokenBridgePayload
         ITokenBridge.TransferWithPayload memory transfer = ITokenBridge.TransferWithPayload({
             payloadID: 3,
-            amount: assetAmount,
+            amount: normalizeAmountWithinTokenBridge(assetAmount, asset.decimals),
             tokenAddress: wrapped.nativeContract(),
             tokenChain: wrapped.chainId(),
             to: bytes32(uint256(uint160(address(wormholeData.hub)))),
             toChain: wormholeData.wormholeContract.chainId(),
-            fromAddress: bytes32(uint256(uint160(msg.sender))),
+            fromAddress: bytes32(uint256(uint160(vault))),
             payload: serialized
         });
      
@@ -350,6 +412,15 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             wormholeData.vm.expectRevert(bytes(revertString));
         }
         wormholeData.hub.completeDeposit(encodedVM);
+
+        VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(address(vault));
+        require(globalAfter.deposited - globalBefore.deposited == assetAmount, "Amount wasn't deposited globally");
+        require(vaultAfter.deposited - vaultBefore.deposited == assetAmount, "Amount wasn't deposited in vault");
+        require(balanceAfter - balanceBefore == assetAmount, "Amount wasn't transferred to hub");
+        require(balanceUserBefore - balanceUserAfter == assetAmount, "Amount wasn't transferred from user");
         
     }
 
@@ -367,6 +438,15 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         returns (bytes memory encodedVM)
     {
         address assetAddress = asset.assetAddress;
+
+        VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserBefore = IERC20(assetAddress).balanceOf(address(vault));
+
+        wormholeData.vm.prank(vault);
+        IERC20(assetAddress).transfer(address(wormholeData.tokenBridgeContract), assetAmount);
+
         // create Repay payload
         PayloadHeader memory header = PayloadHeader({
             payloadID: uint8(4),
@@ -383,12 +463,12 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         // TokenBridgePayload
         ITokenBridge.TransferWithPayload memory transfer = ITokenBridge.TransferWithPayload({
             payloadID: 3,
-            amount: assetAmount,
+            amount: normalizeAmountWithinTokenBridge(assetAmount, asset.decimals),
             tokenAddress: wrapped.nativeContract(),
             tokenChain: wrapped.chainId(),
             to: bytes32(uint256(uint160(address(wormholeData.hub)))),
             toChain: wormholeData.wormholeContract.chainId(),
-            fromAddress: bytes32(uint256(uint160(msg.sender))),
+            fromAddress: bytes32(uint256(uint160(vault))),
             payload: serialized
         });
 
@@ -399,6 +479,15 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             wormholeData.vm.expectRevert(bytes(revertString));
         }
         wormholeData.hub.completeRepay(encodedVM);
+
+        VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(address(vault));
+        require(globalBefore.borrowed - globalAfter.borrowed == assetAmount, "Amount wasn't repayed globally");
+        require(vaultBefore.borrowed - vaultAfter.borrowed == assetAmount, "Amount wasn't repayed in vault");
+        require(balanceAfter - balanceBefore == assetAmount, "Amount wasn't transferred to hub");
+        require(balanceUserBefore - balanceUserAfter == assetAmount, "Amount wasn't transferred from user");
     }
 
     function doBorrow_FS(address vault, TestAsset memory asset, uint256 assetAmount) internal returns (bytes memory encodedVM) {
@@ -415,6 +504,12 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         returns (bytes memory encodedVM)
     {
         address assetAddress = asset.assetAddress;
+
+        VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserBefore = IERC20(assetAddress).balanceOf(vault);
+
         // create Borrow payload
         PayloadHeader memory header = PayloadHeader({
             payloadID: uint8(3),
@@ -424,28 +519,36 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             BorrowPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
         bytes memory serialized = encodeBorrowPayload(myPayload);
 
-        // // get wrapped info
-        // ITokenImplementation wrapped = getWrappedInfo(assetAddress);
-
-        // // TokenBridgePayload
-        // ITokenBridge.TransferWithPayload memory transfer = ITokenBridge.TransferWithPayload({
-        //     payloadID: 3,
-        //     amount: assetAmount,
-        //     tokenAddress: wrapped.nativeContract(),
-        //     tokenChain: wrapped.chainId(),
-        //     to: bytes32(uint256(uint160(address(wormholeData.hub)))),
-        //     toChain: wormholeData.wormholeContract.chainId(),
-        //     fromAddress: bytes32(uint256(uint160(msg.sender))),
-        //     payload: serialized
-        // });
-
-        encodedVM = getSignedWHMsgCoreBridge(serialized);
+        bytes memory encodedVM = getSignedWHMsgCoreBridge(serialized);
 
         // complete borrow
+        wormholeData.vm.recordLogs();
+      
          if(expectRevert) {
             wormholeData.vm.expectRevert(bytes(revertString));
         }
+
         wormholeData.hub.completeBorrow(encodedVM);
+
+        Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
+        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+
+        VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        
+
+        require(globalAfter.borrowed - globalBefore.borrowed == assetAmount, "Amount wasn't borrowed globally");
+        require(vaultAfter.borrowed - vaultBefore.borrowed == assetAmount, "Amount wasn't borrowed in vault");
+        require(balanceBefore - balanceAfter == assetAmount, "Amount wasn't transferred from hub");
+
+        wormholeData.vm.prank(vault);
+        wormholeData.tokenBridgeContract.completeTransfer(encodedMessage);
+
+        
+        uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(vault);
+
+        require(balanceUserAfter - balanceUserBefore == assetAmount, "Amount wasn't transferred to user");
     }
 
     function doWithdraw_FS(address vault, TestAsset memory asset, uint256 assetAmount) internal returns (bytes memory encodedVM) {
@@ -462,6 +565,12 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         returns (bytes memory encodedVM)
     {
         address assetAddress = asset.assetAddress;
+
+        VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserBefore = IERC20(assetAddress).balanceOf(address(vault));
+
         // create Withdraw payload
         PayloadHeader memory header = PayloadHeader({payloadID: uint8(2), sender: vault});
         WithdrawPayload memory myPayload =
@@ -470,11 +579,32 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
         encodedVM = getSignedWHMsgCoreBridge(serialized);
 
+
+        wormholeData.vm.recordLogs();
         // complete withdraw
         if(expectRevert) {
             wormholeData.vm.expectRevert(bytes(revertString));
         }
+
         wormholeData.hub.completeWithdraw(encodedVM);
+
+        Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
+        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+
+        VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        
+
+        require(globalBefore.deposited - globalAfter.deposited == assetAmount, "Amount wasn't withdrawn globally");
+        require(vaultBefore.deposited - vaultAfter.deposited == assetAmount, "Amount wasn't withdrawn in vault");
+        require(balanceBefore - balanceAfter == assetAmount, "Amount wasn't transferred from hub");
+
+        wormholeData.vm.prank(vault);
+        wormholeData.tokenBridgeContract.completeTransfer(encodedMessage);
+
+        uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(address(vault));
+        require(balanceUserAfter - balanceUserBefore == assetAmount, "Amount wasn't transferred to user");
     }
 
     function setPrice(TestAsset memory asset, int64 price) internal {
@@ -512,6 +642,13 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
         wormholeData.tokenBridgeContract.registerChain(registerChainSignedMsg);
         
+    }
+
+    function normalizeAmountWithinTokenBridge(uint256 amount, uint8 decimals) internal pure returns(uint256){
+        if (decimals > 8) {
+            amount /= 10 ** (decimals - 8);
+        }
+        return amount;
     }
 
 }
