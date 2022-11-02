@@ -26,6 +26,8 @@ import {TestHelpers} from "./helpers/TestHelpers.sol";
 
 import {Spoke} from "../src/contracts/lendingSpoke/Spoke.sol";
 
+import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
+
 contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, TestHelpers {
     using BytesLib for bytes;
 
@@ -46,6 +48,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
     function setUp() public {
         hub = testSetUp(vm);
+
         assets.push(
             TestAsset({
                 assetAddress: 0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
@@ -54,7 +57,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
                 reserveFactor: 0,
-                pythId: bytes32("ETH")
+                pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_bnb") // bytes32("BNB")
             })
         );
 
@@ -66,18 +69,22 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
                 reserveFactor: 0,
-                pythId: bytes32("BNB")
+                pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_sol") // bytes32("SOL")
             })
         );
 
-       // deal(assets[0].assetAddress, address(this), 1000 * 10**assets[0].decimals);
-      //  deal(assets[1].assetAddress, address(this), 1000 * 10**assets[1].decimals);
-        
-        addSpoke(6, vm.envAddress("TESTING_WORMHOLE_ADDRESS"), vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
-        
+        int64 startPrice = 0;
+        uint64 startConf = 0;
+        int32 startExpo = 0;
+        int64 startEmaPrice = 0;
+        uint64 startEmaConf = 0;
+        uint64 startPublishTime = 1;
+        for(uint i=0; i<assets.length; i++){
+            hub.setMockPythFeed(assets[i].pythId, startPrice, startConf, startExpo, startEmaPrice, startEmaConf, startPublishTime);
+        }
+
+        addSpoke(uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"), vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX"));
         setSpokeData(0);
-
-
 
     }
 
@@ -192,6 +199,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit_FS(msg.sender, assets[0], 500 * 10 ** 18);
         doDeposit_FS(address(0x1), assets[1], 600 * 10 ** 18);
 
+
         doBorrow_FS(msg.sender, assets[1], 500 * 10 ** 18);
 
     }
@@ -210,6 +218,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doRegisterSpoke_FS();
 
+
         doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
         doDeposit_FS(address(0x1), assets[1], 6 * 10 ** 18);
 
@@ -226,6 +235,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegisterAsset(assets[1]);
 
         doRegisterSpoke_FS();
+
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
@@ -247,11 +257,13 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doRegisterSpoke_FS();
 
+
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
         doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
         doDeposit_FS(address(0x1), assets[1], 6 * 10 ** 18);
+
 
         doBorrow_FS(msg.sender, assets[1], 5 * 10 ** 18);
     
@@ -266,6 +278,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegisterAsset(assets[0]);
         doRegisterAsset(assets[1]);
         
+
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
@@ -296,9 +309,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
-
+        
         doRegisterSpoke_FS();
-
 
         doDeposit_FS(msg.sender, assets[0], 500 * 10 ** 16);
         doDeposit_FS(address(0x1), assets[1], 600 * 10 ** 16);
@@ -319,6 +331,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doRegisterAsset(assets[0]);
         doRegisterAsset(assets[1]);
+
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);

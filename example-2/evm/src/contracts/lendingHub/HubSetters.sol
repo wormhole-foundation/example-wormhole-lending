@@ -5,6 +5,10 @@ import "./HubState.sol";
 import "./HubStructs.sol";
 import "./HubGetters.sol";
 
+import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
+import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
+import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
+
 contract HubSetters is HubStructs, HubState, HubGetters {
     function setOwner(address owner) internal {
         _state.owner = owner;
@@ -23,7 +27,11 @@ contract HubSetters is HubStructs, HubState, HubGetters {
     }
 
     function setPyth(address pythAddress) internal {
-        _state.provider.pyth = pythAddress;
+        _state.provider.pyth = IPyth(pythAddress);
+    }
+
+    function setOracleMode(uint8 oracleMode) internal {
+        _state.oracleMode = oracleMode;
     }
 
     function setConsistencyLevel(uint8 consistencyLevel) internal {
@@ -95,11 +103,20 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         _state.oracle[oracleId] = price;
     }
 
-    function setMaxLiquidationPortion(uint256 maxLiquidationPortion) internal returns (uint256) {
+    function setMaxLiquidationPortion(uint256 maxLiquidationPortion) internal {
         _state.maxLiquidationPortion = maxLiquidationPortion;
     }
 
-    function setMaxLiquidationPortionPrecision(uint256 maxLiquidationPortionPrecision) internal returns (uint256) {
+    function setMaxLiquidationPortionPrecision(uint256 maxLiquidationPortionPrecision) internal {
         _state.maxLiquidationPortionPrecision = maxLiquidationPortionPrecision;
+    }
+
+    function setMockPyth(uint validTimePeriod, uint singleUpdateFeeInWei) internal {
+        _state.provider.mockPyth = new MockPyth(validTimePeriod, singleUpdateFeeInWei);
+    }
+
+    function setNConf(uint64 nConf, uint64 nConfPrecision) internal {
+        _state.nConf = nConf;
+        _state.nConfPrecision = nConfPrecision;
     }
 }

@@ -61,6 +61,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     WormholeSpokeData[] wormholeSpokeDataArray;
     WormholeSpokeData wormholeSpokeData;
 
+    uint64 publishTime;
+
     using BytesLib for bytes;
 
     function setSpokeData(uint256 index) internal returns (WormholeSpokeData memory) {
@@ -77,7 +79,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         IWormhole wormholeContract = wormholeSimulator.wormhole();
         ITokenBridge tokenBridgeContract = ITokenBridge(tokenBridgeAddress);
 
-        uint16 hubChainId = uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID"));
+        uint16 hubChainId = uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX"));
+
         Spoke spoke = new Spoke(chainId, wormholeAddress, tokenBridgeAddress, hubChainId, address(wormholeData.hub));
         wormholeSpokeDataArray.push(WormholeSpokeData({
             foreignTokenBridgeAddress: bytes32(uint256(uint160(tokenBridgeAddress))),
@@ -100,28 +103,31 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
 
         // set up Wormhole using Wormhole existing
         WormholeSimulator wormholeSimulator =
-            new WormholeSimulator(vm.envAddress("TESTING_WORMHOLE_ADDRESS"), guardianSigner);
+            new WormholeSimulator(vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"), guardianSigner);
 
         // we may need to interact with Wormhole throughout the test
         IWormhole wormholeContract = wormholeSimulator.wormhole();
 
         // verify Wormhole state from fork
-        require(wormholeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")), "wrong chainId");
-        require(wormholeContract.messageFee() == vm.envUint("TESTING_WORMHOLE_MESSAGE_FEE"), "wrong messageFee");
+        require(wormholeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), "wrong chainId");
+        require(wormholeContract.messageFee() == vm.envUint("TESTING_WORMHOLE_MESSAGE_FEE_AVAX"), "wrong messageFee");
         require(
-            wormholeContract.getCurrentGuardianSetIndex() == uint32(vm.envUint("TESTING_WORMHOLE_GUARDIAN_SET_INDEX")),
+            wormholeContract.getCurrentGuardianSetIndex() == uint32(vm.envUint("TESTING_WORMHOLE_GUARDIAN_SET_INDEX_AVAX")),
             "wrong guardian set index"
         );
 
         // set up Token Bridge
-        ITokenBridge tokenBridgeContract = ITokenBridge(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS"));
+        ITokenBridge tokenBridgeContract = ITokenBridge(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX"));
 
         // verify Token Bridge state from fork
-        require(tokenBridgeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")), "wrong chainId");
+        require(tokenBridgeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), "wrong chainId");
 
         // foreign token bridge (ethereum)
         //bytes32 foreignTokenBridgeAddress = vm.envBytes32("TESTING_FOREIGN_TOKEN_BRIDGE_ADDRESS");
         //uint16 foreignChainId = uint16(vm.envUint("TESTING_FOREIGN_CHAIN_ID"));
+
+        // TODO: set up MockPyth contract
+        
 
         // initialize Hub contract
         uint8 wormholeFinality = 1;
@@ -131,11 +137,30 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         uint256 maxLiquidationBonus = 105 * 10**16;
         uint256 maxLiquidationPortion = 100;
         uint256 maxLiquidationPortionPrecision = 100;
+        uint8 oracleMode = 1;
+        uint64 nConf = 424;
+        uint64 nConfPrecision = 100;
         //console.log(address(wormholeContract));
         //console.log(address(tokenBridgeContract));
 
+        address pythAddress = vm.envAddress("TESTING_PYTH_ADDRESS_AVAX");
+
         Hub hub =
-        new Hub(address(wormholeContract), address(tokenBridgeContract), msg.sender, wormholeFinality, interestAccrualIndexPrecision, collateralizationRatioPrecision, initialMaxDecimals, maxLiquidationBonus, maxLiquidationPortion, maxLiquidationPortionPrecision);
+        new Hub(
+            address(wormholeContract), 
+            address(tokenBridgeContract), 
+            pythAddress, 
+            oracleMode,
+            wormholeFinality, 
+            interestAccrualIndexPrecision, 
+            collateralizationRatioPrecision, 
+            initialMaxDecimals, 
+            maxLiquidationBonus, 
+            maxLiquidationPortion, 
+            maxLiquidationPortionPrecision,
+            nConf,
+            nConfPrecision
+        );
 
         wormholeData = WormholeData({
             guardianSigner: guardianSigner,
@@ -146,8 +171,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
             vm: vm
         });
 
-        registerChain(6, bytes32(uint256(uint160(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS")))));
 
+        registerChain(6, bytes32(uint256(uint160(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))));
       
         return hub;
     }
@@ -231,7 +256,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
                 timestamp: 0,
                 nonce: 0,
                 emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")),
-                emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS")))),
+                emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
                 sequence: 1,
                 consistencyLevel: 15
             })
@@ -247,7 +272,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
                 timestamp: 0,
                 nonce: 0,
                 emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID")),
-                emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS")))),
+                emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
                 sequence: 1,
                 consistencyLevel: 15
             })
@@ -608,7 +633,23 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     }
 
     function setPrice(TestAsset memory asset, int64 price) internal {
-        wormholeData.hub.setOraclePrice(asset.pythId, Price({price: price, conf: 10, expo: 1, publishTime: 1}));
+        // TODO: Fix publish time parameter
+        publishTime += 1;
+       if(wormholeData.hub.getOracleMode() == 1) {
+            wormholeData.hub.setMockPythFeed(asset.pythId, price, 0, 0, 100, 100, publishTime);
+       } else if(wormholeData.hub.getOracleMode() == 2) {
+            wormholeData.hub.setOraclePrice(asset.pythId, Price({price: price, conf: 0, expo: 0, publishTime: publishTime}));
+       }
+    }
+
+    function setPrice(TestAsset memory asset, int64 price, uint64 conf, int32 expo, int64 emaPrice, uint64 emaConf, uint64 publishTime) internal {
+        publishTime += 1;
+        if(wormholeData.hub.getOracleMode() == 1){
+            wormholeData.hub.setMockPythFeed(asset.pythId, price, conf, expo, emaPrice, emaConf, publishTime);
+        }
+        else if(wormholeData.hub.getOracleMode() == 2){
+            wormholeData.hub.setOraclePrice(asset.pythId, Price({price: price, conf: conf, expo: expo, publishTime: publishTime}));
+        }
     }
 
     struct RegisterChainMessage {

@@ -4,6 +4,10 @@ pragma solidity ^0.8.0;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
+import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
+import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
+
 import "../../interfaces/IWormhole.sol";
 
 import "forge-std/console.sol";
@@ -15,18 +19,39 @@ import "./HubGetters.sol";
 import "./HubUtilities.sol"; 
 
 contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
-    constructor(address wormhole_, address tokenBridge_, address mockPythAddress_, uint8 consistencyLevel_, uint256 interestAccrualIndexPrecision_, uint256 collateralizationRatioPrecision_, uint8 initialMaxDecimals_, uint256 maxLiquidationBonus_, uint256 maxLiquidationPortion, uint256 maxLiquidationPortionPrecision) {
+    constructor(
+        address wormhole_, 
+        address tokenBridge_, 
+        address pythAddress_,
+        uint8 oracleMode_,
+        uint8 consistencyLevel_, 
+        uint256 interestAccrualIndexPrecision_, 
+        uint256 collateralizationRatioPrecision_, 
+        uint8 initialMaxDecimals_, 
+        uint256 maxLiquidationBonus_, 
+        uint256 maxLiquidationPortion_, 
+        uint256 maxLiquidationPortionPrecision_,
+        uint64 nConf_,
+        uint64 nConfPrecision_
+    ) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
-        setPyth(mockPythAddress_);
+        setPyth(pythAddress_);
+        setOracleMode(oracleMode_);
         setMaxDecimals(initialMaxDecimals_);
         setConsistencyLevel(consistencyLevel_);
         setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
         setCollateralizationRatioPrecision(collateralizationRatioPrecision_);
         setMaxLiquidationBonus(maxLiquidationBonus_); // use the precision of the collateralization ratio
-        setMaxLiquidationPortion(maxLiquidationPortion);
-        setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision);
+        setMaxLiquidationPortion(maxLiquidationPortion_);
+        setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision_);
+
+        uint validTimePeriod = 60 * (10**18);
+        uint singleUpdateFeeInWei = 0;
+        setMockPyth(validTimePeriod, singleUpdateFeeInWei);
+
+        setNConf(nConf_, nConfPrecision_);
     }
 
     /**

@@ -64,20 +64,41 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * @return {uint64} The price (in USD) of the asset, from Pyth 
     * TODO: Elaborate on the above line 
     */
-    function getOraclePrices(address assetAddress) internal view returns (uint64) {
+    function getOraclePrices(address assetAddress) internal view returns (uint64, uint64) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+        
+        uint8 oracleMode = getOracleMode();
 
-        // getting oracle price via hubgetters fn (TODO: remove if we get oracle contract up and running)
-        Price memory oraclePrice = getOraclePrice(assetInfo.pythId);
-        // IMockPyth.PriceFeed memory feed = mockPyth().queryPriceFeed(assetInfo.pythId);
+        int64 priceValue;
+        uint64 confValue;
 
-        // sanity check the price feeds
-        require(oraclePrice.price > 0, "negative prices detected");
-        // require(feed.price.price > 0, "negative prices detected");
+        if(oracleMode == 0) {
+            // using Pyth price        
+            PythStructs.Price memory oraclePrice = getPythPriceStruct(assetInfo.pythId);
 
+            priceValue = oraclePrice.price;
+            confValue = oraclePrice.conf;
+        }
+        else if(oracleMode == 1) {
+            // using mock Pyth price
+            PythStructs.Price memory oraclePrice = getMockPythPriceStruct(assetInfo.pythId);
+
+            priceValue = oraclePrice.price;
+            confValue = oraclePrice.conf;
+        }
+        else {
+            // using fake oracle price
+            Price memory oraclePrice = getOraclePrice(assetInfo.pythId);
+            
+            priceValue = oraclePrice.price;
+            confValue = oraclePrice.conf;
+        }
+
+        require(priceValue >= 0, "no negative price assets allowed in XC borrow-lend");
+        
         // Users of Pyth prices should read: https://docs.pyth.network/consumers/best-practices
         // before using the price feed. Blindly using the price alone is not recommended.
-        return uint64(oraclePrice.price);
+        return (uint64(priceValue), confValue);
         // return uint64(feed.price.price);
     }
 
@@ -99,7 +120,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             
             VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, asset);
 
-            uint64 price = getOraclePrices(asset);
+            uint64 price;
+            uint64 conf;
+            (price, conf) = getOraclePrices(asset);
             
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
@@ -108,9 +131,16 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
             uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
 
-            effectiveNotionalDeposited += denormalizedDeposited * price * 10 ** (getMaxDecimals() - assetInfo.decimals) * getCollateralizationRatioPrecision() / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
+            // use conservative (from protocol's perspective) prices for collateral (low) and debt (high)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
+            uint64 nConf;
+            uint64 nConfPrecision;
+            (nConf, nConfPrecision) = getNConf();
 
-            effectiveNotionalBorrowed += denormalizedBorrowed * price * 10 ** (getMaxDecimals() - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision(); 
+            uint64 priceCollateral = price - nConf*conf/nConfPrecision;
+            uint64 priceDebt = price + nConf*conf/nConfPrecision;
+
+            effectiveNotionalDeposited += denormalizedDeposited * priceCollateral * 10 ** (getMaxDecimals() - assetInfo.decimals) * getCollateralizationRatioPrecision() / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += denormalizedBorrowed * priceDebt * 10 ** (getMaxDecimals() - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision(); 
 
         }    
 
@@ -132,7 +162,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
-        uint64 price = getOraclePrices(assetAddress);
+        uint64 price;
+        uint64 conf;
+        (price, conf) = getOraclePrices(assetAddress);
 
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner); 
 
@@ -140,7 +172,14 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * price * (10 ** getMaxDecimals()))); 
+        uint64 nConf;
+        uint64 nConfPrecision;
+        (nConf, nConfPrecision) = getNConf();
+
+        // use conservative (from protocol's perspective) price for collateral (low)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
+        uint64 priceCollateral = price - nConf*conf/nConfPrecision;
+
+        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * priceCollateral * (10 ** getMaxDecimals()))); 
     }
 
     /** 
@@ -156,13 +195,22 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
-        uint64 price = getOraclePrices(assetAddress);
+        uint64 price;
+        uint64 conf;
+        (price, conf) = getOraclePrices(assetAddress);
      
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
      
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
         
-        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * price * (10**getMaxDecimals()) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision() ));
+        uint64 nConf;
+        uint64 nConfPrecision;
+        (nConf, nConfPrecision) = getNConf();
+
+        // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals
+        uint64 priceDebt = price + nConf*conf/nConfPrecision;
+
+        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * priceDebt * (10**getMaxDecimals()) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision() ));
 
     }
 
@@ -180,6 +228,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault); 
 
+        console.log(vaultDepositedValue, vaultBorrowedValue);
         require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");
         
         uint256 notionalRepaid = 0;
@@ -190,7 +239,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             address asset = assetRepayAddresses[i];
             uint256 amount = assetRepayAmounts[i];
 
-            uint64 price = getOraclePrices(asset);
+            uint64 price;
+            uint64 conf;
+            (price, conf) = getOraclePrices(asset);
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
@@ -202,7 +253,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             address asset = assetReceiptAddresses[i];
             uint256 amount = assetReceiptAmounts[i];
 
-            uint64 price = getOraclePrices(asset);
+            uint64 price;
+            uint64 conf;
+            (price, conf) = getOraclePrices(asset);
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
@@ -332,6 +385,33 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         // do some stuff
         
+    }
+
+    function setMockPythFeed(
+        bytes32 id,
+        int64 price,
+        uint64 conf,
+        int32 expo,
+        int64 emaPrice,
+        uint64 emaConf,
+        uint64 publishTime
+    ) public {
+        bytes memory priceFeedData = _state.provider.mockPyth.createPriceFeedUpdateData(
+            id,
+            price,
+            conf,
+            expo,
+            emaPrice,
+            emaConf,
+            publishTime
+        );
+
+        bytes[] memory updateData = new bytes[](1);
+        updateData[0] = priceFeedData;
+
+        _state.provider.mockPyth.updatePriceFeeds(updateData);
+
+        PythStructs.Price memory bbb = getMockPythPriceStruct(id);
     }
 
     /*
