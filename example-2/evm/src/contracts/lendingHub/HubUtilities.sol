@@ -85,10 +85,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             priceValue = oraclePrice.price;
             confValue = oraclePrice.conf;
-            console.log("Got the price of asset ");
-            console.log(assetAddress);
-            console.log("The price is ");
-            console.log(uint64(oraclePrice.price));
 
         }
         else {
