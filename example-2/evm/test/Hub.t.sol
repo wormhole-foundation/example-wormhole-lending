@@ -221,7 +221,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
         doDeposit_FS(address(0x1), assets[1], 6 * 10 ** 18);
-
+        console.log("Got to the borrow");
         doBorrow_FS(msg.sender, assets[1], 5 * 10 ** 18, "Vault is undercollateralized if this borrow goes through");
 
     }
@@ -267,7 +267,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doBorrow_FS(msg.sender, assets[1], 5 * 10 ** 18);
     
-        doWithdraw_FS(msg.sender, assets[0], 5 * 10 ** 16 + 1, "Vault is undercollateralized if this withdraw goes through");
+        doWithdraw_FS(msg.sender, assets[0], 5 * 10 ** 16 + 1 * 10 ** 14, "Vault is undercollateralized if this withdraw goes through");
     }
 
     function testRDBPW_FS() public {

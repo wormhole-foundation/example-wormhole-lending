@@ -31,6 +31,7 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
 
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), assetAmount);
 
+        // TODO: Do we need to check some sort of maximum limit of assetAmount
         tokenBridge().transferTokensWithPayload(
             assetAddress, assetAmount, hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );
@@ -62,5 +63,25 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
         // check if asset address is allowed
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
         require(registered_info.exists, "Unregistered asset");
+    }
+
+    function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal {
+        (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
+        uint8 decimals = abi.decode(queriedDecimals, (uint8));
+        require(deNormalizeAmount(normalizeAmount(assetAmount, decimals), decimals) == assetAmount, "Too many decimal places");
+    }
+
+    function normalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
+        if (decimals > 8) {
+            amount /= 10 ** (decimals - 8);
+        }
+        return amount;
+    }
+
+    function deNormalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
+        if (decimals > 8) {
+            amount *= 10 ** (decimals - 8);
+        }
+        return amount;
     }
 }

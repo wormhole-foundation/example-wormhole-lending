@@ -397,7 +397,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         returns (bytes memory encodedVM)
     {
         address assetAddress = asset.assetAddress;
-
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
         uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
@@ -464,7 +464,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         returns (bytes memory encodedVM)
     {
         address assetAddress = asset.assetAddress;
-
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
         uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
@@ -530,7 +530,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         returns (bytes memory encodedVM)
     {
         address assetAddress = asset.assetAddress;
-
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
         uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
@@ -591,7 +591,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         returns (bytes memory encodedVM)
     {
         address assetAddress = asset.assetAddress;
-
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
         uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
@@ -689,6 +689,20 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     function normalizeAmountWithinTokenBridge(uint256 amount, uint8 decimals) internal pure returns(uint256){
         if (decimals > 8) {
             amount /= 10 ** (decimals - 8);
+        }
+        return amount;
+    }
+
+    function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal {
+        (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
+        uint8 decimals = abi.decode(queriedDecimals, (uint8));
+
+        require(deNormalizeAmountWithinTokenBridge(normalizeAmountWithinTokenBridge(assetAmount, decimals), decimals) == assetAmount, "Too many decimal places");
+    }
+
+    function deNormalizeAmountWithinTokenBridge(uint256 amount, uint8 decimals) internal pure returns(uint256){
+        if (decimals > 8) {
+            amount *= 10 ** (decimals - 8);
         }
         return amount;
     }

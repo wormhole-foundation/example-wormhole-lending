@@ -48,6 +48,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
 
     function depositCollateral(address assetAddress, uint256 assetAmount) public {
         checkValidAddress(assetAddress);
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 1,
             sender: msg.sender
@@ -67,6 +68,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
 
     function withdrawCollateral(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
         checkValidAddress(assetAddress);
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 2,
             sender: msg.sender
@@ -86,6 +88,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
 
     function borrow(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
         checkValidAddress(assetAddress);
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 3,
             sender: msg.sender
@@ -105,6 +108,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
 
     function repay(address assetAddress, uint256 assetAmount) public {
         checkValidAddress(assetAddress);
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 4,
             sender: msg.sender

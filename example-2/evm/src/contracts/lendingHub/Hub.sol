@@ -281,30 +281,31 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */
     function borrow(address borrower, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         checkValidAddress(assetAddress);
-
+        
         // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
         (bool check1, bool check2) = allowedToBorrow(borrower, assetAddress, amount);
+        console.log("finished allowed to borrow");
         require(check1, "Not enough in global supply");
         require(check2, "Vault is undercollateralized if this borrow goes through");
-
+        console.log("blah");
         // update the interest accrual indices
         updateAccrualIndices(assetAddress);
-
+        console.log("finished allowed to borrow 1");
         AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-
+        console.log("finished allowed to borrow 2");
         uint256 normalizedAmount = normalizeAmount(amount, indices.deposited);
-
+        console.log("finished allowed to borrow 3");
         // update state for vault
         VaultAmount memory vaultAmounts = getVaultAmounts(borrower, assetAddress);
         vaultAmounts.borrowed += normalizedAmount;
-   
+        console.log("finished allowed to borrow 4");
         // update state for global
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
         globalAmounts.borrowed += normalizedAmount;
-
+        console.log("finished allowed to borrow 5");
         setVaultAmounts(borrower, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
-
+        console.log("finished allowed to borrow 6");
         // TODO: token transfers
         transferTokens(borrower, assetAddress, amount, recipientChain);
     }

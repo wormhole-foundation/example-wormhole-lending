@@ -180,7 +180,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         // use conservative (from protocol's perspective) price for collateral (low)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
         uint64 priceCollateral = price - nConf*conf/nConfPrecision;
 
-        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * priceCollateral * (10 ** getMaxDecimals()))); 
+        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue) >= assetAmount * priceCollateral * (10 ** (getMaxDecimals() - assetInfo.decimals)))); 
     }
 
     /** 
@@ -199,9 +199,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         uint64 price;
         uint64 conf;
         (price, conf) = getOraclePrices(assetAddress);
-     
+        console.log("Got to the gven");
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
-     
+        console.log("finished to the gven");
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
         
         uint64 nConf;
@@ -209,9 +209,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         (nConf, nConfPrecision) = getNConf();
 
         // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals
-        uint64 priceDebt = price + nConf*conf/nConfPrecision;
+        uint256 priceDebt = uint256(price + nConf*conf/nConfPrecision);
 
-        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * priceDebt * (10**getMaxDecimals()) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision() ));
+        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue) >= assetAmount * priceDebt  * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision()* (10**(getMaxDecimals() - assetInfo.decimals)) ));
 
     }
 
@@ -318,45 +318,50 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     }
 
     function updateAccrualIndices(address assetAddress) internal {
+        console.log("accrual 0");
         uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
+        console.log("accrual 1");
         uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
-
+        console.log("accrual 2");
         uint256 deposited = getTotalAssetsDeposited(assetAddress);
+        console.log("accrual 3");
         AccrualIndices memory accrualIndices = getInterestAccrualIndices(assetAddress);
-
+        console.log("accrual 4");
         if(secondsElapsed == 0) {
             // no need to update anything
             return;
         }
-
+        console.log("4.33");
         accrualIndices.lastBlock = block.timestamp;
-
+console.log("4.66");
         if(deposited == 0) {
             // avoid divide by 0 due to 0 deposits
             return;
         }
-
+console.log("4.83");
         uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
-
+        console.log("accrual 5");
         setLastActivityBlockTimestamp(assetAddress, block.timestamp);
-
+        console.log("accrual 6");
         InterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
-
+        console.log("accrual 7");
         uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
-
+        console.log("accrual 8");
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
         uint256 reserveFactor = assetInfo.interestRateModel.reserveFactor;
         uint256 reservePrecision = assetInfo.interestRateModel.reservePrecision;
-
+        console.log("accrual 9");
         accrualIndices.borrowed += interestFactor;
+        console.log("accrual 95");
         // discount by the reserve factor (TODO: confirm this is an appropriate way to use reserveFactor--do reserve assets just stay at this address?)
         accrualIndices.deposited += (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
-
+        console.log("accrual 10");
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }
 
     function transferTokens(address receiver, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), amount);
+        console.log("finished allowed to borrow 88");
         tokenBridge().transferTokens(assetAddress, amount, recipientChain, bytes32(uint256(uint160(receiver))), 0, 0);
     }
 
