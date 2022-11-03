@@ -212,7 +212,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         uint256 priceDebt = uint256(price + nConf*conf/nConfPrecision);
 
         bool check1 = (globalAmounts.deposited >= globalAmounts.borrowed + assetAmount);
-        bool check2 = (vaultDepositedValue) >=  vaultBorrowedValue + assetAmount * priceDebt  * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision()* (10**(getMaxDecimals() - assetInfo.decimals));
+        bool check2 = (vaultDepositedValue) >=  vaultBorrowedValue + assetAmount * priceDebt  * assetInfo.collateralizationRatioBorrow * (10**(getMaxDecimals() - assetInfo.decimals)) / getCollateralizationRatioPrecision();
         return (check1, check2);
 
     }
