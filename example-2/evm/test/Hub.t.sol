@@ -28,13 +28,9 @@ import {Spoke} from "../src/contracts/lendingSpoke/Spoke.sol";
 
 import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
 
-contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, TestHelpers {
+contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, TestState, TestStructs, TestSetters, TestGetters, TestHelpers {
     using BytesLib for bytes;
 
-    // TODO: Decide what data goes where.. what makes sense here?
-
-    TestAsset[] assets;
-    Hub hub;
 
     // action codes
     // register: R
@@ -46,41 +42,26 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     // fake spoke: FS
 
     function setUp() public {
-        hub = testSetUp(vm);
+        
+        testSetUp();
 
-        assets.push(
-            TestAsset({
-                assetAddress: 0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
-                asset: IERC20(0x8b82A291F83ca07Af22120ABa21632088fC92931),
-                collateralizationRatioDeposit: 100 * 10 ** 16,
-                collateralizationRatioBorrow: 110 * 10 ** 16,
-                decimals: 18,
-                reserveFactor: 0,
-                pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_bnb") // bytes32("BNB")
-            })
+        addAsset(0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
+                100 * 10 ** 16,
+                110 * 10 ** 16,
+                0,
+                vm.envBytes32("PYTH_PRICE_FEED_AVAX_bnb") // bytes32("BNB")
         );
 
-        assets.push(
-            TestAsset({
-                assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
-                asset: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
-                collateralizationRatioDeposit: 100 * 10 ** 16,
-                collateralizationRatioBorrow: 110 * 10 ** 16,
-                decimals: 18,
-                reserveFactor: 0,
-                pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_sol") // bytes32("SOL")
-            })
+        addAsset(0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WETH
+                100 * 10 ** 16,
+                110 * 10 ** 16,
+                0,
+                 vm.envBytes32("PYTH_PRICE_FEED_AVAX_sol")  // bytes32("BNB")
         );
 
-        int64 startPrice = 0;
-        uint64 startConf = 0;
-        int32 startExpo = 0;
-        int64 startEmaPrice = 0;
-        uint64 startEmaConf = 0;
-        uint64 startPublishTime = 1;
         for (uint256 i = 0; i < assets.length; i++) {
-            hub.setMockPythFeed(
-                assets[i].pythId, startPrice, startConf, startExpo, startEmaPrice, startEmaConf, startPublishTime
+            getHub().setMockPythFeed(
+                assets[i].pythId, 0, 0, 0, 0, 0, 1
             );
         }
 
@@ -89,7 +70,6 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
             vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"),
             vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")
         );
-        setSpokeData(0);
     }
 
     function testR() public {

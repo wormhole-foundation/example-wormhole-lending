@@ -281,7 +281,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */
     function borrow(address borrower, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         checkValidAddress(assetAddress);
-        
+        console.log("got here 204");    
         // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
         (bool check1, bool check2) = allowedToBorrow(borrower, assetAddress, amount);
 
