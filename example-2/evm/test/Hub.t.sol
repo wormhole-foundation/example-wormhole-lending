@@ -35,18 +35,24 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     
       TestAsset[] assets;
       Hub hub;
-      uint8 oracleMode;
-      uint64 blockTs = 1;
+      Spoke[] spokes;
+
+    // action codes
+    // register: R
+    // deposit: D
+    // borrow: B
+    // withdraw: W
+    // repay: P
+    // liquidation: L
+    // fake spoke: FS
 
     function setUp() public {
         hub = testSetUp(vm);
 
-        //console.log("CHAIN ID");
-        //console.log(vm.chainId());
         assets.push(
             TestAsset({
-                assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
-                asset: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
+                assetAddress: 0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
+                asset: IERC20(0x8b82A291F83ca07Af22120ABa21632088fC92931),
                 collateralizationRatioDeposit: 100 * 10 ** 16,
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
@@ -57,8 +63,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         assets.push(
             TestAsset({
-                assetAddress: 0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F, // WSOL
-                asset: IERC20(0xFE6B19286885a4F7F55AdAD09C3Cd1f906D2478F),
+                assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
+                asset: IERC20(0x442F7f22b1EE2c842bEAFf52880d4573E9201158),
                 collateralizationRatioDeposit: 100 * 10 ** 16,
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
@@ -67,394 +73,275 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
             })
         );
 
-        deal(assets[0].assetAddress, address(this), 1000 * 10**assets[0].decimals);
-        deal(assets[1].assetAddress, address(this), 1000 * 10**assets[1].decimals);
-
-        addSpoke(uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"), vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX"));
-        setSpokeData(0);
-
-        // add mock pyth price feeds for assets
         int64 startPrice = 0;
         uint64 startConf = 0;
         int32 startExpo = 0;
         int64 startEmaPrice = 0;
         uint64 startEmaConf = 0;
-        uint64 startPublishTime = blockTs;
+        uint64 startPublishTime = 1;
         for(uint i=0; i<assets.length; i++){
             hub.setMockPythFeed(assets[i].pythId, startPrice, startConf, startExpo, startEmaPrice, startEmaConf, startPublishTime);
         }
 
-        oracleMode = hub.getOracleMode();
+        addSpoke(uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"), vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX"));
+        setSpokeData(0);
+
     }
 
-    function testRegisterAssetWithSpoke() public {
-        vm.recordLogs();
-        doRegister(assets[0]);
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[0]);
-
-        WormholeSpokeData memory spokeData = setSpokeData(0);
-        hub.registerSpoke(spokeData.foreignChainId, address(spokeData.spoke));
+    function registerSpokesAndAssets() internal returns (Spoke[] memory) {
         
-        spokeData.spoke.completeRegisterAsset(encodedMessage);
+        spokes.push(doRegisterSpoke(0));
 
+        bytes memory encodedMessage0 = doRegisterAsset(assets[0]);
+        spokes[0].completeRegisterAsset(encodedMessage0);
 
-        AssetInfo memory info = spokeData.spoke.getAssetInfo(assets[0].assetAddress);
-        console.log(info.collateralizationRatioDeposit);
-        console.log(info.collateralizationRatioBorrow);
-        console.log(info.decimals);
-        require(
-            (info.collateralizationRatioDeposit == assets[0].collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == assets[0].collateralizationRatioBorrow) && (info.decimals == assets[0].decimals) && (info.pythId == assets[0].pythId) && (info.exists),
-            "didn't register properly"
-        );
+        bytes memory encodedMessage1 = doRegisterAsset(assets[1]);
+        spokes[0].completeRegisterAsset(encodedMessage1);
+
+        return spokes;
+    }
+
+    function testR() public {
+        registerSpokesAndAssets();
+    }
+
+    function testRD() public {
+
+        registerSpokesAndAssets();
+
+        address user = msg.sender;
+
+        deal(assets[1].assetAddress, user, 1 * 10 ** 17);
+        deal(assets[0].assetAddress, user, 5 * (10 ** 16));
+        
+        vm.prank(user);
+        assets[1].asset.approve(address(spokes[0]), 1 * 10 ** 17);
+        vm.prank(user);
+        assets[0].asset.approve(address(spokes[0]), 5 * (10 ** 16));
+   
+        VaultAmount memory globalBefore = hub.getGlobalAmounts(assets[1].assetAddress);
+        VaultAmount memory vaultBefore = hub.getVaultAmounts(user, assets[1].assetAddress);
+       
+        uint256 balance_user_0_pre = IERC20(assets[0].assetAddress).balanceOf(user);
+        uint256 balance_user_1_pre = IERC20(assets[1].assetAddress).balanceOf(user);
+        uint256 balance_hub_0_pre = IERC20(assets[0].assetAddress).balanceOf(address(hub));
+        uint256 balance_hub_1_pre = IERC20(assets[1].assetAddress).balanceOf(address(hub));
+
+        vm.prank(user);
+        bytes memory encodedDepositMessage = doDeposit(0, assets[1], 1 * 10 ** 17);
+        vm.prank(user);
+        bytes memory encodedDepositMessage2 = doDeposit(0, assets[0], 5 * (10 ** 16));
+
+        hub.completeDeposit(encodedDepositMessage);
+        hub.completeDeposit(encodedDepositMessage2);
+
+        uint256 balance_user_0_post = IERC20(assets[0].assetAddress).balanceOf(user);
+        uint256 balance_user_1_post = IERC20(assets[1].assetAddress).balanceOf(user);
+    
+        uint256 balance_hub_0_post = IERC20(assets[0].assetAddress).balanceOf(address(hub));
+        uint256 balance_hub_1_post = IERC20(assets[1].assetAddress).balanceOf(address(hub));
+
+        VaultAmount memory globalAfter = hub.getGlobalAmounts(assets[1].assetAddress);
+        VaultAmount memory vaultAfter = hub.getVaultAmounts(user, assets[1].assetAddress);
+        
+        require(globalBefore.deposited == 0, "Deposited not initialized to 0");
+        require(globalAfter.deposited == 1 * 10 ** 17 , "1 * 10 ** 17 wasn't deposited (globally)");
+
+        require(vaultBefore.deposited == 0, "Deposited not initialized to 0");
+        require(vaultAfter.deposited == 1 * 10 ** 17, "1 * 10 ** 17 wasn't deposited (in the vault)");
+
+        require(balance_user_1_pre == 1 * 10 ** 17, "User asset 1 balance not 1 * 10^17 initially");
+        require(balance_user_0_pre == 5 * (10 ** 16) , "User asset 0 balance not 5 * 10^16 initially");
+
+        require(balance_hub_0_pre == 0, "Hub asset 0 balance not 0 initially");
+        require(balance_hub_1_pre == 0, "Hub asset 1 balance not 0 initially");
+
+        require(balance_user_0_post == 0, "User asset 0 balance not 0 after");
+        require(balance_user_1_post == 0 , "User asset 1 balance not 0 after");
+
+        require(balance_hub_1_post == 1 * 10 ** 17, "Hub asset 1 balance not 1 * 10 ** 17 after");
+        require(balance_hub_0_post == 5 * (10 ** 16), "Hub asset 0 balance not 5 * 10^16 after");
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)
 
     // test register asset
-    function testRegisterAsset() public {
-
-        // register asset
-        doRegister(assets[0]);
-
-        AssetInfo memory info = hub.getAssetInfo(assets[0].assetAddress);
-
-        require(
-            (info.collateralizationRatioDeposit == assets[0].collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == assets[0].collateralizationRatioBorrow) && (info.decimals == assets[0].decimals) && (info.pythId == assets[0].pythId) && (info.exists),
-            "didn't register properly"
-        );
+    function testR_FS() public {
+        doRegisterAsset(assets[0]);        
     }
 
-    // action codes
-    // register: R
-    // deposit: D
-    // borrow: B
-    // withdraw: W
-    // repay: P
-    // liquidation: L
 
-    function testRD() public {
-        address vault = msg.sender;
-        address assetAddress = assets[0].assetAddress;
-        // call register
-        doRegister(assets[0]);
-
-        VaultAmount memory globalBefore = hub.getGlobalAmounts(assetAddress);
-        VaultAmount memory vaultBefore = hub.getVaultAmounts(vault, assetAddress);
-
-        // call deposit
-        doDeposit(vault, assets[0], 502);
-
-        VaultAmount memory globalAfter = hub.getGlobalAmounts(assetAddress);
-        VaultAmount memory vaultAfter = hub.getVaultAmounts(vault, assetAddress);
-        // TODO: why does specifying msg.sender fix all?? Seems it assumes incorrect msg.sender by default
-        
-        require(globalBefore.deposited == 0, "Deposited not initialized to 0");
-        require(globalAfter.deposited == 502 , "502 wasn't deposited (globally)");
-
-        require(vaultBefore.deposited == 0, "Deposited not initialized to 0");
-        require(vaultAfter.deposited == 502, "502 wasn't deposited (in the vault)");
+    function testRD_FS() public {
+        deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 18);
+        doRegisterAsset(assets[0]);
+        doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
     }
 
-    function testDRevert() public {
+    function testD_Fail_FS() public {
         // Should fail because there is no registered asset
-        
-        address vault = msg.sender;
-        doDeposit(vault, assets[0], 502, true, "Unregistered asset");
+        deal(assets[0].assetAddress, msg.sender, 502 * 10 ** 18);
+        doDeposit_FS(msg.sender, assets[0], 502 * 10 ** 18, "Unregistered asset");
     }
 
-    function testRDB() public {
-        address vault = msg.sender;
+    function testRDB_FS() public {
 
-        doRegister(assets[0]);
-        doRegister(assets[1]);
+        deal(assets[0].assetAddress, msg.sender, 500 * 10 ** 18);
+        deal(assets[1].assetAddress, address(0x1), 600 * 10 ** 18);
 
-        doRegisterFakeSpoke();
+        doRegisterAsset(assets[0]);
+        doRegisterAsset(assets[1]);
 
-        blockTs += 1;
+        doRegisterSpoke_FS();
 
-        // asset 0
-        int64 price0 = 100;
-        uint64 conf0 = 0;
-        int32 expo0 = 0;
-        int64 emaPrice0 = 100;
-        uint64 emaConf0 = 100;
-        uint64 publishTime0 = blockTs;
-        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
 
-        // asset 1
-        int64 price1 = 90;
-        uint64 conf1 = 0;
-        int32 expo1 = 0;
-        int64 emaPrice1 = 100;
-        uint64 emaConf1 = 100;
-        uint64 publishTime1 = blockTs;
-        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+        doDeposit_FS(msg.sender, assets[0], 500 * 10 ** 18);
+        doDeposit_FS(address(0x1), assets[1], 600 * 10 ** 18);
 
 
-        doDeposit(vault, assets[0], 500 * 10 ** 18);
-        doDeposit(address(0), assets[1], 600 * 10 ** 18);
-
-        doBorrow(vault, assets[1], 500 * 10 ** 18);
+        doBorrow_FS(msg.sender, assets[1], 500 * 10 ** 18);
 
     }
 
-    function testRDBRevert() public {
+    function testRDB_Fail_FS() public {
         // Should fail because the price of the borrow asset is a little too high
 
-        address vault = msg.sender;
+        deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 18);
+        deal(assets[1].assetAddress, address(0x1), 6 * 10 ** 18);
 
-        doRegister(assets[0]);
-        doRegister(assets[1]);
+        doRegisterAsset(assets[0]);
+        doRegisterAsset(assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 91);
+
+        doRegisterSpoke_FS();
+
+
+        doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
+        doDeposit_FS(address(0x1), assets[1], 6 * 10 ** 18);
+
+        doBorrow_FS(msg.sender, assets[1], 5 * 10 ** 18, "Vault is undercollateralized if this borrow goes through");
+
+    }
+
+    function testRDBW_FS() public {
+
+        deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 18);
+        deal(assets[1].assetAddress, address(0x1), 6 * 10 ** 18);
+
+        doRegisterAsset(assets[0]);
+        doRegisterAsset(assets[1]);
+
+        doRegisterSpoke_FS();
+
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
+        doDeposit_FS(address(0x1), assets[1], 6 * 10 ** 18);
+
+        doBorrow_FS(msg.sender, assets[1], 5 * 10 ** 18);
+    
+        doWithdraw_FS(msg.sender, assets[0], 5 * 10 ** 16);
+    }
+
+    function testRDBW_Fail_FS() public {
+        deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 18);
+        deal(assets[1].assetAddress, address(0x1), 6 * 10 ** 18);
+
+        doRegisterAsset(assets[0]);
+        doRegisterAsset(assets[1]);
+
+        doRegisterSpoke_FS();
+
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
+        doDeposit_FS(address(0x1), assets[1], 6 * 10 ** 18);
+
+
+        doBorrow_FS(msg.sender, assets[1], 5 * 10 ** 18);
+    
+        doWithdraw_FS(msg.sender, assets[0], 5 * 10 ** 16 + 1 * 10 ** 14, "Vault is undercollateralized if this withdraw goes through");
+    }
+
+    function testRDBPW_FS() public {
+
+        deal(assets[0].assetAddress, msg.sender, 500 * 10 ** 16);
+        deal(assets[1].assetAddress, address(0x1), 600 * 10 ** 16);
+       
+        doRegisterAsset(assets[0]);
+        doRegisterAsset(assets[1]);
         
-        blockTs += 1;
-
-        // asset 0
-        int64 price0 = 100;
-        uint64 conf0 = 0;
-        int32 expo0 = 0;
-        int64 emaPrice0 = 100;
-        uint64 emaConf0 = 100;
-        uint64 publishTime0 = blockTs;
-        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
-
-        // asset 1
-        int64 price1 = 91;
-        uint64 conf1 = 0;
-        int32 expo1 = 0;
-        int64 emaPrice1 = 100;
-        uint64 emaConf1 = 100;
-        uint64 publishTime1 = blockTs;
-        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
 
 
-        doRegisterFakeSpoke();
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
 
-        doDeposit(vault, assets[0], 500 * 10 ** 18);
-        doDeposit(address(0), assets[1], 600 * 10 ** 18);
-
-        doBorrow(vault, assets[1], 500 * 10 ** 18, true, "Vault is undercollateralized if this borrow goes through");
-
-    }
-
-    function testRDBW() public {
-        address vault = msg.sender;
-
-        doRegister(assets[0]);
-        doRegister(assets[1]);
-
-        blockTs += 1;
-
-        // asset 0
-        int64 price0 = 100;
-        uint64 conf0 = 0;
-        int32 expo0 = 0;
-        int64 emaPrice0 = 100;
-        uint64 emaConf0 = 100;
-        uint64 publishTime0 = blockTs;
-        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
-
-        // asset 1
-        int64 price1 = 90;
-        uint64 conf1 = 0;
-        int32 expo1 = 0;
-        int64 emaPrice1 = 100;
-        uint64 emaConf1 = 100;
-        uint64 publishTime1 = blockTs;
-        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+        doRegisterSpoke_FS();
 
 
-        doRegisterFakeSpoke();
+        doDeposit_FS(msg.sender, assets[0], 500 * 10 ** 16);
+        doDeposit_FS(address(0x1), assets[1], 600 * 10 ** 16);
 
-        doDeposit(vault, assets[0], 500 * 10 ** 18);
-        doDeposit(address(0), assets[1], 600 * 10 ** 18);
 
-        doBorrow(vault, assets[1], 500 * 10 ** 18);
+        doBorrow_FS(msg.sender, assets[1], 500 * 10 ** 16);
+
+        doRepay_FS(msg.sender, assets[1], 500 * 10 ** 16);
     
-        doWithdraw(vault, assets[0], 500 * 10 ** 16);
-    }
-
-    function testRDBWRevert() public {
-        address vault = msg.sender;
-
-        doRegister(assets[0]);
-        doRegister(assets[1]);
-
-        blockTs += 1;
-
-        // asset 0
-        int64 price0 = 100;
-        uint64 conf0 = 0;
-        int32 expo0 = 0;
-        int64 emaPrice0 = 100;
-        uint64 emaConf0 = 100;
-        uint64 publishTime0 = blockTs;
-        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
-
-        // asset 1
-        int64 price1 = 90;
-        uint64 conf1 = 0;
-        int32 expo1 = 0;
-        int64 emaPrice1 = 100;
-        uint64 emaConf1 = 100;
-        uint64 publishTime1 = blockTs;
-        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
-
-
-        doRegisterFakeSpoke();
-
-        doDeposit(vault, assets[0], 500 * 10 ** 18);
-        doDeposit(address(0), assets[1], 600 * 10 ** 18);
-
-        doBorrow(vault, assets[1], 500 * 10 ** 18);
-    
-        doWithdraw(vault, assets[0], 500 * 10 ** 16 + 1, true, "Vault is undercollateralized if this withdraw goes through");
-    }
-
-    function testRDBPW() public {
-        address vault = msg.sender;
-
-        doRegister(assets[0]);
-        doRegister(assets[1]);
-
-        blockTs += 1;
-
-        // asset 0
-        int64 price0 = 100;
-        uint64 conf0 = 0;
-        int32 expo0 = 0;
-        int64 emaPrice0 = 100;
-        uint64 emaConf0 = 100;
-        uint64 publishTime0 = blockTs;
-        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
-
-        // asset 1
-        int64 price1 = 90;
-        uint64 conf1 = 0;
-        int32 expo1 = 0;
-        int64 emaPrice1 = 100;
-        uint64 emaConf1 = 100;
-        uint64 publishTime1 = blockTs;
-        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
-
-        doRegisterFakeSpoke();
-
-        VaultAmount memory global0;
-        VaultAmount memory vault0;
-        VaultAmount memory global1;
-        VaultAmount memory vault1;
-
-        // check before any actions
-        global0 = hub.getGlobalAmounts(assets[0].assetAddress);
-        vault0 = hub.getVaultAmounts(vault, assets[0].assetAddress);
-        global1 = hub.getGlobalAmounts(assets[1].assetAddress);
-        vault1 = hub.getVaultAmounts(vault, assets[1].assetAddress);
-        require((global0.deposited == 0) && (global0.borrowed == 0), "Should be nothing deposited/borrowed for asset 0");
-        require((global1.deposited == 0) && (global1.borrowed == 0), "Should be nothing deposited/borrowed for asset 1");
-        require((vault0.deposited == 0) && (vault0.borrowed == 0), "Should be nothing deposited/borrowed for asset 0 for vault");
-        require((vault1.deposited == 0) && (vault1.borrowed == 0), "Should be nothing deposited/borrowed for asset 1 for vault");
-
-        doDeposit(vault, assets[0], 500 * 10 ** 18);
-        doDeposit(address(0), assets[1], 600 * 10 ** 18);
-
-        // check after first deposits
-        global0 = hub.getGlobalAmounts(assets[0].assetAddress);
-        vault0 = hub.getVaultAmounts(vault, assets[0].assetAddress);
-        global1 = hub.getGlobalAmounts(assets[1].assetAddress);
-        vault1 = hub.getVaultAmounts(vault, assets[1].assetAddress);
-        require((global0.deposited == 500 * 10 ** 18) && (global0.borrowed == 0), "Wrong numbers for asset 0 global");
-        require((global1.deposited == 600 * 10 ** 18) && (global1.borrowed == 0), "Wrong numbers for asset 1 global");
-        require((vault0.deposited == 500 * 10**18) && (vault0.borrowed == 0), "Wrong numbers for asset 0 for vault");
-        require((vault1.deposited == 0) && (vault1.borrowed == 0), "Wrong numbers for asset 1 for vault");
-
-        doBorrow(vault, assets[1], 500 * 10 ** 18);
-
-        doRepay(vault, assets[1], 500 * 10 ** 18);
-    
-        doWithdraw(vault, assets[0], 500 * 10 ** 18);
-
+        doWithdraw_FS(msg.sender, assets[0], 500 * 10 ** 16);
         
     }
 
-    function testRDBPWRevert() public {
+    function testRDBPW_Fail_FS() public {
         // Should fail because still some debt out so cannot withdraw all your deposited assets
-        address vault = msg.sender;
-        address vaultOther = address(0);
+        deal(assets[0].assetAddress, msg.sender, 500 * 10 ** 16);
+        deal(assets[1].assetAddress, address(0x1), 600 * 10 ** 16);
+       
+        doRegisterAsset(assets[0]);
+        doRegisterAsset(assets[1]);
+        
 
-        doRegister(assets[0]);
-        doRegister(assets[1]);
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+        
+        doRegisterSpoke_FS();
 
-        blockTs += 1;
-
-        // asset 0
-        int64 price0 = 100;
-        uint64 conf0 = 0;
-        int32 expo0 = 0;
-        int64 emaPrice0 = 100;
-        uint64 emaConf0 = 100;
-        uint64 publishTime0 = blockTs;
-        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
-
-        // asset 1
-        int64 price1 = 90;
-        uint64 conf1 = 0;
-        int32 expo1 = 0;
-        int64 emaPrice1 = 100;
-        uint64 emaConf1 = 100;
-        uint64 publishTime1 = blockTs;
-        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+        doDeposit_FS(msg.sender, assets[0], 500 * 10 ** 16);
+        doDeposit_FS(address(0x1), assets[1], 600 * 10 ** 16);
 
 
-        doRegisterFakeSpoke();
+        doBorrow_FS(msg.sender, assets[1], 500 * 10 ** 16);
 
-        doDeposit(vault, assets[0], 500 * 10 ** 18);
-        // deposit by another address
-        doDeposit(vaultOther, assets[1], 600 * 10 ** 18);
-
-        doBorrow(vault, assets[1], 500 * 10 ** 18);
-
-        // doesn't fully repay
-        doRepay(vault, assets[1], 500 * 10 ** 18 - 1);
+        doRepay_FS(msg.sender, assets[1], 500 * 10 ** 16 - 1 * 10 ** 10);
     
-        doWithdraw(vault, assets[0], 500 * 10 ** 18, true, "Vault is undercollateralized if this withdraw goes through");
+        doWithdraw_FS(msg.sender, assets[0], 500 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through");
     }
 
-    function testRDBLRevert() public {
+    function testRDBL_Fail_FS() public {
         // should fail because vault not underwater
+        deal(assets[0].assetAddress, msg.sender, 501 * 10 ** 18);
+        deal(assets[1].assetAddress, msg.sender, 1100 * 10 ** 18);
+        deal(assets[0].assetAddress, address(0x1), 500 * 10 ** 18);
 
-        address vault = msg.sender;
-        address vaultOther = address(0);
-
-        doRegister(assets[0]);
-        doRegister(assets[1]);
-
-        blockTs += 1;
-
-        // asset 0
-        int64 price0 = 100;
-        uint64 conf0 = 0;
-        int32 expo0 = 0;
-        int64 emaPrice0 = 100;
-        uint64 emaConf0 = 100;
-        uint64 publishTime0 = blockTs;
-        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
-
-        // asset 1
-        int64 price1 = 90;
-        uint64 conf1 = 0;
-        int32 expo1 = 0;
-        int64 emaPrice1 = 100;
-        uint64 emaConf1 = 100;
-        uint64 publishTime1 = blockTs;
-        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+        doRegisterAsset(assets[0]);
+        doRegisterAsset(assets[1]);
 
 
-        doRegisterFakeSpoke();
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
 
-        doDeposit(vaultOther, assets[0], 500 * 10**18);
-        doDeposit(vault, assets[1], 600 * 10**18);
+        doRegisterSpoke_FS();
+
+        doDeposit_FS(address(0x1), assets[0], 500 * 10**18);
+        doDeposit_FS(msg.sender, assets[1], 600 * 10**18);
     
-        doBorrow(vaultOther, assets[1], 500 * 10**18);
+        doBorrow_FS(address(0x1), assets[1], 500 * 10**18);
 
         // liquidation attempted by msg.sender
         address[] memory assetRepayAddresses = new address[](1);
@@ -465,14 +352,15 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         assetReceiptAddresses[0] = assets[0].assetAddress;
         uint256[] memory assetReceiptAmounts = new uint256[](1);
         assetReceiptAmounts[0] = 1;
+        vm.prank(msg.sender);
         vm.expectRevert(bytes("vault not underwater"));
-        hub.liquidation(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+        hub.liquidation(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
     }
 
-    function testRDBL() public {
+    function testRDBL_FS() public {
 
         address vault = msg.sender;
-        address vaultOther = address(0);
+        address vaultOther = address(0x1);
 
         // prank mint with tokens
         deal(assets[0].assetAddress, vault, 1000 * 10**20);
@@ -480,42 +368,21 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(assets[0].assetAddress, vaultOther, 3000 * 10**20);
         deal(assets[1].assetAddress, vaultOther, 4000 * 10**20);
 
-        doRegister(assets[0]);
-        doRegister(assets[1]);
+        doRegisterAsset(assets[0]);
+        doRegisterAsset(assets[1]);
 
-        blockTs += 1;
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
 
-        // asset 0
-        int64 price0 = 100;
-        uint64 conf0 = 0;
-        int32 expo0 = 0;
-        int64 emaPrice0 = 100;
-        uint64 emaConf0 = 100;
-        uint64 publishTime0 = blockTs;
-        setPrice(assets[0], price0, conf0, expo0, emaPrice0, emaConf0, publishTime0, oracleMode);
+        doRegisterSpoke_FS();
 
-        // asset 1
-        int64 price1 = 90;
-        uint64 conf1 = 0;
-        int32 expo1 = 0;
-        int64 emaPrice1 = 100;
-        uint64 emaConf1 = 100;
-        uint64 publishTime1 = blockTs;
-        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
-
-
-        doRegisterFakeSpoke();
-
-        doDeposit(vaultOther, assets[0], 500 * 10**18);
-        doDeposit(vault, assets[1], 600 * 10**18);
+        doDeposit_FS(vaultOther, assets[0], 500 * 10**18);
+        doDeposit_FS(vault, assets[1], 600 * 10**18);
     
-        doBorrow(vaultOther, assets[1], 500 * 10**18);
+        doBorrow_FS(vaultOther, assets[1], 500 * 10**18);
 
         // move the price up for borrowed asset
-        blockTs += 1;
-        price1 = 95;
-        publishTime1 = blockTs;
-        setPrice(assets[1], price1, conf1, expo1, emaPrice1, emaConf1, publishTime1, oracleMode);
+        setPrice(assets[1], 95);
 
         // liquidation attempted by msg.sender
         address[] memory assetRepayAddresses = new address[](1);
@@ -549,10 +416,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         uint256 balance_hub_0_post = IERC20(assets[0].assetAddress).balanceOf(address(hub));
         uint256 balance_hub_1_post = IERC20(assets[1].assetAddress).balanceOf(address(hub));
     
-        console.log("balance of vault for token 0 went from ", balance_vault_0_pre, " to ", balance_vault_0_post);
-        console.log("balance of vault for token 1 went from ", balance_vault_1_pre, " to ", balance_vault_1_post);
-        console.log("balance of hub for token 0 went from ", balance_hub_0_pre, " to ", balance_hub_0_post);
-        console.log("balance of hub for token 1 went from ", balance_hub_1_pre, " to ", balance_hub_1_post);
+        //console.log("balance of vault for token 0 went from ", balance_vault_0_pre, " to ", balance_vault_0_post);
+        //console.log("balance of vault for token 1 went from ", balance_vault_1_pre, " to ", balance_vault_1_post);
+        //console.log("balance of hub for token 0 went from ", balance_hub_0_pre, " to ", balance_hub_0_post);
+        //console.log("balance of hub for token 1 went from ", balance_hub_1_pre, " to ", balance_hub_1_post);
 
         require(balance_vault_0_pre + balance_hub_0_pre == balance_vault_0_post + balance_hub_0_post, "Asset 0 total amounts should not change after liquidation");
         require(balance_vault_1_pre + balance_hub_1_pre == balance_vault_1_post + balance_hub_1_post, "Asset 1 total amounts should not change after liquidation");

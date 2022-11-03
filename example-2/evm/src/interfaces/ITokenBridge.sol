@@ -110,6 +110,8 @@ interface ITokenBridge {
 
     function wormhole() external view returns (IWormhole);
 
+    function completeTransfer(bytes memory encodedVm) external;
+
     function chainId() external view returns (uint16);
 
     function evmChainId() external view returns (uint256);

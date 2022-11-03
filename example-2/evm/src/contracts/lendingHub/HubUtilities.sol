@@ -85,6 +85,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             priceValue = oraclePrice.price;
             confValue = oraclePrice.conf;
+
         }
         else {
             // using fake oracle price
@@ -179,7 +180,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         // use conservative (from protocol's perspective) price for collateral (low)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
         uint64 priceCollateral = price - nConf*conf/nConfPrecision;
 
-        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*(10**assetInfo.decimals) >= assetAmount * priceCollateral * (10 ** getMaxDecimals()))); 
+        return ((amounts.deposited - amounts.borrowed >= assetAmount), (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue) >= assetAmount * priceCollateral * (10 ** (getMaxDecimals() - assetInfo.decimals)))); 
     }
 
     /** 
@@ -198,9 +199,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         uint64 price;
         uint64 conf;
         (price, conf) = getOraclePrices(assetAddress);
-     
+
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
-     
+
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
         
         uint64 nConf;
@@ -208,9 +209,11 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         (nConf, nConfPrecision) = getNConf();
 
         // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals
-        uint64 priceDebt = price + nConf*conf/nConfPrecision;
+        uint256 priceDebt = uint256(price + nConf*conf/nConfPrecision);
 
-        return ((globalAmounts.deposited - globalAmounts.borrowed >= assetAmount), ((vaultDepositedValue - vaultBorrowedValue)*10**(assetInfo.decimals) >= assetAmount * priceDebt * (10**getMaxDecimals()) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision() ));
+        bool check1 = (globalAmounts.deposited >= globalAmounts.borrowed + assetAmount);
+        bool check2 = (vaultDepositedValue) >=  vaultBorrowedValue + assetAmount * priceDebt  * assetInfo.collateralizationRatioBorrow * (10**(getMaxDecimals() - assetInfo.decimals)) / getCollateralizationRatioPrecision();
+        return (check1, check2);
 
     }
 
@@ -228,7 +231,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault); 
 
-        console.log(vaultDepositedValue, vaultBorrowedValue);
         require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");
         
         uint256 notionalRepaid = 0;
@@ -279,7 +281,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * Errors out if assetAddress has not been registered yet
     * @param assetAddress - The address to be checked
     */
-    function checkValidAddress(address assetAddress) internal view {
+    function checkValidAddress(address assetAddress) internal {
         // check if asset address is allowed
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
         require(registered_info.exists, "Unregistered asset");
@@ -297,7 +299,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     }
 
     function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
-
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
 
@@ -318,40 +319,30 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     }
 
     function updateAccrualIndices(address assetAddress) internal {
+
         uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
         uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
-
         uint256 deposited = getTotalAssetsDeposited(assetAddress);
         AccrualIndices memory accrualIndices = getInterestAccrualIndices(assetAddress);
-
         if(secondsElapsed == 0) {
             // no need to update anything
             return;
         }
-
         accrualIndices.lastBlock = block.timestamp;
-
         if(deposited == 0) {
             // avoid divide by 0 due to 0 deposits
             return;
         }
-
         uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
-
         setLastActivityBlockTimestamp(assetAddress, block.timestamp);
-
         InterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
-
         uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
-
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
         uint256 reserveFactor = assetInfo.interestRateModel.reserveFactor;
         uint256 reservePrecision = assetInfo.interestRateModel.reservePrecision;
-
         accrualIndices.borrowed += interestFactor;
         // discount by the reserve factor (TODO: confirm this is an appropriate way to use reserveFactor--do reserve assets just stay at this address?)
         accrualIndices.deposited += (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
-
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }
 

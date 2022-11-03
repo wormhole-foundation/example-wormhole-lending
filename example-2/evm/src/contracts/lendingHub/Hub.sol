@@ -106,7 +106,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 5,
-            sender: address(this)
+            sender: msg.sender
         });
 
         RegisterAssetPayload memory registerAssetPayload = RegisterAssetPayload({
@@ -281,9 +281,10 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */
     function borrow(address borrower, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         checkValidAddress(assetAddress);
-
+        
         // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
         (bool check1, bool check2) = allowedToBorrow(borrower, assetAddress, amount);
+
         require(check1, "Not enough in global supply");
         require(check2, "Vault is undercollateralized if this borrow goes through");
 
@@ -297,14 +298,12 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         // update state for vault
         VaultAmount memory vaultAmounts = getVaultAmounts(borrower, assetAddress);
         vaultAmounts.borrowed += normalizedAmount;
-   
+
         // update state for global
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
         globalAmounts.borrowed += normalizedAmount;
-
         setVaultAmounts(borrower, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
-
         // TODO: token transfers
         transferTokens(borrower, assetAddress, amount, recipientChain);
     }

@@ -11,6 +11,10 @@ import "./SpokeSetters.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import "forge-std/Test.sol";
+import "forge-std/console.sol";
+
+
 contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeSetters {
     
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
@@ -22,10 +26,16 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
     }
 
     function sendTokenBridgeMessage(address assetAddress, uint256 assetAmount, bytes memory payload) internal {
+
+        SafeERC20.safeTransferFrom(IERC20(assetAddress), msg.sender, address(this), assetAmount);
+
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), assetAmount);
+
+        // TODO: Do we need to check some sort of maximum limit of assetAmount
         tokenBridge().transferTokensWithPayload(
             assetAddress, assetAmount, hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );
+
     }
 
     function sendTokenBridgeMessageNative(uint amount, bytes memory payload) internal {
@@ -61,8 +71,19 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
         require(registered_info.exists, "Unregistered asset");
     }
 
+    function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal {
+        (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
+        uint8 decimals = abi.decode(queriedDecimals, (uint8));
+        require(deNormalizeAmount(normalizeAmount(assetAmount, decimals), decimals) == assetAmount, "Too many decimal places");
+    }
 
-    // function to denormalize amount, taken from wormhole/ethereum/contracts/bridge/Bridge.sol
+    function normalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
+        if (decimals > 8) {
+            amount /= 10 ** (decimals - 8);
+        }
+        return amount;
+    }
+
     function deNormalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
         if (decimals > 8) {
             amount *= 10 ** (decimals - 8);

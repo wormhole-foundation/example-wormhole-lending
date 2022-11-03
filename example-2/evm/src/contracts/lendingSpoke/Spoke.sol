@@ -49,9 +49,10 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
 
     function depositCollateral(address assetAddress, uint256 assetAmount) public {
         checkValidAddress(assetAddress);
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 1,
-            sender: address(this)
+            sender: msg.sender
         });
 
         DepositPayload memory depositPayload = DepositPayload({
@@ -68,9 +69,10 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
 
     function withdrawCollateral(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
         checkValidAddress(assetAddress);
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 2,
-            sender: address(this)
+            sender: msg.sender
         });
 
         WithdrawPayload memory withdrawPayload = WithdrawPayload({
@@ -87,9 +89,10 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
 
     function borrow(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
         checkValidAddress(assetAddress);
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 3,
-            sender: address(this)
+            sender: msg.sender
         });
 
         BorrowPayload memory borrowPayload = BorrowPayload({
@@ -106,9 +109,10 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
 
     function repay(address assetAddress, uint256 assetAmount) public {
         checkValidAddress(assetAddress);
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 4,
-            sender: address(this)
+            sender: msg.sender
         });
 
         RepayPayload memory repayPayload = RepayPayload({
