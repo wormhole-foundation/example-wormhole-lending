@@ -73,6 +73,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         address assetAddress,
         uint256 collateralizationRatioDeposit,
         uint256 collateralizationRatioBorrow,
+        uint64 ratePrecision,
+        uint64 rateIntercept,
+        uint64 rateCoefficientA,
         uint256 reserveFactor,
         uint256 reservePrecision,
         bytes32 pythId,
@@ -86,9 +89,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         allowAsset(assetAddress);
 
         InterestRateModel memory interestRateModel = InterestRateModel({
-            ratePrecision: 1 * 10**18,
-            rateIntercept: 0,
-            rateCoefficientA: 0,
+            ratePrecision: ratePrecision,
+            rateIntercept: rateIntercept,
+            rateCoefficientA: rateCoefficientA,
             reserveFactor: reserveFactor,
             reservePrecision: reservePrecision
         });

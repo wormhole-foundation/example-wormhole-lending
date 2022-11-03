@@ -35,6 +35,9 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         uint256 collateralizationRatioBorrow;
         
         uint8 decimals;
+        uint64 ratePrecision;
+        uint64 rateIntercept;
+        uint64 rateCoefficientA;
         uint256 reserveFactor;
         bytes32 pythId;
     }
@@ -95,7 +98,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
     function fetchSignedMessageFromLogs(Vm.Log memory entry) internal returns (bytes memory) {
         return wormholeSpokeData.wormholeSimulator.fetchSignedMessageFromLogs(entry);
     }
-    function testSetUp(Vm vm) internal returns (Hub) {
+    function testSetUp(Vm vm) internal returns (Hub, IWormhole, ITokenBridge) {
         // initialize assets with above assets
 
         // this will be used to sign wormhole messages
@@ -175,7 +178,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         
         registerChain(6, bytes32(uint256(uint160(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))));
       
-        return hub;
+        return (hub, wormholeContract, tokenBridgeContract);
     }
 
     
@@ -360,7 +363,16 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         // register asset
         wormholeData.vm.recordLogs();
         wormholeData.hub.registerAsset(
-            asset.assetAddress, asset.collateralizationRatioDeposit, asset.collateralizationRatioBorrow, asset.reserveFactor, reservePrecision, asset.pythId, asset.decimals
+            asset.assetAddress, 
+            asset.collateralizationRatioDeposit, 
+            asset.collateralizationRatioBorrow,
+            asset.ratePrecision,
+            asset.rateIntercept,
+            asset.rateCoefficientA,
+            asset.reserveFactor, 
+            reservePrecision, 
+            asset.pythId, 
+            asset.decimals
         );
         Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
         bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
@@ -378,6 +390,15 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         setSpokeData(spokeIndex);
         wormholeData.vm.recordLogs();
         wormholeSpokeData.spoke.depositCollateral(asset.assetAddress, assetAmount);
+        Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
+        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+        return encodedMessage;
+    }
+
+    function doDepositNative(uint256 spokeIndex, uint256 amount) internal returns (bytes memory) {
+        setSpokeData(spokeIndex);
+        wormholeData.vm.recordLogs();
+        wormholeSpokeData.spoke.depositCollateralNative{value: amount}();
         Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
         bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
         return encodedMessage;

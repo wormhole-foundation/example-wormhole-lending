@@ -139,15 +139,12 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         // uint256 assetAmount = deNormalizeAmount(transferResult.normalizedAmount, 18); // TODO: confirm this is in same decimals
 
         address assetAddress = address(tokenBridge().WETH());
-        uint256 assetAmount = 0;
-
-        console.log(assetAddress);
-        console.log(assetAmount);
+        uint256 assetAmount = msg.value - wormhole().messageFee();
         
         checkValidAddress(assetAddress);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 1,
-            sender: address(this)
+            sender: msg.sender
         });
 
         DepositPayload memory depositPayload = DepositPayload({
@@ -170,11 +167,11 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         // uint256 assetAmount = deNormalizeAmount(transferResult.normalizedAmount, 18); // TODO: confirm this is in same decimals
 
         address assetAddress = address(tokenBridge().WETH());
-        uint256 assetAmount = 0;
+        uint256 assetAmount = msg.value - wormhole().messageFee();
 
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 4,
-            sender: address(this)
+            sender: msg.sender
         });
 
         RepayPayload memory repayPayload = RepayPayload({

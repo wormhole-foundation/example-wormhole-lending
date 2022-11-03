@@ -35,7 +35,12 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     
       TestAsset[] assets;
       Hub hub;
-      Spoke[] spokes;
+      Spoke[] spokes;      
+      ITokenBridge tokenBridgeContract;
+      address wrappedGasToken;
+      TestAsset wrappedGasAsset;
+      IWormhole wormholeContract;
+      uint256 msgFee;
 
     // action codes
     // register: R
@@ -47,7 +52,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     // fake spoke: FS
 
     function setUp() public {
-        hub = testSetUp(vm);
+        (hub, wormholeContract, tokenBridgeContract) = testSetUp(vm);
 
         assets.push(
             TestAsset({
@@ -56,6 +61,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
                 collateralizationRatioDeposit: 100 * 10 ** 16,
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
+                ratePrecision: 1 * 10**18,
+                rateIntercept: 0,
+                rateCoefficientA: 0,
                 reserveFactor: 0,
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_bnb") // bytes32("BNB")
             })
@@ -68,9 +76,28 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
                 collateralizationRatioDeposit: 100 * 10 ** 16,
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 decimals: 18,
+                ratePrecision: 1 * 10**18,
+                rateIntercept: 0,
+                rateCoefficientA: 0,
                 reserveFactor: 0,
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_sol") // bytes32("SOL")
             })
+        );
+
+        // get wrapped native gas token and register that
+        wrappedGasToken = address(tokenBridgeContract.WETH());
+        wrappedGasAsset = TestAsset({
+                assetAddress: wrappedGasToken, // wrapped gas token
+                asset: IERC20(wrappedGasToken),
+                collateralizationRatioDeposit: 100 * 10 ** 16,
+                collateralizationRatioBorrow: 110 * 10 ** 16,
+                decimals: 18,
+                ratePrecision: 1 * 10**18,
+                rateIntercept: 0,
+                rateCoefficientA: 0,
+                reserveFactor: 0,
+                pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_avax") // bytes32("AVAX")
+            }
         );
 
         int64 startPrice = 0;
@@ -86,6 +113,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         addSpoke(uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"), vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX"));
         setSpokeData(0);
 
+        // get WH msg fee (for testing native token transfer)
+        msgFee = wormholeContract.messageFee();
     }
 
     function registerSpokesAndAssets() internal returns (Spoke[] memory) {
@@ -97,6 +126,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         bytes memory encodedMessage1 = doRegisterAsset(assets[1]);
         spokes[0].completeRegisterAsset(encodedMessage1);
+
+        bytes memory encodedMessageNative = doRegisterAsset(wrappedGasAsset);
+        spokes[0].completeRegisterAsset(encodedMessageNative);
 
         return spokes;
     }
@@ -161,6 +193,50 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         require(balance_hub_1_post == 1 * 10 ** 17, "Hub asset 1 balance not 1 * 10 ** 17 after");
         require(balance_hub_0_post == 5 * (10 ** 16), "Hub asset 0 balance not 5 * 10^16 after");
+    }
+
+    function testRDNative() public {
+
+        registerSpokesAndAssets();
+
+        address user = msg.sender;
+
+        uint256 userInitBalance = 105 * 10 ** 18;
+
+        // give user 100 native token
+        vm.deal(user, userInitBalance);
+   
+        VaultAmount memory globalBefore = hub.getGlobalAmounts(wrappedGasToken);
+        VaultAmount memory vaultBefore = hub.getVaultAmounts(user, wrappedGasToken);
+
+        uint256 balance_user_native_pre = address(user).balance;
+        uint256 balance_hub_native_pre = IERC20(wrappedGasToken).balanceOf(address(hub));
+
+        vm.prank(user);
+        bytes memory encodedDepositNativeMessage = doDepositNative(0, 5 * (10 ** 16));
+
+        hub.completeDeposit(encodedDepositNativeMessage);
+
+        uint256 balance_user_native_post = address(user).balance;
+
+        uint256 balance_hub_native_post = IERC20(wrappedGasToken).balanceOf(address(hub));
+
+        VaultAmount memory globalAfter = hub.getGlobalAmounts(wrappedGasToken);
+        VaultAmount memory vaultAfter = hub.getVaultAmounts(user, wrappedGasToken);
+
+        require(globalBefore.deposited == 0, "Deposited not initialized to 0");
+        require(globalAfter.deposited == 5 * 10 ** 16 , "5 * 10 ** 16 wasn't deposited (globally)");
+
+        require(vaultBefore.deposited == 0, "Deposited not initialized to 0");
+        require(vaultAfter.deposited == 5 * 10 ** 16 - msgFee, "Amount minus WH msg fee wasn't deposited (in the vault)");
+
+        require(balance_user_native_pre == userInitBalance , "User gas token balance not correct initially");
+
+        require(balance_hub_native_pre == 0, "Hub gas token balance not 0 initially");
+
+        require(balance_user_native_post == userInitBalance - 5 * (10 ** 16), "User gas token balance not correct after");
+
+        require(balance_hub_native_post == 5 * (10 ** 16) - msgFee, "Hub gas token balance not correctly amount transferred minus WH msg fee after");
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)
