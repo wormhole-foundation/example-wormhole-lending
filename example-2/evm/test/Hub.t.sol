@@ -32,10 +32,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     using BytesLib for bytes;
 
     // TODO: Decide what data goes where.. what makes sense here?
-    
-      TestAsset[] assets;
-      Hub hub;
-      Spoke[] spokes;
+
+    TestAsset[] assets;
+    Hub hub;
 
     // action codes
     // register: R
@@ -79,101 +78,291 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         int64 startEmaPrice = 0;
         uint64 startEmaConf = 0;
         uint64 startPublishTime = 1;
-        for(uint i=0; i<assets.length; i++){
-            hub.setMockPythFeed(assets[i].pythId, startPrice, startConf, startExpo, startEmaPrice, startEmaConf, startPublishTime);
+        for (uint256 i = 0; i < assets.length; i++) {
+            hub.setMockPythFeed(
+                assets[i].pythId, startPrice, startConf, startExpo, startEmaPrice, startEmaConf, startPublishTime
+            );
         }
 
-        addSpoke(uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"), vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX"));
+        addSpoke(
+            uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
+            vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"),
+            vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")
+        );
         setSpokeData(0);
-
-    }
-
-    function registerSpokesAndAssets() internal returns (Spoke[] memory) {
-        
-        spokes.push(doRegisterSpoke(0));
-
-        bytes memory encodedMessage0 = doRegisterAsset(assets[0]);
-        spokes[0].completeRegisterAsset(encodedMessage0);
-
-        bytes memory encodedMessage1 = doRegisterAsset(assets[1]);
-        spokes[0].completeRegisterAsset(encodedMessage1);
-
-        return spokes;
     }
 
     function testR() public {
-        registerSpokesAndAssets();
+        doRegisterSpoke(0);
+
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
+    }
+
+    function testD_Fail() public {
+        doRegisterSpoke(0);
+
+        doDepositRevert(0, assets[0], 0, "Unregistered asset");
     }
 
     function testRD() public {
+        doRegisterSpoke(0);
 
-        registerSpokesAndAssets();
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
 
-        address user = msg.sender;
+        deal(assets[1].assetAddress, address(this), 1 * 10 ** 17);
+        deal(assets[0].assetAddress, address(this), 5 * (10 ** 16));
 
-        deal(assets[1].assetAddress, user, 1 * 10 ** 17);
-        deal(assets[0].assetAddress, user, 5 * (10 ** 16));
+        doDeposit(0, assets[1], 1 * 10 ** 17);
+        doDeposit(0, assets[0], 5 * (10 ** 16));
+    }
+
+    function testRDB() public {
+        deal(assets[0].assetAddress, address(this), 500 * 10 ** 18);
+        deal(assets[1].assetAddress, address(0x1), 600 * 10 ** 18);
+
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
+
+        doRegisterSpoke(0);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doDeposit(0, assets[0], 500 * 10 ** 18);
+
+        doDeposit(0, assets[1], 600 * 10 ** 18, address(0x1));
+
+        doBorrow(0, assets[1], 500 * 10 ** 18);
+    }
+
+    function testRDB_Fail() public {
+        // Should fail because the price of the borrow asset is a little too high
+
+        deal(assets[0].assetAddress, address(this), 5 * 10 ** 18);
+        deal(assets[1].assetAddress, address(0x1), 6 * 10 ** 18);
+
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 91);
+
+        doRegisterSpoke(0);
+
+        doDeposit(0, assets[0], 5 * 10 ** 18);
+
+        doDeposit(0, assets[1], 6 * 10 ** 18, address(0x1));
+
+        doBorrowRevert(0, assets[1], 5 * 10 ** 18, "Vault is undercollateralized if this borrow goes through");
+    }
+
+    function testRDBW() public {
+        deal(assets[0].assetAddress, address(this), 5 * 10 ** 18);
+        deal(assets[1].assetAddress, address(0x1), 6 * 10 ** 18);
+
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
+
+        doRegisterSpoke(0);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doDeposit(0, assets[0], 5 * 10 ** 18);
+
+        doDeposit(0, assets[1], 6 * 10 ** 18, address(0x1));
+
+        doBorrow(0, assets[1], 5 * 10 ** 18);
+
+        doWithdraw(0, assets[0], 5 * 10 ** 16);
+    }
+
+    function testRDBW_Fail() public {
+        deal(assets[0].assetAddress, address(this), 5 * 10 ** 18);
+        deal(assets[1].assetAddress, address(0x1), 6 * 10 ** 18);
+
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
+
+        doRegisterSpoke(0);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doDeposit(0, assets[0], 5 * 10 ** 18);
+        doDeposit(0, assets[1], 6 * 10 ** 18, address(0x1));
+
+        doBorrow(0, assets[1], 5 * 10 ** 18);
+
+        doWithdrawRevert(
+            0, assets[0], 5 * 10 ** 16 + 1 * 10 ** 14, "Vault is undercollateralized if this withdraw goes through"
+        );
+    }
+
+    function testRDBPW() public {
+        deal(assets[0].assetAddress, address(this), 500 * 10 ** 16);
+        deal(assets[1].assetAddress, address(0x1), 600 * 10 ** 16);
+
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doRegisterSpoke(0);
+
+        doDeposit(0, assets[0], 500 * 10 ** 16);
         
-        vm.prank(user);
-        assets[1].asset.approve(address(spokes[0]), 1 * 10 ** 17);
-        vm.prank(user);
-        assets[0].asset.approve(address(spokes[0]), 5 * (10 ** 16));
-   
-        VaultAmount memory globalBefore = hub.getGlobalAmounts(assets[1].assetAddress);
-        VaultAmount memory vaultBefore = hub.getVaultAmounts(user, assets[1].assetAddress);
-       
-        uint256 balance_user_0_pre = IERC20(assets[0].assetAddress).balanceOf(user);
-        uint256 balance_user_1_pre = IERC20(assets[1].assetAddress).balanceOf(user);
+        doDeposit(0, assets[1], 600 * 10 ** 16, address(0x1));
+
+        doBorrow(0, assets[1], 500 * 10 ** 16);
+
+        doRepay(0, assets[1], 500 * 10 ** 16);
+
+        doWithdraw(0, assets[0], 500 * 10 ** 16);
+    }
+
+    function testRDBPW_Fail() public {
+        // Should fail because still some debt out so cannot withdraw all your deposited assets
+        deal(assets[0].assetAddress, address(this), 500 * 10 ** 16);
+        deal(assets[1].assetAddress, address(0x1), 600 * 10 ** 16);
+
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doRegisterSpoke(0);
+
+        doDeposit(0, assets[0], 500 * 10 ** 16);
+     
+        doDeposit(0, assets[1], 600 * 10 ** 16, address(0x1));
+
+        doBorrow(0, assets[1], 500 * 10 ** 16);
+
+        doRepay(0, assets[1], 500 * 10 ** 16 - 1 * 10 ** 10);
+
+        doWithdrawRevert(0, assets[0], 500 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through");
+    }
+
+    function testRDBL_Fail() public {
+        // should fail because vault not underwater
+        deal(assets[0].assetAddress, address(this), 501 * 10 ** 18);
+        deal(assets[1].assetAddress, address(this), 1100 * 10 ** 18);
+        deal(assets[0].assetAddress, address(0x1), 500 * 10 ** 18);
+
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doRegisterSpoke(0);
+
+        doDeposit(0, assets[0], 500 * 10 ** 18, address(0x1));
+
+        doDeposit(0, assets[1], 600 * 10 ** 18);
+
+        doBorrow(0, assets[1], 500 * 10 ** 18, address(0x1));
+
+        // liquidation attempted by address(this)
+        address[] memory assetRepayAddresses = new address[](1);
+        assetRepayAddresses[0] = assets[1].assetAddress;
+        uint256[] memory assetRepayAmounts = new uint256[](1);
+        assetRepayAmounts[0] = 500 * 10 ** 18;
+        address[] memory assetReceiptAddresses = new address[](1);
+        assetReceiptAddresses[0] = assets[0].assetAddress;
+        uint256[] memory assetReceiptAmounts = new uint256[](1);
+        assetReceiptAmounts[0] = 1;
+
+        vm.expectRevert(bytes("vault not underwater"));
+        hub.liquidation(
+            address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts
+        );
+    }
+
+    function testRDBL() public {
+        address vault = address(this);
+        address vaultOther = address(0x1);
+
+        // prank mint with tokens
+        deal(assets[0].assetAddress, vault, 1000 * 10 ** 20);
+        deal(assets[1].assetAddress, vault, 2000 * 10 ** 20);
+        deal(assets[0].assetAddress, vaultOther, 3000 * 10 ** 20);
+        deal(assets[1].assetAddress, vaultOther, 4000 * 10 ** 20);
+
+        doRegisterAsset(0, assets[0]);
+        doRegisterAsset(0, assets[1]);
+
+        setPrice(assets[0], 100);
+        setPrice(assets[1], 90);
+
+        doRegisterSpoke(0);
+
+        doDeposit(0, assets[0], 500 * 10 ** 18, vaultOther);
+        doDeposit(0, assets[1], 600 * 10 ** 18);
+        doBorrow(0, assets[1], 500 * 10 ** 18, vaultOther);
+
+        // move the price up for borrowed asset
+        setPrice(assets[1], 95);
+
+        // liquidation attempted by address(this)
+        address[] memory assetRepayAddresses = new address[](1);
+        assetRepayAddresses[0] = assets[1].assetAddress;
+        uint256[] memory assetRepayAmounts = new uint256[](1);
+        assetRepayAmounts[0] = 500 * 10 ** 18;
+        address[] memory assetReceiptAddresses = new address[](1);
+        assetReceiptAddresses[0] = assets[0].assetAddress;
+        uint256[] memory assetReceiptAmounts = new uint256[](1);
+        assetReceiptAmounts[0] = 490 * 10 ** 18;
+
+        IERC20(assets[1].assetAddress).approve(address(hub), 500 * 10 ** 18);
+        // uint256 allowanceAmount = IERC20(assets[1].assetAddress).allowance(vault, address(hub));
+
+        // get vault token balances pre liquidation
+        uint256 balance_vault_0_pre = IERC20(assets[0].assetAddress).balanceOf(vault);
+        uint256 balance_vault_1_pre = IERC20(assets[1].assetAddress).balanceOf(vault);
+        // get hub contract token balances pre liquidation
         uint256 balance_hub_0_pre = IERC20(assets[0].assetAddress).balanceOf(address(hub));
         uint256 balance_hub_1_pre = IERC20(assets[1].assetAddress).balanceOf(address(hub));
 
-        vm.prank(user);
-        bytes memory encodedDepositMessage = doDeposit(0, assets[1], 1 * 10 ** 17);
-        vm.prank(user);
-        bytes memory encodedDepositMessage2 = doDeposit(0, assets[0], 5 * (10 ** 16));
+        hub.liquidation(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
 
-        hub.completeDeposit(encodedDepositMessage);
-        hub.completeDeposit(encodedDepositMessage2);
-
-        uint256 balance_user_0_post = IERC20(assets[0].assetAddress).balanceOf(user);
-        uint256 balance_user_1_post = IERC20(assets[1].assetAddress).balanceOf(user);
-    
+        // get vault token balances post liquidation
+        uint256 balance_vault_0_post = IERC20(assets[0].assetAddress).balanceOf(vault);
+        uint256 balance_vault_1_post = IERC20(assets[1].assetAddress).balanceOf(vault);
+        // get hub contract token balances post liquidation
         uint256 balance_hub_0_post = IERC20(assets[0].assetAddress).balanceOf(address(hub));
         uint256 balance_hub_1_post = IERC20(assets[1].assetAddress).balanceOf(address(hub));
 
-        VaultAmount memory globalAfter = hub.getGlobalAmounts(assets[1].assetAddress);
-        VaultAmount memory vaultAfter = hub.getVaultAmounts(user, assets[1].assetAddress);
-        
-        require(globalBefore.deposited == 0, "Deposited not initialized to 0");
-        require(globalAfter.deposited == 1 * 10 ** 17 , "1 * 10 ** 17 wasn't deposited (globally)");
+        //console.log("balance of vault for token 0 went from ", balance_vault_0_pre, " to ", balance_vault_0_post);
+        //console.log("balance of vault for token 1 went from ", balance_vault_1_pre, " to ", balance_vault_1_post);
+        //console.log("balance of hub for token 0 went from ", balance_hub_0_pre, " to ", balance_hub_0_post);
+        //console.log("balance of hub for token 1 went from ", balance_hub_1_pre, " to ", balance_hub_1_post);
 
-        require(vaultBefore.deposited == 0, "Deposited not initialized to 0");
-        require(vaultAfter.deposited == 1 * 10 ** 17, "1 * 10 ** 17 wasn't deposited (in the vault)");
-
-        require(balance_user_1_pre == 1 * 10 ** 17, "User asset 1 balance not 1 * 10^17 initially");
-        require(balance_user_0_pre == 5 * (10 ** 16) , "User asset 0 balance not 5 * 10^16 initially");
-
-        require(balance_hub_0_pre == 0, "Hub asset 0 balance not 0 initially");
-        require(balance_hub_1_pre == 0, "Hub asset 1 balance not 0 initially");
-
-        require(balance_user_0_post == 0, "User asset 0 balance not 0 after");
-        require(balance_user_1_post == 0 , "User asset 1 balance not 0 after");
-
-        require(balance_hub_1_post == 1 * 10 ** 17, "Hub asset 1 balance not 1 * 10 ** 17 after");
-        require(balance_hub_0_post == 5 * (10 ** 16), "Hub asset 0 balance not 5 * 10^16 after");
+        require(
+            balance_vault_0_pre + balance_hub_0_pre == balance_vault_0_post + balance_hub_0_post,
+            "Asset 0 total amounts should not change after liquidation"
+        );
+        require(
+            balance_vault_1_pre + balance_hub_1_pre == balance_vault_1_post + balance_hub_1_post,
+            "Asset 1 total amounts should not change after liquidation"
+        );
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)
 
     // test register asset
     function testR_FS() public {
-        doRegisterAsset(assets[0]);        
+        doRegisterAsset_FS(assets[0]);
     }
-
 
     function testRD_FS() public {
         deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 18);
-        doRegisterAsset(assets[0]);
+        doRegisterAsset_FS(assets[0]);
         doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
     }
 
@@ -184,12 +373,11 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     }
 
     function testRDB_FS() public {
-
         deal(assets[0].assetAddress, msg.sender, 500 * 10 ** 18);
         deal(assets[1].assetAddress, address(0x1), 600 * 10 ** 18);
 
-        doRegisterAsset(assets[0]);
-        doRegisterAsset(assets[1]);
+        doRegisterAsset_FS(assets[0]);
+        doRegisterAsset_FS(assets[1]);
 
         doRegisterSpoke_FS();
 
@@ -199,9 +387,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit_FS(msg.sender, assets[0], 500 * 10 ** 18);
         doDeposit_FS(address(0x1), assets[1], 600 * 10 ** 18);
 
-
         doBorrow_FS(msg.sender, assets[1], 500 * 10 ** 18);
-
     }
 
     function testRDB_Fail_FS() public {
@@ -210,32 +396,28 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 18);
         deal(assets[1].assetAddress, address(0x1), 6 * 10 ** 18);
 
-        doRegisterAsset(assets[0]);
-        doRegisterAsset(assets[1]);
+        doRegisterAsset_FS(assets[0]);
+        doRegisterAsset_FS(assets[1]);
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 91);
 
         doRegisterSpoke_FS();
 
-
         doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
         doDeposit_FS(address(0x1), assets[1], 6 * 10 ** 18);
 
         doBorrow_FS(msg.sender, assets[1], 5 * 10 ** 18, "Vault is undercollateralized if this borrow goes through");
-
     }
 
     function testRDBW_FS() public {
-
         deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 18);
         deal(assets[1].assetAddress, address(0x1), 6 * 10 ** 18);
 
-        doRegisterAsset(assets[0]);
-        doRegisterAsset(assets[1]);
+        doRegisterAsset_FS(assets[0]);
+        doRegisterAsset_FS(assets[1]);
 
         doRegisterSpoke_FS();
-
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
@@ -244,7 +426,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit_FS(address(0x1), assets[1], 6 * 10 ** 18);
 
         doBorrow_FS(msg.sender, assets[1], 5 * 10 ** 18);
-    
+
         doWithdraw_FS(msg.sender, assets[0], 5 * 10 ** 16);
     }
 
@@ -252,11 +434,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(assets[0].assetAddress, msg.sender, 5 * 10 ** 18);
         deal(assets[1].assetAddress, address(0x1), 6 * 10 ** 18);
 
-        doRegisterAsset(assets[0]);
-        doRegisterAsset(assets[1]);
+        doRegisterAsset_FS(assets[0]);
+        doRegisterAsset_FS(assets[1]);
 
         doRegisterSpoke_FS();
-
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
@@ -264,63 +445,61 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit_FS(msg.sender, assets[0], 5 * 10 ** 18);
         doDeposit_FS(address(0x1), assets[1], 6 * 10 ** 18);
 
-
         doBorrow_FS(msg.sender, assets[1], 5 * 10 ** 18);
-    
-        doWithdraw_FS(msg.sender, assets[0], 5 * 10 ** 16 + 1 * 10 ** 14, "Vault is undercollateralized if this withdraw goes through");
+
+        doWithdraw_FS(
+            msg.sender,
+            assets[0],
+            5 * 10 ** 16 + 1 * 10 ** 14,
+            "Vault is undercollateralized if this withdraw goes through"
+        );
     }
 
     function testRDBPW_FS() public {
-
         deal(assets[0].assetAddress, msg.sender, 500 * 10 ** 16);
         deal(assets[1].assetAddress, address(0x1), 600 * 10 ** 16);
-       
-        doRegisterAsset(assets[0]);
-        doRegisterAsset(assets[1]);
-        
 
+        doRegisterAsset_FS(assets[0]);
+        doRegisterAsset_FS(assets[1]);
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
         doRegisterSpoke_FS();
 
-
         doDeposit_FS(msg.sender, assets[0], 500 * 10 ** 16);
         doDeposit_FS(address(0x1), assets[1], 600 * 10 ** 16);
-
 
         doBorrow_FS(msg.sender, assets[1], 500 * 10 ** 16);
 
         doRepay_FS(msg.sender, assets[1], 500 * 10 ** 16);
-    
+
         doWithdraw_FS(msg.sender, assets[0], 500 * 10 ** 16);
-        
     }
 
     function testRDBPW_Fail_FS() public {
         // Should fail because still some debt out so cannot withdraw all your deposited assets
         deal(assets[0].assetAddress, msg.sender, 500 * 10 ** 16);
         deal(assets[1].assetAddress, address(0x1), 600 * 10 ** 16);
-       
-        doRegisterAsset(assets[0]);
-        doRegisterAsset(assets[1]);
-        
+
+        doRegisterAsset_FS(assets[0]);
+        doRegisterAsset_FS(assets[1]);
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
-        
+
         doRegisterSpoke_FS();
 
         doDeposit_FS(msg.sender, assets[0], 500 * 10 ** 16);
         doDeposit_FS(address(0x1), assets[1], 600 * 10 ** 16);
 
-
         doBorrow_FS(msg.sender, assets[1], 500 * 10 ** 16);
 
         doRepay_FS(msg.sender, assets[1], 500 * 10 ** 16 - 1 * 10 ** 10);
-    
-        doWithdraw_FS(msg.sender, assets[0], 500 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through");
+
+        doWithdraw_FS(
+            msg.sender, assets[0], 500 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through"
+        );
     }
 
     function testRDBL_Fail_FS() public {
@@ -329,57 +508,57 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(assets[1].assetAddress, msg.sender, 1100 * 10 ** 18);
         deal(assets[0].assetAddress, address(0x1), 500 * 10 ** 18);
 
-        doRegisterAsset(assets[0]);
-        doRegisterAsset(assets[1]);
-
+        doRegisterAsset_FS(assets[0]);
+        doRegisterAsset_FS(assets[1]);
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
         doRegisterSpoke_FS();
 
-        doDeposit_FS(address(0x1), assets[0], 500 * 10**18);
-        doDeposit_FS(msg.sender, assets[1], 600 * 10**18);
-    
-        doBorrow_FS(address(0x1), assets[1], 500 * 10**18);
+        doDeposit_FS(address(0x1), assets[0], 500 * 10 ** 18);
+        doDeposit_FS(msg.sender, assets[1], 600 * 10 ** 18);
+
+        doBorrow_FS(address(0x1), assets[1], 500 * 10 ** 18);
 
         // liquidation attempted by msg.sender
         address[] memory assetRepayAddresses = new address[](1);
         assetRepayAddresses[0] = assets[1].assetAddress;
         uint256[] memory assetRepayAmounts = new uint256[](1);
-        assetRepayAmounts[0] = 500 * 10**18;
+        assetRepayAmounts[0] = 500 * 10 ** 18;
         address[] memory assetReceiptAddresses = new address[](1);
         assetReceiptAddresses[0] = assets[0].assetAddress;
         uint256[] memory assetReceiptAmounts = new uint256[](1);
         assetReceiptAmounts[0] = 1;
         vm.prank(msg.sender);
         vm.expectRevert(bytes("vault not underwater"));
-        hub.liquidation(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+        hub.liquidation(
+            address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts
+        );
     }
 
     function testRDBL_FS() public {
-
         address vault = msg.sender;
         address vaultOther = address(0x1);
 
         // prank mint with tokens
-        deal(assets[0].assetAddress, vault, 1000 * 10**20);
-        deal(assets[1].assetAddress, vault, 2000 * 10**20);
-        deal(assets[0].assetAddress, vaultOther, 3000 * 10**20);
-        deal(assets[1].assetAddress, vaultOther, 4000 * 10**20);
+        deal(assets[0].assetAddress, vault, 1000 * 10 ** 20);
+        deal(assets[1].assetAddress, vault, 2000 * 10 ** 20);
+        deal(assets[0].assetAddress, vaultOther, 3000 * 10 ** 20);
+        deal(assets[1].assetAddress, vaultOther, 4000 * 10 ** 20);
 
-        doRegisterAsset(assets[0]);
-        doRegisterAsset(assets[1]);
+        doRegisterAsset_FS(assets[0]);
+        doRegisterAsset_FS(assets[1]);
 
         setPrice(assets[0], 100);
         setPrice(assets[1], 90);
 
         doRegisterSpoke_FS();
 
-        doDeposit_FS(vaultOther, assets[0], 500 * 10**18);
-        doDeposit_FS(vault, assets[1], 600 * 10**18);
-    
-        doBorrow_FS(vaultOther, assets[1], 500 * 10**18);
+        doDeposit_FS(vaultOther, assets[0], 500 * 10 ** 18);
+        doDeposit_FS(vault, assets[1], 600 * 10 ** 18);
+
+        doBorrow_FS(vaultOther, assets[1], 500 * 10 ** 18);
 
         // move the price up for borrowed asset
         setPrice(assets[1], 95);
@@ -388,15 +567,15 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address[] memory assetRepayAddresses = new address[](1);
         assetRepayAddresses[0] = assets[1].assetAddress;
         uint256[] memory assetRepayAmounts = new uint256[](1);
-        assetRepayAmounts[0] = 500 * 10**18;
+        assetRepayAmounts[0] = 500 * 10 ** 18;
         address[] memory assetReceiptAddresses = new address[](1);
         assetReceiptAddresses[0] = assets[0].assetAddress;
         uint256[] memory assetReceiptAmounts = new uint256[](1);
-        assetReceiptAmounts[0] = 490 * 10**18;
+        assetReceiptAmounts[0] = 490 * 10 ** 18;
 
         // prank approve contract to spend tokens
         vm.prank(vault);
-        IERC20(assets[1].assetAddress).approve(address(hub), 500 * 10**18);
+        IERC20(assets[1].assetAddress).approve(address(hub), 500 * 10 ** 18);
         // uint256 allowanceAmount = IERC20(assets[1].assetAddress).allowance(vault, address(hub));
 
         // get vault token balances pre liquidation
@@ -408,23 +587,29 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         vm.prank(vault);
         hub.liquidation(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
-    
+
         // get vault token balances post liquidation
         uint256 balance_vault_0_post = IERC20(assets[0].assetAddress).balanceOf(vault);
         uint256 balance_vault_1_post = IERC20(assets[1].assetAddress).balanceOf(vault);
         // get hub contract token balances post liquidation
         uint256 balance_hub_0_post = IERC20(assets[0].assetAddress).balanceOf(address(hub));
         uint256 balance_hub_1_post = IERC20(assets[1].assetAddress).balanceOf(address(hub));
-    
+
         //console.log("balance of vault for token 0 went from ", balance_vault_0_pre, " to ", balance_vault_0_post);
         //console.log("balance of vault for token 1 went from ", balance_vault_1_pre, " to ", balance_vault_1_post);
         //console.log("balance of hub for token 0 went from ", balance_hub_0_pre, " to ", balance_hub_0_post);
         //console.log("balance of hub for token 1 went from ", balance_hub_1_pre, " to ", balance_hub_1_post);
 
-        require(balance_vault_0_pre + balance_hub_0_pre == balance_vault_0_post + balance_hub_0_post, "Asset 0 total amounts should not change after liquidation");
-        require(balance_vault_1_pre + balance_hub_1_pre == balance_vault_1_post + balance_hub_1_post, "Asset 1 total amounts should not change after liquidation");
+        require(
+            balance_vault_0_pre + balance_hub_0_pre == balance_vault_0_post + balance_hub_0_post,
+            "Asset 0 total amounts should not change after liquidation"
+        );
+        require(
+            balance_vault_1_pre + balance_hub_1_pre == balance_vault_1_post + balance_hub_1_post,
+            "Asset 1 total amounts should not change after liquidation"
+        );
     }
-    
+
     /*
     *       TESTING ENCODING AND DECODING OF MESSAGES
     */

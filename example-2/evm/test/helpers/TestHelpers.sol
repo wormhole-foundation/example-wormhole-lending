@@ -346,15 +346,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         return wormholeSpokeData.spoke;
     }
 
-    function doRegisterSpoke_FS() internal {
-        // register asset
-        wormholeData.hub.registerSpoke(
-            uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), address(this)
-            //2, address(0x1)
-        );
-    }
-
-    function doRegisterAsset(TestAsset memory asset) internal returns (bytes memory) {
+    function doRegisterAsset(uint256 spokeIndex, TestAsset memory asset) internal {
         uint256 reservePrecision = 1 * 10**18;
 
         // register asset
@@ -365,23 +357,271 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities {
         Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
         bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
 
+        wormholeSpokeDataArray[spokeIndex].spoke.completeRegisterAsset(encodedMessage);
+
         AssetInfo memory info = wormholeData.hub.getAssetInfo(asset.assetAddress);
 
         require(
             (info.collateralizationRatioDeposit == asset.collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == asset.collateralizationRatioBorrow) && (info.decimals == asset.decimals) && (info.pythId == asset.pythId) && (info.exists) && (info.interestRateModel.ratePrecision == 1 * 10 ** 18) && (info.interestRateModel.rateIntercept == 0) && (info.interestRateModel.rateCoefficientA == 0) && (info.interestRateModel.reserveFactor == asset.reserveFactor) && (info.interestRateModel.reservePrecision == reservePrecision),
             "didn't register properly" 
         );
-        return encodedMessage;
     }
 
-    function doDeposit(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount) internal returns (bytes memory) {
-        setSpokeData(spokeIndex);
+    function doDeposit(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount) internal {
+        doDeposit(spokeIndex, asset.assetAddress, assetAmount, false, "", false, address(0x0));
+    }
+    function doDeposit(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount, address vault) internal {
+        doDeposit(spokeIndex, asset.assetAddress, assetAmount, false, "", true, vault);
+    }
+    function doDepositRevert(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount, string memory revertString) internal {
+        doDeposit(spokeIndex, asset.assetAddress, assetAmount, true, revertString, false, address(0x0));
+    }
+    function doDeposit(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
+        Spoke spoke = wormholeSpokeDataArray[spokeIndex].spoke;
+        
+        address vault = address(this);
+        if(prankVault) vault = fakeVault;
+
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
+        VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserBefore = IERC20(assetAddress).balanceOf(vault);
+
+        if(prankVault) {
+            wormholeData.vm.prank(vault);
+        }
+        IERC20(assetAddress).approve(address(spoke), assetAmount);
+
+        if(prankVault) {
+            wormholeData.vm.prank(vault);
+        }
         wormholeData.vm.recordLogs();
-        wormholeSpokeData.spoke.depositCollateral(asset.assetAddress, assetAmount);
+        spoke.depositCollateral(assetAddress, assetAmount);
         Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
         bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
-        return encodedMessage;
+
+        if(expectRevert) {
+            wormholeData.vm.expectRevert(bytes(revertString));
+        }
+        wormholeData.hub.completeDeposit(encodedMessage);
+
+        if(expectRevert) {
+            return;
+        }
+
+        VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(vault);
+        require(globalAfter.deposited - globalBefore.deposited == assetAmount, "Amount wasn't deposited globally");
+        require(vaultAfter.deposited - vaultBefore.deposited == assetAmount, "Amount wasn't deposited in vault");
+        require(balanceAfter - balanceBefore == assetAmount, "Amount wasn't transferred to hub");
+        require(balanceUserBefore - balanceUserAfter == assetAmount, "Amount wasn't transferred from user");
     }
+
+    function doRepay(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount) internal {
+        doRepay(spokeIndex, asset.assetAddress, assetAmount, false, "", false, address(0x0));
+    }
+    function doRepay(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount, address vault) internal {
+        doRepay(spokeIndex, asset.assetAddress, assetAmount, false, "", true, vault);
+    }
+    function doRepayRevert(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount, string memory revertString) internal {
+        doRepay(spokeIndex, asset.assetAddress, assetAmount, true, revertString, false, address(0x0));
+    }
+    function doRepay(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
+        Spoke spoke = wormholeSpokeDataArray[spokeIndex].spoke;
+        
+        address vault = address(this);
+        if(prankVault) vault = fakeVault;
+
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
+        VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserBefore = IERC20(assetAddress).balanceOf(vault);
+
+        if(prankVault) {
+            wormholeData.vm.prank(vault);
+        }
+        IERC20(assetAddress).approve(address(spoke), assetAmount);
+
+        if(prankVault) {
+            wormholeData.vm.prank(vault);
+        }
+        wormholeData.vm.recordLogs();
+        spoke.repay(assetAddress, assetAmount);
+        Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
+        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+
+        if(expectRevert) {
+            wormholeData.vm.expectRevert(bytes(revertString));
+        }
+        wormholeData.hub.completeRepay(encodedMessage);
+
+        if(expectRevert) {
+            return;
+        }
+
+        VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(vault);
+        require(globalBefore.borrowed - globalAfter.borrowed == assetAmount, "Amount wasn't repayed globally");
+        require(vaultBefore.borrowed - vaultAfter.borrowed == assetAmount, "Amount wasn't repayed in vault");
+        require(balanceAfter - balanceBefore == assetAmount, "Amount wasn't transferred to hub");
+        require(balanceUserBefore - balanceUserAfter == assetAmount, "Amount wasn't transferred from user");
+    }
+
+    function doBorrow(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount) internal {
+        doBorrow(spokeIndex, asset.assetAddress, assetAmount, false, "", false, address(0x0));
+    }
+    function doBorrow(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount, address vault) internal {
+        doBorrow(spokeIndex, asset.assetAddress, assetAmount, false, "", true, vault);
+    }
+    function doBorrowRevert(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount, string memory revertString) internal {
+        doBorrow(spokeIndex, asset.assetAddress, assetAmount, true, revertString, false, address(0x0));
+    }
+    
+    function doBorrow(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
+        Spoke spoke = wormholeSpokeDataArray[spokeIndex].spoke;
+
+        address vault = address(this);
+        if(prankVault) vault = fakeVault;
+
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
+        VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserBefore = IERC20(assetAddress).balanceOf(vault);
+
+        if(prankVault) {
+            wormholeData.vm.prank(vault);
+        }
+        IERC20(assetAddress).approve(address(spoke), assetAmount);
+
+        if(prankVault) {
+            wormholeData.vm.prank(vault);
+        }
+        wormholeData.vm.recordLogs();
+        spoke.borrow(assetAddress, assetAmount);
+        Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
+        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+   
+        if(expectRevert) {
+            wormholeData.vm.expectRevert(bytes(revertString));
+        }
+        wormholeData.hub.completeBorrow(encodedMessage);
+
+        if(expectRevert) {
+            return;
+        }
+
+        entries = wormholeData.vm.getRecordedLogs();
+        encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+
+        VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        
+
+        require(globalAfter.borrowed - globalBefore.borrowed == assetAmount, "Amount wasn't borrowed globally");
+        require(vaultAfter.borrowed - vaultBefore.borrowed == assetAmount, "Amount wasn't borrowed in vault");
+        require(balanceBefore - balanceAfter == assetAmount, "Amount wasn't transferred from hub");
+
+        wormholeData.tokenBridgeContract.completeTransfer(encodedMessage);
+
+
+        uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(vault);
+
+        require(balanceUserAfter - balanceUserBefore == assetAmount, "Amount wasn't transferred to user");
+    }
+
+    function doWithdraw(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount) internal {
+        doWithdraw(spokeIndex, asset.assetAddress, assetAmount, false, "", false, address(0x0));
+    }
+    function doWithdrawRevert(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount, string memory revertString) internal {
+        doWithdraw(spokeIndex, asset.assetAddress, assetAmount, true, revertString, false, address(0x0));
+    }
+    function doWithdraw(uint256 spokeIndex, TestAsset memory asset, uint256 assetAmount, address vault) internal {
+        doWithdraw(spokeIndex, asset.assetAddress, assetAmount, false, "", true, vault);
+    }
+    function doWithdraw(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
+        Spoke spoke = wormholeSpokeDataArray[spokeIndex].spoke;
+        
+        address vault = address(this);
+        if(prankVault) vault = fakeVault;
+
+        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
+        VaultAmount memory globalBefore = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultBefore = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceBefore = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        uint256 balanceUserBefore = IERC20(assetAddress).balanceOf(vault);
+
+        if(prankVault) {
+            wormholeData.vm.prank(vault);
+        }
+        IERC20(assetAddress).approve(address(spoke), assetAmount);
+
+        if(prankVault) {
+            wormholeData.vm.prank(vault);
+        }
+        wormholeData.vm.recordLogs();
+        spoke.withdrawCollateral(assetAddress, assetAmount);
+        Vm.Log[] memory entries = wormholeData.vm.getRecordedLogs();
+        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+
+        if(expectRevert) {
+            wormholeData.vm.expectRevert(bytes(revertString));
+        }
+        wormholeData.hub.completeWithdraw(encodedMessage);
+
+        if(expectRevert) {
+            return;
+        }
+
+        entries = wormholeData.vm.getRecordedLogs();
+        encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+
+        VaultAmount memory globalAfter = wormholeData.hub.getGlobalAmounts(assetAddress);
+        VaultAmount memory vaultAfter = wormholeData.hub.getVaultAmounts(vault, assetAddress);
+        uint256 balanceAfter = IERC20(assetAddress).balanceOf(address(wormholeData.hub));
+        
+
+        require(globalBefore.deposited - globalAfter.deposited == assetAmount, "Amount wasn't withdrawn globally");
+        require(vaultBefore.deposited - vaultAfter.deposited == assetAmount, "Amount wasn't withdrawn in vault");
+        require(balanceBefore - balanceAfter == assetAmount, "Amount wasn't transferred from hub");
+
+        wormholeData.tokenBridgeContract.completeTransfer(encodedMessage);
+
+        uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(vault);
+        require(balanceUserAfter - balanceUserBefore == assetAmount, "Amount wasn't transferred to user");
+    }
+
+
+    function doRegisterSpoke_FS() internal {
+        // register asset
+        wormholeData.hub.registerSpoke(
+            uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), address(this)
+            //2, address(0x1)
+        );
+    }
+
+    function doRegisterAsset_FS(TestAsset memory asset) internal {
+        uint256 reservePrecision = 1 * 10**18;
+
+        // register asset
+        wormholeData.hub.registerAsset(
+            asset.assetAddress, asset.collateralizationRatioDeposit, asset.collateralizationRatioBorrow, asset.reserveFactor, reservePrecision, asset.pythId, asset.decimals
+        );
+        AssetInfo memory info = wormholeData.hub.getAssetInfo(asset.assetAddress);
+
+        require(
+            (info.collateralizationRatioDeposit == asset.collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == asset.collateralizationRatioBorrow) && (info.decimals == asset.decimals) && (info.pythId == asset.pythId) && (info.exists) && (info.interestRateModel.ratePrecision == 1 * 10 ** 18) && (info.interestRateModel.rateIntercept == 0) && (info.interestRateModel.rateCoefficientA == 0) && (info.interestRateModel.reserveFactor == asset.reserveFactor) && (info.interestRateModel.reservePrecision == reservePrecision),
+            "didn't register properly" 
+        );
+    }
+
 
     function doDeposit_FS(address vault, TestAsset memory asset, uint256 assetAmount) internal returns (bytes memory encodedVM) {
         doDeposit_FS(vault, asset, assetAmount, false, "");
