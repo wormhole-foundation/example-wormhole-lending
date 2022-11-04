@@ -136,8 +136,8 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             (uint64 priceCollateral, uint64 priceDebt) = getPriceCollateralAndPriceDebt(asset);
             uint256 collateralizationRatioPrecision = getCollateralizationRatioPrecision();
             uint8 maxDecimals = getMaxDecimals();
-            effectiveNotionalDeposited += (denormalizedDeposited * priceCollateral) * (uint256(10) ** (maxDecimals - assetInfo.decimals) * collateralizationRatioPrecision) / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
-            effectiveNotionalBorrowed += (denormalizedBorrowed * priceDebt) * (uint256(10) ** (maxDecimals - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow) / collateralizationRatioPrecision; 
+            effectiveNotionalDeposited += denormalizedDeposited * priceCollateral * 10 ** (maxDecimals - assetInfo.decimals) * collateralizationRatioPrecision / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += denormalizedBorrowed * priceDebt * 10 ** (maxDecimals - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow / collateralizationRatioPrecision; 
 
         }    
 
@@ -200,25 +200,23 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
-        uint64 price;
-        uint64 conf;
-        (price, conf) = getOraclePrices(assetAddress);
-
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
 
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
-        
-        uint64 nConf;
-        uint64 nConfPrecision;
-        (nConf, nConfPrecision) = getNConf();
-
-        // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals
-        uint256 priceDebt = uint256(price + nConf*conf/nConfPrecision);
 
         bool check1 = (globalAmounts.deposited >= globalAmounts.borrowed + assetAmount);
-        bool check2 = (vaultDepositedValue) >=  vaultBorrowedValue + assetAmount * priceDebt  * assetInfo.collateralizationRatioBorrow * (10**(getMaxDecimals() - assetInfo.decimals)) / getCollateralizationRatioPrecision();
+        bool check2 = (vaultDepositedValue) >=  vaultBorrowedValue + assetAmount * getPriceDebt(assetAddress)  * assetInfo.collateralizationRatioBorrow * (10**(getMaxDecimals() - assetInfo.decimals)) / getCollateralizationRatioPrecision();
         return (check1, check2);
 
+    }
+
+    function getPriceDebt(address assetAddress) internal view returns (uint256) {
+        
+        // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals
+
+        (uint64 price, uint64 conf) = getOraclePrices(assetAddress);
+        (uint64 nConf, uint64 nConfPrecision) = getNConf();
+        return uint256(price + nConf*conf/nConfPrecision);
     }
 
     /** 

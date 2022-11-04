@@ -59,10 +59,8 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
             assetAddress: assetAddress,
             assetAmount: assetAmount
         });
-
         // create WH message
         bytes memory serialized = encodeDepositPayload(depositPayload);
-
         sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
     }
 

@@ -37,9 +37,8 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
     using BytesLib for bytes;
 
 
-    function testSetUp() internal {
+    function testSetUp(Vm vm) internal {
 
-        Vm vm = getVm();
         // this will be used to sign wormhole messages
         uint256 guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
@@ -175,58 +174,67 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
     }
 
     function doAction(ActionParameters memory params) internal {
+        Action action = Action(params.action);
         requireAssetAmountValidForTokenBridge(params.assetAddress, params.assetAmount);
         Spoke spoke = getSpoke(params.spokeIndex);
         address vault = address(this);
-        if(params.prank) vault = params.prankAddress;
-
+        if(params.prank) {
+            vault = params.prankAddress;
+        }
         Vm vm = getVm();
-
         ActionStateData memory beforeData = getActionStateData(vault, params.assetAddress);
-
-        if(params.action == Action.Deposit || params.action == Action.Repay) {
+        if(action == Action.Deposit || action == Action.Repay) {
             if(params.prank) {
                 vm.prank(vault);
             }
             IERC20(params.assetAddress).approve(address(spoke), params.assetAmount);
         }
-
         if(params.prank) {
             vm.prank(vault);
         }
+
         vm.recordLogs();
-
-        if(params.action == Action.Deposit) spoke.depositCollateral(params.assetAddress, params.assetAmount);
-        else if(params.action == Action.Repay) spoke.repay(params.assetAddress, params.assetAmount);
-        else if(params.action == Action.Borrow) spoke.borrow(params.assetAddress, params.assetAmount);
-        else if(params.action == Action.Withdraw) spoke.withdrawCollateral(params.assetAddress, params.assetAmount);
-
+        if(action == Action.Deposit) {
+            spoke.depositCollateral(params.assetAddress, params.assetAmount);
+        }
+        else if(action == Action.Repay) {
+            spoke.repay(params.assetAddress, params.assetAmount);
+        }
+        else if(action == Action.Borrow) {
+            spoke.borrow(params.assetAddress, params.assetAmount);
+        }
+        else if(action == Action.Withdraw) {
+            spoke.withdrawCollateral(params.assetAddress, params.assetAmount);
+        }
         Vm.Log[] memory entries = vm.getRecordedLogs();
         bytes memory encodedMessage = fetchSignedMessageFromSpokeLogs(params.spokeIndex, entries[entries.length - 1]);
 
         if(params.expectRevert) {
             vm.expectRevert(bytes(params.revertString));
         }
-
-        vm.recordLogs();
-
-        if(params.action == Action.Deposit) getHub().completeDeposit(encodedMessage);
-        else if(params.action == Action.Repay) getHub().completeRepay(encodedMessage);
-        else if(params.action == Action.Borrow) getHub().completeBorrow(encodedMessage);
-        else if(params.action == Action.Withdraw) getHub().completeWithdraw(encodedMessage);
-
+        if(action == Action.Deposit) {
+            getHub().completeDeposit(encodedMessage);
+        }
+        else if(action == Action.Repay) {
+            getHub().completeRepay(encodedMessage);
+        }
+        else if(action == Action.Borrow) {
+            getHub().completeBorrow(encodedMessage);
+        }
+        else if(action == Action.Withdraw) {
+            getHub().completeWithdraw(encodedMessage);
+        }
         if(params.expectRevert) {
             return;
         }
 
-        if(params.action == Action.Borrow || params.action == Action.Withdraw) {
+        if(action == Action.Borrow || action == Action.Withdraw) {
             entries = vm.getRecordedLogs();
             encodedMessage = fetchSignedMessageFromHubLogs(entries[entries.length - 1]);
             getHubData().tokenBridgeContract.completeTransfer(encodedMessage);
         }
 
         ActionStateData memory afterData = getActionStateData(vault, params.assetAddress);
-
     }
 
     
@@ -578,6 +586,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
     }
     */
 
+    /*
 
     function doRegisterSpoke_FS() internal {
         // register asset
@@ -866,6 +875,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(address(vault));
         require(balanceUserAfter - balanceUserBefore == assetAmount, "Amount wasn't transferred to user");
     }
+    */
 
     function setPrice(Asset memory asset, int64 price) internal {
        setPrice(asset, price, 0, 0, 100, 100);

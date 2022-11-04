@@ -35,7 +35,7 @@ contract TestSetters is TestStructs, TestState, TestGetters {
         _testState.assets.push(asset);
     }
 
-    function addAsset(address assetAddress, uint256 collateralizationRatioBorrow, uint256 collateralizationRatioDeposit, uint256 reserveFactor, bytes32 pythId) internal {
+    function addAsset(address assetAddress, uint256 collateralizationRatioDeposit, uint256 collateralizationRatioBorrow, uint256 reserveFactor, bytes32 pythId) internal {
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
         Asset memory asset = Asset({
