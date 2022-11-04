@@ -119,4 +119,29 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         _state.nConf = nConf;
         _state.nConfPrecision = nConfPrecision;
     }
+
+    function setMockPythFeed(
+        bytes32 id,
+        int64 price,
+        uint64 conf,
+        int32 expo,
+        int64 emaPrice,
+        uint64 emaConf,
+        uint64 publishTime
+    ) public {
+        bytes memory priceFeedData = _state.provider.mockPyth.createPriceFeedUpdateData(
+            id,
+            price,
+            conf,
+            expo,
+            emaPrice,
+            emaConf,
+            publishTime
+        );
+
+        bytes[] memory updateData = new bytes[](1);
+        updateData[0] = priceFeedData;
+        _state.provider.mockPyth.updatePriceFeeds(updateData);
+    }
 }
+    
