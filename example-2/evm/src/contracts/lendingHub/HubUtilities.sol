@@ -285,15 +285,15 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * Errors out if assetAddress has not been registered yet
     * @param assetAddress - The address to be checked
     */
-    function checkValidAddress(address assetAddress) internal {
+    function checkValidAddress(address assetAddress) internal view {
         // check if asset address is allowed
-        AssetInfo memory registered_info = getAssetInfo(assetAddress);
-        require(registered_info.exists, "Unregistered asset");
+        AssetInfo memory registeredInfo = getAssetInfo(assetAddress);
+        require(registeredInfo.exists, "Unregistered asset");
     }
 
     // TODO: Write docstrings for these functions
 
-    function checkDuplicates(address[] memory assetAddresses) internal view {
+    function checkDuplicates(address[] memory assetAddresses) internal pure {
         // check if asset address array contains duplicates
         for(uint256 i=0; i<assetAddresses.length; i++) {
             for(uint256 j=0; j<i; j++) {
@@ -389,7 +389,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
     function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
   
-        (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
+        (IWormhole.VM memory parsed,,) = wormhole().parseAndVerifyVM(encodedMessage);
 
         verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.payload.toBytes32(1 + 32 + 32 + 2 + 32 + 2)))));
 
@@ -397,31 +397,6 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
     }
 
-    function setMockPythFeed(
-        bytes32 id,
-        int64 price,
-        uint64 conf,
-        int32 expo,
-        int64 emaPrice,
-        uint64 emaConf,
-        uint64 publishTime
-    ) public {
-        bytes memory priceFeedData = _state.provider.mockPyth.createPriceFeedUpdateData(
-            id,
-            price,
-            conf,
-            expo,
-            emaPrice,
-            emaConf,
-            publishTime
-        );
-
-        bytes[] memory updateData = new bytes[](1);
-        updateData[0] = priceFeedData;
-
-        _state.provider.mockPyth.updatePriceFeeds(updateData);
-
-        PythStructs.Price memory bbb = getMockPythPriceStruct(id);
-    }
+    
 
 }

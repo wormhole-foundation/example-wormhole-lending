@@ -7,8 +7,6 @@ import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
 
-contract HubEvents {}
-
 contract HubStorage is HubStructs {
     struct Provider {
         uint16 chainId;
