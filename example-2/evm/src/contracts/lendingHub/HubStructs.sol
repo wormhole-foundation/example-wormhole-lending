@@ -31,14 +31,10 @@ contract HubStructs {
         uint256 reservePrecision;
     }
 
-
-
-
     struct PayloadHeader {
         uint8 payloadID;
         // address of the sender
         address sender;
-        
     }
 
     struct DepositPayload {
@@ -74,6 +70,6 @@ contract HubStructs {
         int64 price;
         uint64 conf;
         int32 expo;
-        uint publishTime;
+        uint256 publishTime;
     }
 }
