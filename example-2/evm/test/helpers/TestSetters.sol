@@ -11,6 +11,8 @@ import {Hub} from "../../src/contracts/lendingHub/Hub.sol";
 import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
 import {TestStructs} from "./TestStructs.sol";
 import {TestState} from "./TestState.sol";
+import {TestGetters} from "./TestGetters.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
@@ -19,24 +21,24 @@ import {WormholeSimulator} from "./WormholeSimulator.sol";
 
 // TODO: add wormhole interface and use fork-url w/ mainnet
 
-contract TestSetters is TestStructs, TestState {
+contract TestSetters is TestStructs, TestState, TestGetters {
     
-    function setHubData(HubData hubData) internal {
-        _state.hubData = hubData;
+    function setHubData(HubData memory hubData) internal {
+        _testState.hubData = hubData;
     }
 
-    function addSpokeData(SpokeData spokeData) internal {
-        _state.spokeDatas.push(spokeData);
+    function addSpokeData(SpokeData memory spokeData) internal {
+        _testState.spokeDatas.push(spokeData);
     }
 
-    function addAsset(Asset asset) internal {
-        _state.assets.push(asset);
+    function addAsset(Asset memory asset) internal {
+        _testState.assets.push(asset);
     }
 
     function addAsset(address assetAddress, uint256 collateralizationRatioBorrow, uint256 collateralizationRatioDeposit, uint256 reserveFactor, bytes32 pythId) internal {
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
-        Asset asset = Asset({
+        Asset memory asset = Asset({
             assetAddress: assetAddress,
             asset: IERC20(assetAddress),
             collateralizationRatioDeposit: collateralizationRatioDeposit,
@@ -56,7 +58,7 @@ contract TestSetters is TestStructs, TestState {
 
 
         Spoke spoke = new Spoke(chainId, wormholeAddress, tokenBridgeAddress, getHubData().hubChainId, address(getHub()));
-        SpokeData spokeData = SpokeData({
+        SpokeData memory spokeData = SpokeData({
             foreignTokenBridgeAddress: bytes32(uint256(uint160(tokenBridgeAddress))),
             foreignChainId: chainId,
             wormholeContract: wormholeContract,
@@ -68,11 +70,11 @@ contract TestSetters is TestStructs, TestState {
     }   
 
     function setVm(Vm vm) internal {
-        _state.vm = vm;
+        _testState.vm = vm;
     }
 
     function setPublishTime(uint64 publishTime) internal {
-        _state.publishTime = publishTime;
+        _testState.publishTime = publishTime;
     }
 
 }

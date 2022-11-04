@@ -5,7 +5,7 @@ pragma solidity ^0.8.13;
 import {Hub} from "../../src/contracts/lendingHub/Hub.sol";
 
 
-
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
@@ -39,4 +39,13 @@ contract TestStructs {
         uint256 reserveFactor;
         bytes32 pythId;
     }
+    struct RegisterChainMessage {
+        bytes32 module;
+        uint8 action;
+        uint16 chainId;
+        uint16 emitterChainId;
+        bytes32 emitterAddress;
+    }
+
+
 }

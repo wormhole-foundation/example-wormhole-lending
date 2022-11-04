@@ -7,29 +7,26 @@ import "forge-std/console.sol";
 
 import "../../src/libraries/external/BytesLib.sol";
 
-import {Hub} from "../../src/contracts/lendingHub/Hub.sol";
-import {HubStructs} from "../../src/contracts/lendingHub/HubStructs.sol";
-import {HubMessages} from "../../src/contracts/lendingHub/HubMessages.sol";
-import {HubUtilities} from "../../src/contracts/lendingHub/HubUtilities.sol";
-import {MyERC20} from "./MyERC20.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC20PresetMinterPauser} from "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 
 import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 import {ITokenImplementation} from "../../src/interfaces/ITokenImplementation.sol";
 import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
+import {Hub} from "../../src/contracts/lendingHub/Hub.sol";
 import {TestStructs} from "./TestStructs.sol";
 import {TestState} from "./TestState.sol";
+import {TestSetters} from "./TestSetters.sol";
+import {TestGetters} from "./TestGetters.sol";
 
-import "../../src/contracts/lendingHub/HubGetters.sol";
 
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 
 // TODO: add wormhole interface and use fork-url w/ mainnet
 
-contract TestUtilities is TestState, TestStructs, TestSetters, TestGetters {
+contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
     
     function fetchSignedMessageFromSpokeLogs(uint256 spokeIndex, Vm.Log memory entry) internal returns (bytes memory) {
         return getSpokeData(spokeIndex).wormholeSimulator.fetchSignedMessageFromLogs(entry);
@@ -39,7 +36,7 @@ contract TestUtilities is TestState, TestStructs, TestSetters, TestGetters {
         return getHubData().wormholeSimulator.fetchSignedMessageFromLogs(entry);
     }
 
-       function encodePayload3Message(
+    function encodePayload3Message(
         ITokenBridge.TransferWithPayload memory transfer,
         // wormhole related
         IWormhole.WormholeBodyParams memory wormholeParams
@@ -115,8 +112,8 @@ contract TestUtilities is TestState, TestStructs, TestSetters, TestGetters {
             IWormhole.WormholeBodyParams({
                 timestamp: 0,
                 nonce: 0,
-                emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
-                emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
+                emitterChainId: uint16(getVm().envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
+                emitterAddress: bytes32(uint256(uint160(getVm().envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
                 sequence: 1,
                 consistencyLevel: 15
             })
@@ -131,8 +128,8 @@ contract TestUtilities is TestState, TestStructs, TestSetters, TestGetters {
             IWormhole.WormholeBodyParams({
                 timestamp: 0,
                 nonce: 0,
-                emitterChainId: uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
-                emitterAddress: bytes32(uint256(uint160(wormholeData.vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
+                emitterChainId: uint16(getVm().envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
+                emitterAddress: bytes32(uint256(uint160(getVm().envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
                 sequence: 1,
                 consistencyLevel: 15
             })
@@ -143,7 +140,7 @@ contract TestUtilities is TestState, TestStructs, TestSetters, TestGetters {
         bytes memory message = abi.encodePacked(
             uint32(0),
             uint32(0),
-            uint16(wormholeData.vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
+            uint16(getVm().envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
             bytes32(uint256(uint160(address(this)))), // this should be the spoke address
             uint64(1),
             uint8(15),
@@ -180,12 +177,12 @@ contract TestUtilities is TestState, TestStructs, TestSetters, TestGetters {
 
         // Sign the hash with the devnet guardian private key
         IWormhole.Signature[] memory sigs = new IWormhole.Signature[](1);
-        (sigs[0].v, sigs[0].r, sigs[0].s) = wormholeData.vm.sign(wormholeData.guardianSigner, messageHash);
+        (sigs[0].v, sigs[0].r, sigs[0].s) = getVm().sign(getHubData().guardianSigner, messageHash);
         sigs[0].guardianIndex = 0;
 
         encodedVM = abi.encodePacked(
             uint8(1), // version
-            wormholeData.wormholeContract.getCurrentGuardianSetIndex(),
+            getHubData().wormholeContract.getCurrentGuardianSetIndex(),
             uint8(sigs.length),
             sigs[0].guardianIndex,
             sigs[0].r,
@@ -193,14 +190,6 @@ contract TestUtilities is TestState, TestStructs, TestSetters, TestGetters {
             sigs[0].v - 27,
             message
         );
-    }
-
-    struct RegisterChainMessage {
-        bytes32 module;
-        uint8 action;
-        uint16 chainId;
-        uint16 emitterChainId;
-        bytes32 emitterAddress;
     }
 
     function registerChainOnHub(uint16 emitterChainId, bytes32 emitterAddress) internal returns (bytes memory) {
@@ -224,7 +213,7 @@ contract TestUtilities is TestState, TestStructs, TestSetters, TestGetters {
 
         bytes memory registerChainSignedMsg = getSignedWHMsg(payload);
 
-        wormholeData.tokenBridgeContract.registerChain(registerChainSignedMsg);
+        getHubData().tokenBridgeContract.registerChain(registerChainSignedMsg);
         
     }
 

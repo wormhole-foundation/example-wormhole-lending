@@ -21,5 +21,5 @@ contract TestStorage is TestStructs {
 }
 
 contract TestState {
-    TestStorage.state _state;
+    TestStorage.State _testState;
 }

@@ -11,7 +11,7 @@ import {Hub} from "../../src/contracts/lendingHub/Hub.sol";
 import {HubStructs} from "../../src/contracts/lendingHub/HubStructs.sol";
 import {HubMessages} from "../../src/contracts/lendingHub/HubMessages.sol";
 import {HubUtilities} from "../../src/contracts/lendingHub/HubUtilities.sol";
-import {MyERC20} from "./MyERC20.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC20PresetMinterPauser} from "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
@@ -20,6 +20,11 @@ import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 import {ITokenImplementation} from "../../src/interfaces/ITokenImplementation.sol";
 import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
+import {TestStructs} from "./TestStructs.sol";
+import {TestState} from "./TestState.sol";
+import {TestSetters} from "./TestSetters.sol";
+import {TestGetters} from "./TestGetters.sol";
+import {TestUtilities} from "./TestUtilities.sol";
 
 import "../../src/contracts/lendingHub/HubGetters.sol";
 
@@ -27,14 +32,14 @@ import {WormholeSimulator} from "./WormholeSimulator.sol";
 
 // TODO: add wormhole interface and use fork-url w/ mainnet
 
-contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestState, TestStructs, TestSetters, TestGetters {
+contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGetters, TestSetters, TestUtilities {
     
     using BytesLib for bytes;
 
 
     function testSetUp() internal {
 
-        
+        Vm vm = getVm();
         // this will be used to sign wormhole messages
         uint256 guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
@@ -95,8 +100,10 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
             wormholeContract: wormholeContract,
             tokenBridgeContract: tokenBridgeContract,
             hub: hub,
-            vm: vm
+            hubChainId: wormholeContract.chainId()
         }));
+
+        setVm(vm);
 
         setPublishTime(1);
         
@@ -106,7 +113,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
 
     function doRegisterSpoke(uint256 index) internal returns (Spoke) {
 
-        SpokeData spokeData = getSpokeData();
+        SpokeData memory spokeData = getSpokeData(index);
         // register asset
         getHub().registerSpoke(
             spokeData.foreignChainId, address(spokeData.spoke)
@@ -116,6 +123,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
     }
 
     function doRegisterAsset(uint256 spokeIndex, Asset memory asset) internal {
+        Vm vm = getVm();
+        
         uint256 reservePrecision = 1 * 10**18;
         
         // register asset
@@ -124,7 +133,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
             asset.assetAddress, asset.collateralizationRatioDeposit, asset.collateralizationRatioBorrow, asset.reserveFactor, reservePrecision, asset.pythId, asset.decimals
         );
         Vm.Log[] memory entries = vm.getRecordedLogs();
-        bytes memory encodedMessage = fetchSignedMessageFromLogs(entries[entries.length - 1]);
+        bytes memory encodedMessage = fetchSignedMessageFromSpokeLogs(spokeIndex, entries[entries.length - 1]);
 
         getSpoke(spokeIndex).completeRegisterAsset(encodedMessage);
 
@@ -147,7 +156,8 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
     }
     function doDeposit(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
         Spoke spoke = getSpoke(spokeIndex);
-        
+        Vm vm = getVm();
+
         address vault = address(this);
         if(prankVault) vault = fakeVault;
 
@@ -200,7 +210,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
     }
     function doRepay(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
         Spoke spoke = getSpoke(spokeIndex);
-        
+        Vm vm = getVm();
         address vault = address(this);
         if(prankVault) vault = fakeVault;
 
@@ -254,7 +264,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
     
     function doBorrow(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
         Spoke spoke = getSpoke(spokeIndex);
-        
+        Vm vm = getVm();
         address vault = address(this);
         if(prankVault) vault = fakeVault;
 
@@ -317,7 +327,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
     }
     function doWithdraw(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
         Spoke spoke = getSpoke(spokeIndex);
-            
+        Vm vm = getVm();    
         address vault = address(this);
         if(prankVault) vault = fakeVault;
 
@@ -370,6 +380,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
 
     function doRegisterSpoke_FS() internal {
         // register asset
+        Vm vm = getVm();
         getHub().registerSpoke(
             uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), address(this)
             //2, address(0x1)
@@ -405,7 +416,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
         internal
     {
         address assetAddress = asset.assetAddress;
-        
+        Vm vm = getVm();
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         VaultAmount memory globalBefore = getHub().getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = getHub().getVaultAmounts(vault, assetAddress);
@@ -476,6 +487,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
         internal
     {
         address assetAddress = asset.assetAddress;
+        Vm vm = getVm();
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         VaultAmount memory globalBefore = getHub().getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = getHub().getVaultAmounts(vault, assetAddress);
@@ -545,6 +557,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
         internal
     {
         address assetAddress = asset.assetAddress;
+        Vm vm = getVm();
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         VaultAmount memory globalBefore = getHub().getGlobalAmounts(assetAddress);
         VaultAmount memory vaultBefore = getHub().getVaultAmounts(vault, assetAddress);
@@ -606,7 +619,7 @@ contract TestHelpers is HubStructs, HubMessages, HubGetters, HubUtilities, TestS
     // create Withdraw payload and package it into TokenBridgePayload into WH message and send the withdraw
     function doWithdraw_FS(address vault, Asset memory asset, uint256 assetAmount, bool expectRevert, string memory revertString)
         internal {
-
+        Vm vm = getVm();
         address assetAddress = asset.assetAddress;
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         VaultAmount memory globalBefore = getHub().getGlobalAmounts(assetAddress);
