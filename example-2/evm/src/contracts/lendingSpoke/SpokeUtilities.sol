@@ -35,7 +35,6 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
         tokenBridge().transferTokensWithPayload(
             assetAddress, assetAmount, hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );
-
     }
 
     function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
@@ -54,17 +53,7 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
         return parsed.payload;
     }
 
-     /**
-    * Check if an address has been registered on the Hub yet (through the registerAsset function)
-    * Errors out if assetAddress has not been registered yet
-    * @param assetAddress - The address to be checked
-    */
-    function checkValidAddress(address assetAddress) internal view {
-        // check if asset address is allowed
-        AssetInfo memory registered_info = getAssetInfo(assetAddress);
-        require(registered_info.exists, "Unregistered asset");
-    }
-
+  
     function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal {
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));

@@ -5,6 +5,7 @@ import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../../libraries/external/BytesLib.sol";
 
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
@@ -17,6 +18,7 @@ import "./HubSetters.sol";
 import "forge-std/console.sol";
 
 contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
+    using BytesLib for bytes;
     /** 
     * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued). 
     * 
@@ -119,33 +121,37 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
             address asset = allowList[i];
 
             
-            VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, asset);
-
-            uint64 price;
-            uint64 conf;
-            (price, conf) = getOraclePrices(asset);
             
+
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
             AccrualIndices memory indices = getInterestAccrualIndices(asset);
             
-            uint256 denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
-            uint256 denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
-
-            // use conservative (from protocol's perspective) prices for collateral (low) and debt (high)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
-            uint64 nConf;
-            uint64 nConfPrecision;
-            (nConf, nConfPrecision) = getNConf();
-
-            uint64 priceCollateral = price - nConf*conf/nConfPrecision;
-            uint64 priceDebt = price + nConf*conf/nConfPrecision;
-
-            effectiveNotionalDeposited += denormalizedDeposited * priceCollateral * 10 ** (getMaxDecimals() - assetInfo.decimals) * getCollateralizationRatioPrecision() / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
-            effectiveNotionalBorrowed += denormalizedBorrowed * priceDebt * 10 ** (getMaxDecimals() - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow / getCollateralizationRatioPrecision(); 
+            uint256 denormalizedDeposited;
+            uint256 denormalizedBorrowed;
+            {
+                VaultAmount memory normalizedAmounts = getVaultAmounts(vaultOwner, asset);
+                denormalizedDeposited = denormalizeAmount(normalizedAmounts.deposited, indices.deposited);
+                denormalizedBorrowed = denormalizeAmount(normalizedAmounts.borrowed, indices.borrowed);
+            }
+            
+            (uint64 priceCollateral, uint64 priceDebt) = getPriceCollateralAndPriceDebt(asset);
+            uint256 collateralizationRatioPrecision = getCollateralizationRatioPrecision();
+            uint8 maxDecimals = getMaxDecimals();
+            effectiveNotionalDeposited += denormalizedDeposited * priceCollateral * 10 ** (maxDecimals - assetInfo.decimals) * collateralizationRatioPrecision / assetInfo.collateralizationRatioDeposit; // / (10**assetInfo.decimals);
+            effectiveNotionalBorrowed += denormalizedBorrowed * priceDebt * 10 ** (maxDecimals - assetInfo.decimals) * assetInfo.collateralizationRatioBorrow / collateralizationRatioPrecision; 
 
         }    
 
         return (effectiveNotionalDeposited, effectiveNotionalBorrowed);
+    }
+
+    function getPriceCollateralAndPriceDebt(address asset) internal view returns (uint64 priceCollateral, uint64 priceDebt) {
+        (uint64 price, uint64 conf) = getOraclePrices(asset);
+        // use conservative (from protocol's perspective) prices for collateral (low) and debt (high)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
+        (uint64 nConf, uint64 nConfPrecision) = getNConf();
+        priceCollateral = price - nConf*conf/nConfPrecision;
+        priceDebt = price + nConf*conf/nConfPrecision;
     }
 
 
@@ -196,25 +202,23 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
-        uint64 price;
-        uint64 conf;
-        (price, conf) = getOraclePrices(assetAddress);
-
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
 
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
-        
-        uint64 nConf;
-        uint64 nConfPrecision;
-        (nConf, nConfPrecision) = getNConf();
-
-        // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals
-        uint256 priceDebt = uint256(price + nConf*conf/nConfPrecision);
 
         bool check1 = (globalAmounts.deposited >= globalAmounts.borrowed + assetAmount);
-        bool check2 = (vaultDepositedValue) >=  vaultBorrowedValue + assetAmount * priceDebt  * assetInfo.collateralizationRatioBorrow * (10**(getMaxDecimals() - assetInfo.decimals)) / getCollateralizationRatioPrecision();
+        bool check2 = (vaultDepositedValue) >=  vaultBorrowedValue + assetAmount * getPriceDebt(assetAddress)  * assetInfo.collateralizationRatioBorrow * (10**(getMaxDecimals() - assetInfo.decimals)) / getCollateralizationRatioPrecision();
         return (check1, check2);
 
+    }
+
+    function getPriceDebt(address assetAddress) internal view returns (uint256) {
+        
+        // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals
+
+        (uint64 price, uint64 conf) = getOraclePrices(assetAddress);
+        (uint64 nConf, uint64 nConfPrecision) = getNConf();
+        return uint256(price + nConf*conf/nConfPrecision);
     }
 
     /** 
@@ -372,10 +376,24 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
     }
 
-    function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
-        payload = tokenBridge().completeTransferWithPayload(encodedMessage);
+ 
+    function extractSerializedFromTransferWithPayload(bytes memory encodedVM) internal pure returns (bytes memory serialized) {
+        uint256 index = 0;
+        uint256 end = encodedVM.length;
 
-        // do some stuff
+        // pass through TransferWithPayload metadata to arbitrary serialized bytes
+        index += 1 + 32 + 32 + 2 + 32 + 2 + 32;
+
+        return encodedVM.slice(index, end-index);
+    }
+
+    function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
+  
+        (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
+
+        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.payload.toBytes32(1 + 32 + 32 + 2 + 32 + 2)))));
+
+        payload = tokenBridge().completeTransferWithPayload(encodedMessage);
         
     }
 
@@ -406,33 +424,4 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         PythStructs.Price memory bbb = getMockPythPriceStruct(id);
     }
 
-    /*
-    function updateAccrualIndices(address[] assetAddresses) internal {
-        for (uint256 i = 0; i < assetAddresses.length; i++) {
-            address assetAddress = assetAddresses[i];
-
-            updateAccrualIndices(assetAddress);
-        }
-    }*/
-
-
-
-
-
-    // /*
-    // function checkValidAddresses(address[] calldata assetAddresses) internal view {
-    //     mapping(address => bool) memory observedAssets;
-
-    //     for(uint i=0; i<assetAddresses.length; i++){
-    //         address assetAddress = assetAddresses[i];
-    //         // check if asset address is allowed
-    //         AssetInfo memory registered_info = getAssetInfo(assetAddress);
-    //         require(registered_info.isValue, "Unregistered asset");
-
-    //         // check if each address is unique
-    //         // require(!observedAssets[assetAddress], "Repeated asset");
-
-    //         // observedAssets[assetAddress] = true;
-    //     }
-    // }*/
 }

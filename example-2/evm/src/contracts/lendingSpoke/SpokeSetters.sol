@@ -30,15 +30,8 @@ contract SpokeSetters is HubStructs, SpokeState {
         _state.hubContractAddress = hubContractAddress;
     }
 
-    function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
-        _state.assetInfos[assetAddress] = info;
-    }
-
     function consumeMessageHash(bytes32 vmHash) internal {
         _state.consumedMessages[vmHash] = true;
     }
 
-    function allowAsset(address assetAddress) internal {
-        _state.allowList.push(assetAddress);
-    }
 }
