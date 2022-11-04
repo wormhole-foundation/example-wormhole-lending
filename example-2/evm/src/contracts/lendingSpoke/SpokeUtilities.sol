@@ -54,7 +54,7 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
     }
 
   
-    function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal {
+    function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal view {
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
         require(deNormalizeAmount(normalizeAmount(assetAmount, decimals), decimals) == assetAmount, "Too many decimal places");

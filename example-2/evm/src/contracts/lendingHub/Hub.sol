@@ -79,8 +79,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     ) public {
         require(msg.sender == owner(), "invalid owner");
 
-        AssetInfo memory registered_info = getAssetInfo(assetAddress);
-        require(!registered_info.exists, "Asset already registered");
+        AssetInfo memory registeredInfo = getAssetInfo(assetAddress);
+        require(!registeredInfo.exists, "Asset already registered");
 
         allowAsset(assetAddress);
 
