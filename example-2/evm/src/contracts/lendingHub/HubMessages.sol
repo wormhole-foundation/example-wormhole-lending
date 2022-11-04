@@ -58,16 +58,6 @@ contract HubMessages is HubStructs {
         header.sender = serialized.toAddress(index);
     }
 
-    function extractSerializedFromTransferWithPayload(bytes memory encodedVM) internal pure returns (bytes memory serialized) {
-        uint256 index = 0;
-        uint256 end = encodedVM.length;
-
-        // pass through TransferWithPayload metadata to arbitrary serialized bytes
-        index += 1 + 32 + 32 + 2 + 32 + 2 + 32;
-
-        return encodedVM.slice(index, end-index);
-    }
-
     function decodeDepositPayload(bytes memory serialized) internal pure returns (DepositPayload memory params) {
         uint256 index = 0;
 
@@ -151,5 +141,8 @@ contract HubMessages is HubStructs {
 
         params.assetAmount = assetAmount;
     }
+
+  
+
     
 }

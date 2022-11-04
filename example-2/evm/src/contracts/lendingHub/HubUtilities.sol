@@ -5,6 +5,7 @@ import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../../libraries/external/BytesLib.sol";
 
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
@@ -17,6 +18,7 @@ import "./HubSetters.sol";
 import "forge-std/console.sol";
 
 contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
+    using BytesLib for bytes;
     /** 
     * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued). 
     * 
@@ -374,10 +376,24 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
     }
 
-    function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
-        payload = tokenBridge().completeTransferWithPayload(encodedMessage);
+ 
+    function extractSerializedFromTransferWithPayload(bytes memory encodedVM) internal pure returns (bytes memory serialized) {
+        uint256 index = 0;
+        uint256 end = encodedVM.length;
 
-        // do some stuff
+        // pass through TransferWithPayload metadata to arbitrary serialized bytes
+        index += 1 + 32 + 32 + 2 + 32 + 2 + 32;
+
+        return encodedVM.slice(index, end-index);
+    }
+
+    function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
+  
+        (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
+
+        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.payload.toBytes32(1 + 32 + 32 + 2 + 32 + 2)))));
+
+        payload = tokenBridge().completeTransferWithPayload(encodedMessage);
         
     }
 
@@ -408,33 +424,4 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         PythStructs.Price memory bbb = getMockPythPriceStruct(id);
     }
 
-    /*
-    function updateAccrualIndices(address[] assetAddresses) internal {
-        for (uint256 i = 0; i < assetAddresses.length; i++) {
-            address assetAddress = assetAddresses[i];
-
-            updateAccrualIndices(assetAddress);
-        }
-    }*/
-
-
-
-
-
-    // /*
-    // function checkValidAddresses(address[] calldata assetAddresses) internal view {
-    //     mapping(address => bool) memory observedAssets;
-
-    //     for(uint i=0; i<assetAddresses.length; i++){
-    //         address assetAddress = assetAddresses[i];
-    //         // check if asset address is allowed
-    //         AssetInfo memory registered_info = getAssetInfo(assetAddress);
-    //         require(registered_info.isValue, "Unregistered asset");
-
-    //         // check if each address is unique
-    //         // require(!observedAssets[assetAddress], "Repeated asset");
-
-    //         // observedAssets[assetAddress] = true;
-    //     }
-    // }*/
 }
