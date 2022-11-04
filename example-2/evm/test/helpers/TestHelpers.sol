@@ -145,15 +145,128 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         );
     }
 
+    enum Action{Deposit, Borrow, Withdraw, Repay}
+
+    struct ActionParameters {
+        Action action;
+        uint256 spokeIndex;
+        address assetAddress;
+        uint256 assetAmount;
+        bool expectRevert;
+        string revertString;
+        bool prank;
+        address prankAddress;
+    }
+
+    struct ActionStateData {
+        VaultAmount global;
+        VaultAmount vault;
+        uint256 balanceHub;
+        uint256 balanceUser;
+    }
+
+    function getActionStateData(address vault, address assetAddress) internal returns(ActionStateData memory data) {
+        data = ActionStateData({
+            global: getHub().getGlobalAmounts(assetAddress),
+            vault: getHub().getVaultAmounts(vault, assetAddress),
+            balanceHub: IERC20(assetAddress).balanceOf(address(getHub())),
+            balanceUser: IERC20(assetAddress).balanceOf(vault)
+        });
+    }
+
+    function doAction(ActionParameters memory params) internal {
+        requireAssetAmountValidForTokenBridge(params.assetAddress, params.assetAmount);
+        Spoke spoke = getSpoke(params.spokeIndex);
+        address vault = address(this);
+        if(params.prank) vault = params.prankAddress;
+
+        Vm vm = getVm();
+
+        ActionStateData memory beforeData = getActionStateData(vault, params.assetAddress);
+
+        if(params.action == Action.Deposit || params.action == Action.Repay) {
+            if(params.prank) {
+                vm.prank(vault);
+            }
+            IERC20(params.assetAddress).approve(address(spoke), params.assetAmount);
+        }
+
+        if(params.prank) {
+            vm.prank(vault);
+        }
+        vm.recordLogs();
+
+        if(params.action == Action.Deposit) spoke.depositCollateral(params.assetAddress, params.assetAmount);
+        else if(params.action == Action.Repay) spoke.repay(params.assetAddress, params.assetAmount);
+        else if(params.action == Action.Borrow) spoke.borrow(params.assetAddress, params.assetAmount);
+        else if(params.action == Action.Withdraw) spoke.withdrawCollateral(params.assetAddress, params.assetAmount);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes memory encodedMessage = fetchSignedMessageFromSpokeLogs(params.spokeIndex, entries[entries.length - 1]);
+
+        if(params.expectRevert) {
+            vm.expectRevert(bytes(params.revertString));
+        }
+
+        vm.recordLogs();
+
+        if(params.action == Action.Deposit) getHub().completeDeposit(encodedMessage);
+        else if(params.action == Action.Repay) getHub().completeRepay(encodedMessage);
+        else if(params.action == Action.Borrow) getHub().completeBorrow(encodedMessage);
+        else if(params.action == Action.Withdraw) getHub().completeWithdraw(encodedMessage);
+
+        if(params.expectRevert) {
+            return;
+        }
+
+        if(params.action == Action.Borrow || params.action == Action.Withdraw) {
+            entries = vm.getRecordedLogs();
+            encodedMessage = fetchSignedMessageFromHubLogs(entries[entries.length - 1]);
+            getHubData().tokenBridgeContract.completeTransfer(encodedMessage);
+        }
+
+        ActionStateData memory afterData = getActionStateData(vault, params.assetAddress);
+
+    }
+
+    
     function doDeposit(uint256 spokeIndex, Asset memory asset, uint256 assetAmount) internal {
-        doDeposit(spokeIndex, asset.assetAddress, assetAmount, false, "", false, address(0x0));
+        doAction(ActionParameters({
+            action: Action.Deposit,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            prank: false,
+            prankAddress: address(0x0)
+        }));
     }
     function doDeposit(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
-        doDeposit(spokeIndex, asset.assetAddress, assetAmount, false, "", true, vault);
+        doAction(ActionParameters({
+            action: Action.Deposit,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            prank: true,
+            prankAddress: vault
+        }));
     }
     function doDepositRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString) internal {
-        doDeposit(spokeIndex, asset.assetAddress, assetAmount, true, revertString, false, address(0x0));
+        doAction(ActionParameters({
+            action: Action.Deposit,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: true,
+            revertString: revertString,
+            prank: false,
+            prankAddress: address(0x0)
+        }));
     }
+    /*
     function doDeposit(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
         Spoke spoke = getSpoke(spokeIndex);
         Vm vm = getVm();
@@ -198,16 +311,46 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         require(balanceAfter - balanceBefore == assetAmount, "Amount wasn't transferred to hub");
         require(balanceUserBefore - balanceUserAfter == assetAmount, "Amount wasn't transferred from user");
     }
+    */
 
     function doRepay(uint256 spokeIndex, Asset memory asset, uint256 assetAmount) internal {
-        doRepay(spokeIndex, asset.assetAddress, assetAmount, false, "", false, address(0x0));
+        doAction(ActionParameters({
+            action: Action.Repay,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            prank: false,
+            prankAddress: address(0x0)
+        }));
     }
     function doRepay(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
-        doRepay(spokeIndex, asset.assetAddress, assetAmount, false, "", true, vault);
+        doAction(ActionParameters({
+            action: Action.Repay,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            prank: true,
+            prankAddress: vault
+        }));
     }
-    function doRepayRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString) internal {
-        doRepay(spokeIndex, asset.assetAddress, assetAmount, true, revertString, false, address(0x0));
+    function doRepay(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString) internal {
+        doAction(ActionParameters({
+            action: Action.Repay,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: true,
+            revertString: revertString,
+            prank: false,
+            prankAddress: address(0x0)
+        }));
     }
+
+    /*
     function doRepay(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
         Spoke spoke = getSpoke(spokeIndex);
         Vm vm = getVm();
@@ -251,17 +394,46 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         require(balanceAfter - balanceBefore == assetAmount, "Amount wasn't transferred to hub");
         require(balanceUserBefore - balanceUserAfter == assetAmount, "Amount wasn't transferred from user");
     }
+    */
 
     function doBorrow(uint256 spokeIndex, Asset memory asset, uint256 assetAmount) internal {
-        doBorrow(spokeIndex, asset.assetAddress, assetAmount, false, "", false, address(0x0));
+        doAction(ActionParameters({
+            action: Action.Borrow,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            prank: false,
+            prankAddress: address(0x0)
+        }));
     }
     function doBorrow(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
-        doBorrow(spokeIndex, asset.assetAddress, assetAmount, false, "", true, vault);
+        doAction(ActionParameters({
+            action: Action.Borrow,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            prank: true,
+            prankAddress: vault
+        }));
     }
     function doBorrowRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString) internal {
-        doBorrow(spokeIndex, asset.assetAddress, assetAmount, true, revertString, false, address(0x0));
+        doAction(ActionParameters({
+            action: Action.Borrow,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: true,
+            revertString: revertString,
+            prank: false,
+            prankAddress: address(0x0)
+        }));
     }
     
+    /*
     function doBorrow(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
         Spoke spoke = getSpoke(spokeIndex);
         Vm vm = getVm();
@@ -315,16 +487,44 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
 
         require(balanceUserAfter - balanceUserBefore == assetAmount, "Amount wasn't transferred to user");
     }
-
+    */
     function doWithdraw(uint256 spokeIndex, Asset memory asset, uint256 assetAmount) internal {
-        doWithdraw(spokeIndex, asset.assetAddress, assetAmount, false, "", false, address(0x0));
-    }
-    function doWithdrawRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString) internal {
-        doWithdraw(spokeIndex, asset.assetAddress, assetAmount, true, revertString, false, address(0x0));
+        doAction(ActionParameters({
+            action: Action.Withdraw,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            prank: false,
+            prankAddress: address(0x0)
+        }));
     }
     function doWithdraw(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
-        doWithdraw(spokeIndex, asset.assetAddress, assetAmount, false, "", true, vault);
+        doAction(ActionParameters({
+            action: Action.Withdraw,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            prank: true,
+            prankAddress: vault
+        }));
     }
+    function doWithdrawRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString) internal {
+        doAction(ActionParameters({
+            action: Action.Withdraw,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: true,
+            revertString: revertString,
+            prank: false,
+            prankAddress: address(0x0)
+        }));
+    }
+    /*
     function doWithdraw(uint256 spokeIndex, address assetAddress, uint256 assetAmount, bool expectRevert, string memory revertString, bool prankVault, address fakeVault) internal {
         Spoke spoke = getSpoke(spokeIndex);
         Vm vm = getVm();    
@@ -376,6 +576,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         uint256 balanceUserAfter = IERC20(assetAddress).balanceOf(vault);
         require(balanceUserAfter - balanceUserBefore == assetAmount, "Amount wasn't transferred to user");
     }
+    */
 
 
     function doRegisterSpoke_FS() internal {
