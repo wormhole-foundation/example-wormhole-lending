@@ -217,6 +217,40 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
         
     }
 
+    function getActionStateData(address vault, address assetAddress) internal returns(ActionStateData memory data) {
+        data = ActionStateData({
+            global: getHub().getGlobalAmounts(assetAddress),
+            vault: getHub().getVaultAmounts(vault, assetAddress),
+            balanceHub: IERC20(assetAddress).balanceOf(address(getHub())),
+            balanceUser: IERC20(assetAddress).balanceOf(vault)
+        });
+    }
+
+    function requireActionDataValid(Action action, uint256 assetAmount, ActionStateData memory beforeData, ActionStateData memory afterData) internal {
+        if(action == Action.Deposit) {
+            require(beforeData.global.deposited + assetAmount == afterData.global.deposited, "Did not deposit globally");
+            require(beforeData.vault.deposited + assetAmount == afterData.vault.deposited, "Did not deposit in vault");
+            require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
+            require(beforeData.balanceUser - assetAmount == afterData.balanceUser, "Did not transfer money from user");
+        } else if(action == Action.Repay) {
+            require(beforeData.global.borrowed - assetAmount == afterData.global.borrowed, "Did not repay globally");
+            require(beforeData.vault.borrowed - assetAmount == afterData.vault.borrowed, "Did not repay in vault");
+            require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
+            require(beforeData.balanceUser - assetAmount == afterData.balanceUser, "Did not transfer money from user");
+        } else if(action == Action.Withdraw) {
+            require(beforeData.global.deposited - assetAmount == afterData.global.deposited, "Did not borrow globally");
+            require(beforeData.vault.deposited - assetAmount == afterData.vault.deposited, "Did not borrow from vault");
+            require(beforeData.balanceHub - assetAmount == afterData.balanceHub, "Did not transfer money from hub");
+            require(beforeData.balanceUser + assetAmount == afterData.balanceUser, "Did not transfer money to user");
+        } else if(action == Action.Borrow) {
+            require(beforeData.global.borrowed + assetAmount == afterData.global.borrowed, "Did not withdraw globally");
+            require(beforeData.vault.borrowed + assetAmount == afterData.vault.borrowed, "Did not withdraw from vault");
+            require(beforeData.balanceHub - assetAmount == afterData.balanceHub, "Did not transfer money from hub");
+            require(beforeData.balanceUser + assetAmount == afterData.balanceUser, "Did not transfer money to user");
+        }
+    }
+
+
     function normalizeAmountWithinTokenBridge(uint256 amount, uint8 decimals) internal pure returns(uint256){
         if (decimals > 8) {
             amount /= 10 ** (decimals - 8);

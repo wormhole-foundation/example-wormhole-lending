@@ -10,10 +10,11 @@ import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
 import {WormholeSimulator} from "./WormholeSimulator.sol";
+import {HubStructs} from "../../src/contracts/lendingHub/HubStructs.sol";
 
 // TODO: add wormhole interface and use fork-url w/ mainnet
 
-contract TestStructs {
+contract TestStructs is HubStructs {
     struct HubData {
         Hub hub;
         uint16 hubChainId;
@@ -47,5 +48,26 @@ contract TestStructs {
         bytes32 emitterAddress;
     }
 
+    enum Action{Deposit, Borrow, Withdraw, Repay}
 
+    struct ActionParameters {
+        Action action;
+        uint256 spokeIndex;
+        address assetAddress;
+        uint256 assetAmount;
+        bool expectRevert;
+        string revertString;
+        bool prank;
+        address prankAddress;
+    }
+
+
+    struct ActionStateData {
+        VaultAmount global;
+        VaultAmount vault;
+        uint256 balanceHub;
+        uint256 balanceUser;
+    }
+
+    
 }
