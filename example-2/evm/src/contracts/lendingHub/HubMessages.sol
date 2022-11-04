@@ -141,8 +141,4 @@ contract HubMessages is HubStructs {
 
         params.assetAmount = assetAmount;
     }
-
-  
-
-    
 }
