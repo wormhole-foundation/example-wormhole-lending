@@ -45,9 +45,5 @@ contract SpokeGetters is Context, HubStructs, SpokeState {
         return _state.consumedMessages[vmHash];
     }
 
-    function getAssetInfo(address assetAddress) public view returns (AssetInfo memory) {
-        return _state.assetInfos[assetAddress];
-    }
-
    
 }

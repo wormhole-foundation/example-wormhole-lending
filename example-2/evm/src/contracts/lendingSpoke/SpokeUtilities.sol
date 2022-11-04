@@ -26,7 +26,7 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
     }
 
     function sendTokenBridgeMessage(address assetAddress, uint256 assetAmount, bytes memory payload) internal {
-        
+
         SafeERC20.safeTransferFrom(IERC20(assetAddress), msg.sender, address(this), assetAmount);
 
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), assetAmount);
@@ -53,17 +53,7 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
         return parsed.payload;
     }
 
-     /**
-    * Check if an address has been registered on the Hub yet (through the registerAsset function)
-    * Errors out if assetAddress has not been registered yet
-    * @param assetAddress - The address to be checked
-    */
-    function checkValidAddress(address assetAddress) internal view {
-        // check if asset address is allowed
-        AssetInfo memory registered_info = getAssetInfo(assetAddress);
-        require(registered_info.exists, "Unregistered asset");
-    }
-
+  
     function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal {
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));

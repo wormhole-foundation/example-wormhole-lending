@@ -131,11 +131,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         getHub().registerAsset(
             asset.assetAddress, asset.collateralizationRatioDeposit, asset.collateralizationRatioBorrow, asset.reserveFactor, reservePrecision, asset.pythId, asset.decimals
         );
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        bytes memory encodedMessage = fetchSignedMessageFromSpokeLogs(spokeIndex, entries[entries.length - 1]);
-
-        getSpoke(spokeIndex).completeRegisterAsset(encodedMessage);
-
+        
         AssetInfo memory info = getHub().getAssetInfo(asset.assetAddress);
 
         require(

@@ -69,21 +69,6 @@ contract HubStructs {
         uint256 assetAmount;
     }
 
-    struct RegisterAssetPayload {
-        // messageId = 5
-        PayloadHeader header;
-        address assetAddress;
-        uint256 collateralizationRatioDeposit;
-        uint256 collateralizationRatioBorrow;
-        bytes32 pythId;
-        uint64 ratePrecision;
-        uint64 rateIntercept;
-        uint64 rateCoefficientA;
-        uint256 reserveFactor;
-        uint256 reservePrecision;
-        uint8 decimals;
-    }
-
     // struct for mock oracle price
     struct Price {
         int64 price;

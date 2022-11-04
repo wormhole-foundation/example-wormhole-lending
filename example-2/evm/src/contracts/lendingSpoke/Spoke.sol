@@ -22,32 +22,8 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         setHubContractAddress(hubContractAddress);
     }
 
-    function completeRegisterAsset(bytes calldata encodedMessage) public {
-        bytes memory vmPayload = getWormholePayload(encodedMessage);
-        RegisterAssetPayload memory params = decodeRegisterAssetPayload(vmPayload);
-        allowAsset(params.assetAddress);
-
-        InterestRateModel memory interestRateModel = InterestRateModel({
-            ratePrecision: params.ratePrecision,
-            rateIntercept: params.rateIntercept,
-            rateCoefficientA: params.rateCoefficientA,
-            reserveFactor: params.reserveFactor,
-            reservePrecision: params.reservePrecision
-        });
-
-        AssetInfo memory info = AssetInfo({
-            collateralizationRatioDeposit: params.collateralizationRatioDeposit,
-            collateralizationRatioBorrow: params.collateralizationRatioBorrow,
-            pythId: params.pythId,
-            decimals: params.decimals,
-            interestRateModel: interestRateModel,
-            exists: true
-        });
-        registerAssetInfo(params.assetAddress, info);        
-    }
-
     function depositCollateral(address assetAddress, uint256 assetAmount) public {
-        checkValidAddress(assetAddress);
+
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 1,
@@ -65,7 +41,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
     }
 
     function withdrawCollateral(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
-        checkValidAddress(assetAddress);
+
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 2,
@@ -85,7 +61,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
     }
 
     function borrow(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
-        checkValidAddress(assetAddress);
+
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 3,
@@ -105,7 +81,7 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
     }
 
     function repay(address assetAddress, uint256 assetAmount) public {
-        checkValidAddress(assetAddress);
+
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 4,
