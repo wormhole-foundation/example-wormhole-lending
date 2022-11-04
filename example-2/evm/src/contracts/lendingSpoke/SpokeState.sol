@@ -19,12 +19,6 @@ contract SpokeStorage is HubStructs {
         // number of confirmations for wormhole messages
         uint8 consistencyLevel;
 
-        // allowlist for assets
-        address[] allowList;
-
-        // address => AssetInfo
-        mapping(address => AssetInfo) assetInfos;
-
         uint16 hubChainId;
 
         address hubContractAddress;

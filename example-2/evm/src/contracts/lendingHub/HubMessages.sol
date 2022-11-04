@@ -48,28 +48,6 @@ contract HubMessages is HubStructs {
         );
     }
 
-    function encodeRegisterAssetPayload(RegisterAssetPayload memory message)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                uint8(5), // payloadID
-                encodePayloadHeader(message.header),
-                message.assetAddress,
-                message.collateralizationRatioDeposit,
-                message.collateralizationRatioBorrow,
-                message.pythId,
-                message.ratePrecision,
-                message.rateIntercept,
-                message.rateCoefficientA,
-                message.reserveFactor,
-                message.reservePrecision,
-                message.decimals
-            );
-    }
-
     function decodePayloadHeader(bytes memory serialized) internal pure returns (PayloadHeader memory header) {
         uint256 index = 0;
 
@@ -78,16 +56,6 @@ contract HubMessages is HubStructs {
         header.payloadID = serialized.toUint8(index);
         index += 1;
         header.sender = serialized.toAddress(index);
-    }
-
-    function extractSerializedFromTransferWithPayload(bytes memory encodedVM) internal pure returns (bytes memory serialized) {
-        uint256 index = 0;
-        uint256 end = encodedVM.length;
-
-        // pass through TransferWithPayload metadata to arbitrary serialized bytes
-        index += 1 + 32 + 32 + 2 + 32 + 2 + 32;
-
-        return encodedVM.slice(index, end-index);
     }
 
     function decodeDepositPayload(bytes memory serialized) internal pure returns (DepositPayload memory params) {
@@ -173,78 +141,8 @@ contract HubMessages is HubStructs {
 
         params.assetAmount = assetAmount;
     }
+
+  
+
     
-    function decodeRegisterAssetPayload(bytes memory serialized)
-        internal
-        pure
-        returns (RegisterAssetPayload memory params)
-    {
-        uint256 index = 0;
-
-        // parse the message header
-        params.header = decodePayloadHeader(serialized.slice(index, 21));
-        require(params.header.payloadID == 5, "invalid register asset message");
-        index += 21;
-
-        // parse the asset address
-        address assetAddress = serialized.toAddress(index);
-        index += 20;
-
-        params.assetAddress = assetAddress;
-
-        // parse the collateralization ratio (deposit)
-        uint256 collateralizationRatioDeposit = serialized.toUint256(index);
-        index += 32;
-
-        params.collateralizationRatioDeposit = collateralizationRatioDeposit;
-
-        // parse the collateralization ratio (borrow)
-        uint256 collateralizationRatioBorrow = serialized.toUint256(index);
-        index += 32;
-
-        params.collateralizationRatioBorrow = collateralizationRatioBorrow;
-
-        // parse the Pyth Id
-        // TODO: is this valid?? better way to do the conversion from bytes to bytes32
-        bytes32 pythId = bytes32(serialized.toUint256(index)); //serialized[index:index+4];
-        index += 32;
-
-        params.pythId = pythId;
-
-        // parse the rate precision
-        uint64 ratePrecision = serialized.toUint64(index);
-        index += 8;
-
-        params.ratePrecision = ratePrecision;
-
-        // parse the rate intercept
-        uint64 rateIntercept = serialized.toUint64(index);
-        index += 8;
-
-        params.rateIntercept = rateIntercept;
-
-        // parse the rate coefficient A
-        uint64 rateCoefficientA = serialized.toUint64(index);
-        index += 8;
-
-        params.rateCoefficientA = rateCoefficientA;
-
-        // parse the reserve factor
-        uint256 reserveFactor = serialized.toUint256(index);
-        index += 32;
-
-        params.reserveFactor = reserveFactor;
-
-        // parse the reserve precision
-        uint256 reservePrecision = serialized.toUint256(index);
-        index += 32;
-
-        params.reservePrecision = reservePrecision;
-
-        // parse the decimals
-        uint8 decimals = serialized.toUint8(index);
-        index += 1;
-
-        params.decimals = decimals;
-    }
 }
