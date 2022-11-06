@@ -129,19 +129,6 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doDeposit(0, getAsset(0), 5 * (10 ** 16));
     }
 
-    // function testRDNative() public {
-        // TODO: WRITE THIS
-        // testR
-        // msgFee = wormholeContract.messageFee();
-
-        // testRD
-        // bytes memory encodedMessageNative = doRegisterAsset(wrappedGasAsset);
-        // spokes[0].completeRegisterAsset(encodedMessageNative);
-
-        // return spokes;
-
-    // }
-
     function testRDB() public {
         deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
         deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
@@ -385,7 +372,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doRegisterSpoke(0);
 
-        address user = msg.sender;
+        address user = address(this);
 
         uint256 userInitBalance = 105 * 10 ** 18;
 
@@ -397,7 +384,6 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         uint256 balance_user_native_pre = address(user).balance;
         uint256 balance_hub_native_pre = IERC20(wrappedGasTokenAddress).balanceOf(address(hub));
 
-        vm.prank(user);
         doDepositNative(0, 5 * (10 ** 16));
 
         uint256 balance_user_native_post = address(user).balance;
@@ -421,6 +407,123 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         require(balance_hub_native_post == 5 * (10 ** 16) - msgFee, "Hub gas token balance not correctly amount transferred minus WH msg fee after");
     }
+
+    function testDNative_Fail() public {
+        doRegisterSpoke(0);
+
+        address user = address(this);
+
+        uint256 userInitBalance = 105 * 10 ** 18;
+
+        vm.deal(user, userInitBalance);
+
+        doDepositNativeRevert(0, 5 * (10 ** 16), "Unregistered asset");
+    }
+
+    function testRDNativeB() public {
+        address user = address(this);
+
+        deal(getAssetAddress(0), address(0x1), 6 * 10 ** 16);
+        uint256 userInitBalance = 105 * 10 ** 18;
+        vm.deal(user, userInitBalance);
+
+        doRegisterAsset(0, getAsset(0));
+        doRegisterAsset(0, getAsset(2));
+
+        doRegisterSpoke(0);
+
+        setPrice(getAsset(0), 80);
+        setPrice(getAsset(2), 90);
+
+        doDepositNative(0, 5 * 10 ** 16);
+
+        doDeposit(0, getAsset(0), 6 * 10 ** 16, address(0x1));
+
+        doBorrow(0, getAsset(0), 5 * 10 ** 16);
+
+        doBorrow(0, getAsset(2), 4 * 10 ** 16, address(0x1));
+    }
+
+    function testRDNativeB_Fail() public {
+        // Should fail because the price of the borrow asset is a little too high
+
+        address user = address(this);
+
+        deal(getAssetAddress(0), address(0x1), 6 * 10 ** 16);
+        uint256 userInitBalance = 105 * 10 ** 18;
+        vm.deal(user, userInitBalance);
+
+        doRegisterAsset(0, getAsset(0));
+        doRegisterAsset(0, getAsset(2));
+
+        doRegisterSpoke(0);
+
+        setPrice(getAsset(0), 80);
+        setPrice(getAsset(2), 90);
+
+        doDepositNative(0, 5 * 10 ** 16);
+
+        doDeposit(0, getAsset(0), 6 * 10 ** 16, address(0x1));
+
+        doBorrowRevert(0, getAsset(0), 6 * 10 ** 16, "Vault is undercollateralized if this borrow goes through");
+    }
+
+    function testRDNativeBPW() public {
+        address user = address(this);
+
+        deal(getAssetAddress(0), user, 6 * 10 ** 16);
+        uint256 userInitBalance = 105 * 10 ** 18;
+        vm.deal(user, userInitBalance);
+        vm.deal(address(0x1), userInitBalance);
+
+        doRegisterAsset(0, getAsset(0));
+        doRegisterAsset(0, getAsset(2));
+
+        doRegisterSpoke(0);
+
+        setPrice(getAsset(0), 80);
+        setPrice(getAsset(2), 90);
+
+        doDepositNative(0, 5 * 10 ** 16, address(0x1));
+
+        doDeposit(0, getAsset(0), 6 * 10 ** 16);
+
+        doBorrow(0, getAsset(2), 4 * 10 ** 16);
+
+        doRepayNative(0, 3 * 10 ** 16);
+
+        doWithdraw(0, getAsset(0), 4 * 10 ** 16);
+    }
+
+    function testRDNativeBPW_Fail() public {
+        // Should fail because still some debt out so cannot withdraw all your deposited assets
+        address user = address(this);
+
+        deal(getAssetAddress(0), user, 6 * 10 ** 16);
+        uint256 userInitBalance = 105 * 10 ** 18;
+        vm.deal(user, userInitBalance);
+        vm.deal(address(0x1), userInitBalance);
+
+        doRegisterAsset(0, getAsset(0));
+        doRegisterAsset(0, getAsset(2));
+
+        doRegisterSpoke(0);
+
+        setPrice(getAsset(0), 80);
+        setPrice(getAsset(2), 90);
+
+        doDepositNative(0, 5 * 10 ** 16, address(0x1));
+
+        doDeposit(0, getAsset(0), 6 * 10 ** 16);
+
+        doBorrow(0, getAsset(2), 4 * 10 ** 16);
+
+        doRepayNative(0, 2 * 10 ** 16);
+
+        doWithdrawRevert(0, getAsset(0), 4 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through");
+    }
+
+
 
     // test register SPOKE (make sure nothing is possible without doing this)
 
