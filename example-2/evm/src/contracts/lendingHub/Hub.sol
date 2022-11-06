@@ -67,7 +67,6 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     * the remainder is distributed among lenders of the asset
     * @param pythId - Id of the relevant oracle price feed (USD <-> asset) TODO: Make this explanation more precise
     * @param decimals - Precision that the asset amount is stored in TODO: Make this explanation more precise
-    * @return sequence The sequence number of the wormhole message documenting the registration of the asset
     */ 
     function registerAsset(
         address assetAddress,
@@ -80,7 +79,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         uint256 reservePrecision,
         bytes32 pythId,
         uint8 decimals
-    ) public returns (uint64 sequence) {
+    ) public {
         require(msg.sender == owner(), "invalid owner");
 
         AssetInfo memory registered_info = getAssetInfo(assetAddress);
@@ -107,29 +106,6 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         registerAssetInfo(assetAddress, info);
 
-        PayloadHeader memory payloadHeader = PayloadHeader({
-            payloadID: 5,
-            sender: msg.sender
-        });
-
-        RegisterAssetPayload memory registerAssetPayload = RegisterAssetPayload({
-            header: payloadHeader,
-            assetAddress: assetAddress,
-            collateralizationRatioDeposit: collateralizationRatioDeposit,
-            collateralizationRatioBorrow: collateralizationRatioBorrow,
-            pythId: pythId,
-            ratePrecision: interestRateModel.ratePrecision,
-            rateIntercept: interestRateModel.rateIntercept,
-            rateCoefficientA: interestRateModel.rateCoefficientA,
-            reserveFactor: interestRateModel.reserveFactor,
-            reservePrecision: interestRateModel.reservePrecision,
-            decimals: decimals
-        });
-
-        // create WH message
-        bytes memory serialized = encodeRegisterAssetPayload(registerAssetPayload);
-
-        sequence = sendWormholeMessage(serialized);
     }
 
     /**
@@ -284,7 +260,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     */
     function borrow(address borrower, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         checkValidAddress(assetAddress);
-        
+
         // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
         (bool check1, bool check2) = allowedToBorrow(borrower, assetAddress, amount);
 
