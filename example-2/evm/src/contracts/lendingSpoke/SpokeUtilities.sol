@@ -37,6 +37,12 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
         );
     }
 
+    function sendTokenBridgeMessageNative(uint amount, bytes memory payload) internal {
+        tokenBridge().wrapAndTransferETHWithPayload{value: amount}(
+            hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
+        );
+    }
+
     function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
         (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);

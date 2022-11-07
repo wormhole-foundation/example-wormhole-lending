@@ -72,6 +72,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         address assetAddress,
         uint256 collateralizationRatioDeposit,
         uint256 collateralizationRatioBorrow,
+        uint64 ratePrecision,
+        uint64 rateIntercept,
+        uint64 rateCoefficientA,
         uint256 reserveFactor,
         uint256 reservePrecision,
         bytes32 pythId,
@@ -85,9 +88,9 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         allowAsset(assetAddress);
 
         InterestRateModel memory interestRateModel = InterestRateModel({
-            ratePrecision: 1 * 10 ** 18,
-            rateIntercept: 0,
-            rateCoefficientA: 0,
+            ratePrecision: ratePrecision,
+            rateIntercept: rateIntercept,
+            rateCoefficientA: rateCoefficientA,
             reserveFactor: reserveFactor,
             reservePrecision: reservePrecision
         });
@@ -169,19 +172,18 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         bytes memory serialized = extractSerializedFromTransferWithPayload(vmPayload);
 
         RepayPayload memory params = decodeRepayPayload(serialized);
-
-        repay(params.header.sender, params.assetAddress, params.assetAmount);
+        
+        repay(params.header.sender, params.assetAddress, params.assetAmount, params.reversionPaymentChainId);
     }
 
     /**
-     * Updates vault amounts for a deposit from depositor of the asset at 'assetAddress' and amount 'amount'
-     *
-     * @param depositor - the address of the depositor
-     * @param assetAddress - the address of the asset
-     * @param amount - the amount of the asset
-     */
-    function deposit(address depositor, address assetAddress, uint256 amount) internal {
-        // TODO: What to do if this fails?
+    * Updates vault amounts for a deposit from depositor of the asset at 'assetAddress' and amount 'amount'
+    *
+    * @param depositor - the address of the depositor
+    * @param assetAddress - the address of the asset 
+    * @param amount - the amount of the asset
+    */
+    function deposit(address depositor, address assetAddress, uint256 amount) internal {        
 
         checkValidAddress(assetAddress);
 
@@ -272,19 +274,28 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         globalAmounts.borrowed += normalizedAmount;
         setVaultAmounts(borrower, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
-        // TODO: token transfers
+
         transferTokens(borrower, assetAddress, amount, recipientChain);
     }
 
     /**
-     * Updates vault amounts for a repay from repayer of the asset at 'assetAddress' and amount 'amount'
-     *
-     * @param repayer - the address of the repayer
-     * @param assetAddress - the address of the asset
-     * @param amount - the amount of the asset
-     */
-    function repay(address repayer, address assetAddress, uint256 amount) internal {
+    * Updates vault amounts for a repay from repayer of the asset at 'assetAddress' and amount 'amount'
+    *
+    * @param repayer - the address of the repayer
+    * @param assetAddress - the address of the asset 
+    * @param amount - the amount of the asset
+    */
+    function repay(address repayer, address assetAddress, uint256 amount, uint16 recipientChain) internal {
+    
         checkValidAddress(assetAddress);
+
+        bool check = allowedToRepay(repayer, assetAddress, amount);
+
+        // handle revert--transfer tokens back to the repayer on their original chain
+        if(!check){
+            transferTokens(repayer, assetAddress, amount, recipientChain);
+            return;
+        }
 
         // update the interest accrual indices
         updateAccrualIndices(assetAddress);

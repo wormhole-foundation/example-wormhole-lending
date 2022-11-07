@@ -12,8 +12,6 @@ import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
 import {TestStructs} from "./TestStructs.sol";
 import {TestState} from "./TestState.sol";
 
-// TODO: add wormhole interface and use fork-url w/ mainnet
-
 contract TestGetters is TestStructs, TestState {
     
     function getHubData() internal view returns (HubData memory) {

@@ -12,8 +12,6 @@ import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 import {HubStructs} from "../../src/contracts/lendingHub/HubStructs.sol";
 
-// TODO: add wormhole interface and use fork-url w/ mainnet
-
 contract TestStructs is HubStructs {
     struct HubData {
         Hub hub;
@@ -37,6 +35,9 @@ contract TestStructs is HubStructs {
         uint256 collateralizationRatioDeposit;
         uint256 collateralizationRatioBorrow;
         uint8 decimals;
+        uint64 ratePrecision;
+        uint64 rateIntercept;
+        uint64 rateCoefficientA;
         uint256 reserveFactor;
         bytes32 pythId;
     }
@@ -57,6 +58,7 @@ contract TestStructs is HubStructs {
         uint256 assetAmount;
         bool expectRevert;
         string revertString;
+        bool paymentReversion;
         bool prank;
         address prankAddress;
     }

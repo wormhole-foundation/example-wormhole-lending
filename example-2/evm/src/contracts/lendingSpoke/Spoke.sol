@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../../interfaces/IWormhole.sol";
+import "forge-std/console.sol";
 
 import "./SpokeSetters.sol";
 import "../lendingHub/HubStructs.sol";
@@ -81,7 +82,6 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
     }
 
     function repay(address assetAddress, uint256 assetAmount) public {
-
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 4,
@@ -91,14 +91,63 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         RepayPayload memory repayPayload = RepayPayload({
             header: payloadHeader,
             assetAddress: assetAddress,
-            assetAmount: assetAmount
+            assetAmount: assetAmount,
+            reversionPaymentChainId: chainId()
         });
-
         // create WH message
         bytes memory serialized = encodeRepayPayload(repayPayload);
 
         sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
     }
 
- 
+
+
+
+
+    // handle deposit of native asset
+    function depositCollateralNative() public payable {
+        // get assetAddress of the wrapped token for payload
+        address assetAddress = address(tokenBridge().WETH());
+        uint256 assetAmount = msg.value - wormhole().messageFee();
+        
+        PayloadHeader memory payloadHeader = PayloadHeader({
+            payloadID: 1,
+            sender: msg.sender
+        });
+
+        DepositPayload memory depositPayload = DepositPayload({
+            header: payloadHeader,
+            assetAddress: assetAddress,
+            assetAmount: assetAmount
+        });
+
+        // create WH message
+        bytes memory serialized = encodeDepositPayload(depositPayload);
+
+        sendTokenBridgeMessageNative(msg.value, serialized);  
+    }
+
+    // handle repay of native asset
+    function repayNative() public payable {
+        // get assetAddress of the wrapped token for payload
+        address assetAddress = address(tokenBridge().WETH());
+        uint256 assetAmount = msg.value - wormhole().messageFee();
+
+        PayloadHeader memory payloadHeader = PayloadHeader({
+            payloadID: 4,
+            sender: msg.sender
+        });
+
+        RepayPayload memory repayPayload = RepayPayload({
+            header: payloadHeader,
+            assetAddress: assetAddress,
+            assetAmount: assetAmount,
+            reversionPaymentChainId: chainId()
+        });
+
+        // create WH message
+        bytes memory serialized = encodeRepayPayload(repayPayload);
+
+        sendTokenBridgeMessageNative(msg.value, serialized);
+    }
 }

@@ -19,8 +19,6 @@ import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 
-// TODO: add wormhole interface and use fork-url w/ mainnet
-
 contract TestSetters is TestStructs, TestState, TestGetters {
     
     function setHubData(HubData memory hubData) internal {
@@ -35,7 +33,16 @@ contract TestSetters is TestStructs, TestState, TestGetters {
         _testState.assets.push(asset);
     }
 
-    function addAsset(address assetAddress, uint256 collateralizationRatioDeposit, uint256 collateralizationRatioBorrow, uint256 reserveFactor, bytes32 pythId) internal {
+    function addAsset(
+        address assetAddress, 
+        uint256 collateralizationRatioDeposit, 
+        uint256 collateralizationRatioBorrow, 
+        uint64 ratePrecision,
+        uint64 rateIntercept,
+        uint64 rateCoefficientA,
+        uint256 reserveFactor, 
+        bytes32 pythId
+    ) internal {
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
         Asset memory asset = Asset({
@@ -44,6 +51,9 @@ contract TestSetters is TestStructs, TestState, TestGetters {
             collateralizationRatioDeposit: collateralizationRatioDeposit,
             collateralizationRatioBorrow: collateralizationRatioBorrow,
             decimals: decimals,
+            ratePrecision: ratePrecision,
+            rateIntercept: rateIntercept,
+            rateCoefficientA: rateCoefficientA,
             reserveFactor: reserveFactor,
             pythId: pythId
         });
