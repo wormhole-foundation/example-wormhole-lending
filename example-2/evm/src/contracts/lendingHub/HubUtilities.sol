@@ -212,6 +212,24 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
     }
 
+    /** 
+    * Check if vaultOwner is allowed to repay assetAmount of assetAddress to their vault; they must have outstanding borrows of at least assetAmount for assetAddress to enable repayment
+    * @param {address} vaultOwner - The address of the owner of the vault
+    * @param {address} assetAddress - The address of the relevant asset
+    * @param {uint256} assetAmount - The amount of the relevant asset
+    * @return {bool} True or false depending on if the outstanding borrows for this assetAddress >= assetAmount 
+    */
+    function allowedToRepay(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
+        
+        AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+
+        VaultAmount memory vaultAmount = getVaultAmounts(vaultOwner, assetAddress);
+
+        bool check = vaultAmount.borrowed >= assetAmount;
+
+        return check;
+    }
+
     function getPriceDebt(address assetAddress) internal view returns (uint256) {
         
         // use conservative (from protocol's perspective) price for debt (high)--use https://docs.pyth.network/consume-data/best-practices#confidence-intervals

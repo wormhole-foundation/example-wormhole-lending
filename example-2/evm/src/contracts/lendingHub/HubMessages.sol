@@ -44,7 +44,8 @@ contract HubMessages is HubStructs {
             uint8(4), // payloadID
             encodePayloadHeader(payload.header),
             payload.assetAddress,
-            payload.assetAmount
+            payload.assetAmount,
+            payload.reversionPaymentChainId
         );
     }
 
@@ -140,6 +141,12 @@ contract HubMessages is HubStructs {
         index += 32;
 
         params.assetAmount = assetAmount;
+
+        // parse the reversion payment chain id
+        uint16 reversionPaymentChainId = serialized.toUint16(index);
+        index += 4;
+
+        params.reversionPaymentChainId = reversionPaymentChainId;
     }
 
   

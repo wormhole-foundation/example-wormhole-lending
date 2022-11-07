@@ -82,7 +82,6 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
     }
 
     function repay(address assetAddress, uint256 assetAmount) public {
-
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         PayloadHeader memory payloadHeader = PayloadHeader({
             payloadID: 4,
@@ -92,9 +91,9 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         RepayPayload memory repayPayload = RepayPayload({
             header: payloadHeader,
             assetAddress: assetAddress,
-            assetAmount: assetAmount
+            assetAmount: assetAmount,
+            reversionPaymentChainId: chainId()
         });
-
         // create WH message
         bytes memory serialized = encodeRepayPayload(repayPayload);
 
@@ -150,7 +149,8 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         RepayPayload memory repayPayload = RepayPayload({
             header: payloadHeader,
             assetAddress: assetAddress,
-            assetAmount: assetAmount
+            assetAmount: assetAmount,
+            reversionPaymentChainId: chainId()
         });
 
         // create WH message

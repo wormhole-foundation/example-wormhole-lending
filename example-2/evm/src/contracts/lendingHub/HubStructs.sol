@@ -67,6 +67,7 @@ contract HubStructs {
         PayloadHeader header;
         address assetAddress;
         uint256 assetAmount;
+        uint16 reversionPaymentChainId;
     }
 
     // struct for mock oracle price

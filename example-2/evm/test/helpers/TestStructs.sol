@@ -60,6 +60,7 @@ contract TestStructs is HubStructs {
         uint256 assetAmount;
         bool expectRevert;
         string revertString;
+        bool paymentReversion;
         bool prank;
         address prankAddress;
     }

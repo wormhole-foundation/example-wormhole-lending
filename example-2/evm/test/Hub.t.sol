@@ -283,7 +283,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address[] memory assetRepayAddresses = new address[](1);
         assetRepayAddresses[0] = getAssetAddress(1);
         uint256[] memory assetRepayAmounts = new uint256[](1);
-        assetRepayAmounts[0] = 500 * 10 ** 14;
+        assetRepayAmounts[0] = 250 * 10 ** 14;
         address[] memory assetReceiptAddresses = new address[](1);
         assetReceiptAddresses[0] = getAssetAddress(0);
         uint256[] memory assetReceiptAmounts = new uint256[](1);
@@ -324,11 +324,11 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address[] memory assetRepayAddresses = new address[](1);
         assetRepayAddresses[0] = getAssetAddress(1);
         uint256[] memory assetRepayAmounts = new uint256[](1);
-        assetRepayAmounts[0] = 500 * 10 ** 14;
+        assetRepayAmounts[0] = 250 * 10 ** 14;
         address[] memory assetReceiptAddresses = new address[](1);
         assetReceiptAddresses[0] = getAssetAddress(0);
         uint256[] memory assetReceiptAmounts = new uint256[](1);
-        assetReceiptAmounts[0] = 490 * 10 ** 14;
+        assetReceiptAmounts[0] = 240 * 10 ** 14;
 
         IERC20(getAssetAddress(1)).approve(address(getHub()), 500 * 10 ** 14);
         // uint256 allowanceAmount = IERC20(getAssetAddress(1)).allowance(vault, address(getHub()));
@@ -362,6 +362,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
             balance_vault_1_pre + balance_hub_1_pre == balance_vault_1_post + balance_hub_1_post,
             "Asset 1 total amounts should not change after liquidation"
         );
+
+        // try repayment of the borrow, should fail bc already paid back
+        doRepayRevertPayment(0, getAsset(1), 400 * 10 ** 14, vaultOther);
     }
 
     function testRDNative() public {
@@ -853,9 +856,10 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         });
         address assetAddress = getAssetAddress(0);
         uint256 assetAmount = 4253;
+        uint16 reversionPaymentChainId = 2;
 
         RepayPayload memory myPayload =
-            RepayPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
+            RepayPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount, reversionPaymentChainId: reversionPaymentChainId});
         bytes memory serialized = encodeRepayPayload(myPayload);
         RepayPayload memory encodedAndDecodedMsg = decodeRepayPayload(serialized);
 
@@ -863,5 +867,6 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
         require(myPayload.assetAddress == encodedAndDecodedMsg.assetAddress, "asset addresses do not match ");
         require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
+        require(myPayload.reversionPaymentChainId == encodedAndDecodedMsg.reversionPaymentChainId, "reversion payment chain ids do not match");
     }
 }

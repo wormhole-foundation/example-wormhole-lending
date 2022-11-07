@@ -212,7 +212,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
 
         ActionStateData memory afterData = getActionStateData(vault, params.assetAddress);
 
-        requireActionDataValid(action, params.assetAmount, beforeData, afterData);
+        requireActionDataValid(action, params.assetAmount, beforeData, afterData, params.paymentReversion);
     }
 
     function doActionNative(ActionParameters memory params) internal {
@@ -270,6 +270,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));
@@ -282,6 +283,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: true,
             prankAddress: vault
         }));
@@ -294,6 +296,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: true,
             revertString: revertString,
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));
@@ -306,6 +309,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));
@@ -318,6 +322,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: true,
             prankAddress: vault
         }));
@@ -330,6 +335,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: amount,
             expectRevert: true,
             revertString: revertString,
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));
@@ -342,11 +348,12 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));
     }
-    function doRepay(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
+    function doRepayRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
         doAction(ActionParameters({
             action: Action.Repay,
             spokeIndex: spokeIndex,
@@ -354,20 +361,35 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: true,
             prankAddress: vault
         }));
     }
-    function doRepay(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString) internal {
+    function doRepayRevertPayment(uint256 spokeIndex, Asset memory asset, uint256 assetAmount) internal {
         doAction(ActionParameters({
             action: Action.Repay,
             spokeIndex: spokeIndex,
             assetAddress: asset.assetAddress,
             assetAmount: assetAmount,
-            expectRevert: true,
-            revertString: revertString,
+            expectRevert: false,
+            revertString: "",
+            paymentReversion: true,
             prank: false,
             prankAddress: address(0x0)
+        }));
+    }
+    function doRepayRevertPayment(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
+        doAction(ActionParameters({
+            action: Action.Repay,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            paymentReversion: true,
+            prank: true,
+            prankAddress: vault
         }));
     }
     function doRepayNative(uint256 spokeIndex, uint256 amount) internal {
@@ -378,6 +400,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));
@@ -390,6 +413,33 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
+            prank: true,
+            prankAddress: vault
+        }));
+    }
+    function doRepayNativeRevertPayment(uint256 spokeIndex, uint256 amount) internal {
+        doActionNative(ActionParameters({
+            action: Action.Repay,
+            spokeIndex: spokeIndex,
+            assetAddress: address(0x0),
+            assetAmount: amount,
+            expectRevert: false,
+            revertString: "",
+            paymentReversion: true,
+            prank: false,
+            prankAddress: address(0x0)
+        }));
+    }
+    function doRepayNativeRevertPayment(uint256 spokeIndex, uint256 amount, address vault) internal {
+        doActionNative(ActionParameters({
+            action: Action.Repay,
+            spokeIndex: spokeIndex,
+            assetAddress: address(0x0),
+            assetAmount: amount,
+            expectRevert: false,
+            revertString: "",
+            paymentReversion: true,
             prank: true,
             prankAddress: vault
         }));
@@ -402,6 +452,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));
@@ -414,6 +465,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: true,
             prankAddress: vault
         }));
@@ -426,6 +478,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: true,
             revertString: revertString,
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));
@@ -439,6 +492,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));
@@ -451,6 +505,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: false,
             revertString: "",
+            paymentReversion: false,
             prank: true,
             prankAddress: vault
         }));
@@ -463,6 +518,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             assetAmount: assetAmount,
             expectRevert: true,
             revertString: revertString,
+            paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
         }));

@@ -181,7 +181,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
 
         RepayPayload memory params = decodeRepayPayload(serialized);
         
-        repay(params.header.sender, params.assetAddress, params.assetAmount);
+        repay(params.header.sender, params.assetAddress, params.assetAmount, params.reversionPaymentChainId);
     }
 
     /**
@@ -294,8 +294,16 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     * @param assetAddress - the address of the asset 
     * @param amount - the amount of the asset
     */
-    function repay(address repayer, address assetAddress, uint256 amount) internal {
+    function repay(address repayer, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         checkValidAddress(assetAddress);
+
+        bool check = allowedToRepay(repayer, assetAddress, amount);
+
+        // handle revert--transfer tokens back to the repayer on their original chain
+        if(!check){
+            transferTokens(repayer, assetAddress, amount, recipientChain);
+            return;
+        }
 
         // update the interest accrual indices
         updateAccrualIndices(assetAddress);

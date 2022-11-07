@@ -226,16 +226,24 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
         });
     }
 
-    function requireActionDataValid(Action action, uint256 assetAmount, ActionStateData memory beforeData, ActionStateData memory afterData) internal {
+    function requireActionDataValid(Action action, uint256 assetAmount, ActionStateData memory beforeData, ActionStateData memory afterData, bool paymentReversion) internal {
         if(action == Action.Deposit) {
             require(beforeData.global.deposited + assetAmount == afterData.global.deposited, "Did not deposit globally");
             require(beforeData.vault.deposited + assetAmount == afterData.vault.deposited, "Did not deposit in vault");
             require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
             require(beforeData.balanceUser - assetAmount == afterData.balanceUser, "Did not transfer money from user");
         } else if(action == Action.Repay) {
-            require(beforeData.global.borrowed - assetAmount == afterData.global.borrowed, "Did not repay globally");
-            require(beforeData.vault.borrowed - assetAmount == afterData.vault.borrowed, "Did not repay in vault");
-            require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
+            if(paymentReversion){
+                require(beforeData.global.borrowed == afterData.global.borrowed, "Repay should not have gone through, so expect no changes to global borrowed");
+                require(beforeData.vault.borrowed == afterData.vault.borrowed, "Repay should not have gone through, so expect no changes to vault borrowed");
+                require(beforeData.balanceHub == afterData.balanceHub, "Token transfer should have been reverted, so expect no change to hub balance");
+            }
+            else{
+                require(beforeData.global.borrowed - assetAmount == afterData.global.borrowed, "Did not repay globally");
+                require(beforeData.vault.borrowed - assetAmount == afterData.vault.borrowed, "Did not repay in vault");
+                require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
+            }
+
             require(beforeData.balanceUser - assetAmount == afterData.balanceUser, "Did not transfer money from user");
         } else if(action == Action.Withdraw) {
             require(beforeData.global.deposited - assetAmount == afterData.global.deposited, "Did not borrow globally");
