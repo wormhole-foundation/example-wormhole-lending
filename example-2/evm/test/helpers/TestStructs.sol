@@ -12,8 +12,6 @@ import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 import {HubStructs} from "../../src/contracts/lendingHub/HubStructs.sol";
 
-// TODO: add wormhole interface and use fork-url w/ mainnet
-
 contract TestStructs is HubStructs {
     struct HubData {
         Hub hub;

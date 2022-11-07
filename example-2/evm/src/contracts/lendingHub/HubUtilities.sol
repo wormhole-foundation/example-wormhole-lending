@@ -63,8 +63,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     /** 
     * Get the price, through Pyth, of the asset at address assetAddress
     * @param {address} assetAddress - The address of the relevant asset
-    * @return {uint64} The price (in USD) of the asset, from Pyth 
-    * TODO: Elaborate on the above line 
+    * @return {uint64, uint64} The price (in USD) of the asset, from Pyth; the confidence (in USD) of the asset's price
     */
     function getOraclePrices(address assetAddress) internal view returns (uint64, uint64) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
@@ -363,7 +362,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         uint256 reserveFactor = assetInfo.interestRateModel.reserveFactor;
         uint256 reservePrecision = assetInfo.interestRateModel.reservePrecision;
         accrualIndices.borrowed += interestFactor;
-        // discount by the reserve factor (TODO: confirm this is an appropriate way to use reserveFactor--do reserve assets just stay at this address?)
+
         accrualIndices.deposited += (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }

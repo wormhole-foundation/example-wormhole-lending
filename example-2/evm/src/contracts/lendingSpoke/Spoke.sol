@@ -107,10 +107,6 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
     // handle deposit of native asset
     function depositCollateralNative() public payable {
         // get assetAddress of the wrapped token for payload
-        // TransferResult memory transferResult = tokenBridge()._wrapAndTransferETH(0); // figure out how to actually get this data
-        // address assetAddress = address(uint160(uint256(transferResult.tokenAddress)));
-        // uint256 assetAmount = deNormalizeAmount(transferResult.normalizedAmount, 18); // TODO: confirm this is in same decimals
-
         address assetAddress = address(tokenBridge().WETH());
         uint256 assetAmount = msg.value - wormhole().messageFee();
         
@@ -134,10 +130,6 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
     // handle repay of native asset
     function repayNative() public payable {
         // get assetAddress of the wrapped token for payload
-        // TransferResult memory transferResult = tokenBridge()._wrapAndTransferETH(0);
-        // address assetAddress = address(uint160(uint256(transferResult.tokenAddress)));
-        // uint256 assetAmount = deNormalizeAmount(transferResult.normalizedAmount, 18); // TODO: confirm this is in same decimals
-
         address assetAddress = address(tokenBridge().WETH());
         uint256 assetAmount = msg.value - wormhole().messageFee();
 

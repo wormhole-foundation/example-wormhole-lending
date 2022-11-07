@@ -21,10 +21,7 @@ import {TestState} from "./TestState.sol";
 import {TestSetters} from "./TestSetters.sol";
 import {TestGetters} from "./TestGetters.sol";
 
-
 import {WormholeSimulator} from "./WormholeSimulator.sol";
-
-// TODO: add wormhole interface and use fork-url w/ mainnet
 
 contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
     

@@ -30,8 +30,6 @@ import "../../src/contracts/lendingHub/HubGetters.sol";
 
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 
-// TODO: add wormhole interface and use fork-url w/ mainnet
-
 contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGetters, TestSetters, TestUtilities {
     
     using BytesLib for bytes;

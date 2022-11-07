@@ -19,8 +19,6 @@ import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 
-// TODO: add wormhole interface and use fork-url w/ mainnet
-
 contract TestSetters is TestStructs, TestState, TestGetters {
     
     function setHubData(HubData memory hubData) internal {

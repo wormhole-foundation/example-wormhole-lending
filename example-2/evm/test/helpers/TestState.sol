@@ -7,9 +7,6 @@ import "forge-std/console.sol";
 
 import {TestStructs} from "./TestStructs.sol";
 
-
-// TODO: add wormhole interface and use fork-url w/ mainnet
-
 contract TestStorage is TestStructs {
     struct State {
         HubData hubData;

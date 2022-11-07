@@ -191,9 +191,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
     * @param assetAddress - the address of the asset 
     * @param amount - the amount of the asset
     */
-    function deposit(address depositor, address assetAddress, uint256 amount) internal {
-        // TODO: What to do if this fails?
-        
+    function deposit(address depositor, address assetAddress, uint256 amount) internal {        
         checkValidAddress(assetAddress);
 
         // update the interest accrual indices
@@ -283,7 +281,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         globalAmounts.borrowed += normalizedAmount;
         setVaultAmounts(borrower, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
-        // TODO: token transfers
+
         transferTokens(borrower, assetAddress, amount, recipientChain);
     }
 
