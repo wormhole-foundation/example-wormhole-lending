@@ -49,37 +49,38 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         
         testSetUp(vm);
 
-        addAsset(0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
-                100 * 10 ** 16,
-                110 * 10 ** 16,
-                1 * 10**18,
-                0,
-                0,
-                0,
-                 vm.envBytes32("PYTH_PRICE_FEED_AVAX_bnb")  
-        );
+        addAsset(AddAsset({
+                assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
+                collateralizationRatioDeposit: 100 * 10 ** 16,
+                collateralizationRatioBorrow: 110 * 10 ** 16,
+                ratePrecision: 1 * 10**18,
+                rateIntercept: 0,
+                rateCoefficientA: 0,
+                reserveFactor: 0,
+                pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_bnb")  
+        }));
 
-        addAsset(0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
-                100 * 10 ** 16,
-                110 * 10 ** 16,
-                1 * 10**18,
-                0,
-                0,
-                0,
-                vm.envBytes32("PYTH_PRICE_FEED_AVAX_eth") 
-        );
+        addAsset(AddAsset({assetAddress: 0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
+                collateralizationRatioDeposit: 100 * 10 ** 16,
+                collateralizationRatioBorrow: 110 * 10 ** 16,
+                ratePrecision: 1 * 10**18,
+                rateIntercept: 0,
+                rateCoefficientA: 0,
+                reserveFactor: 0,
+                pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_eth") 
+    }));
 
         wrappedGasTokenAddress = address(getHubData().tokenBridgeContract.WETH());
 
-        addAsset(wrappedGasTokenAddress, // WAVAX
-                100 * 10 ** 16,
-                110 * 10 ** 16,
-                1 * 10**18,
-                0,
-                0,
-                0,
-                vm.envBytes32("PYTH_PRICE_FEED_AVAX_avax") 
-        );
+        addAsset(AddAsset({assetAddress: wrappedGasTokenAddress, // WAVAX
+                collateralizationRatioDeposit: 100 * 10 ** 16,
+                collateralizationRatioBorrow: 110 * 10 ** 16,
+                ratePrecision: 1 * 10**18,
+                rateIntercept: 0,
+                rateCoefficientA: 0,
+                reserveFactor: 0,
+                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_avax") 
+    }));
         
 
         for (uint256 i = 0; i < 3; i++) {

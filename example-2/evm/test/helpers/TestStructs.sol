@@ -41,6 +41,18 @@ contract TestStructs is HubStructs {
         uint256 reserveFactor;
         bytes32 pythId;
     }
+
+    struct AddAsset {
+        address assetAddress;
+        uint256 collateralizationRatioDeposit;
+        uint256 collateralizationRatioBorrow;
+        uint64 ratePrecision;
+        uint64 rateIntercept;
+        uint64 rateCoefficientA;
+        uint256 reserveFactor;
+        bytes32 pythId;
+    }
+
     struct RegisterChainMessage {
         bytes32 module;
         uint8 action;
