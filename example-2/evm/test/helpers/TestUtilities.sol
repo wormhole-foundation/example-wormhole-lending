@@ -5,8 +5,6 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
-import "../../src/libraries/external/BytesLib.sol";
-
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -21,9 +19,12 @@ import {TestState} from "./TestState.sol";
 import {TestSetters} from "./TestSetters.sol";
 import {TestGetters} from "./TestGetters.sol";
 
+import {HubUtilities} from "../../src/contracts/lendingHub/HubUtilities.sol";
+
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 
-contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
+contract TestUtilities is HubUtilities, TestStructs, TestState, TestGetters, TestSetters {
+
     
     function fetchSignedMessageFromSpokeLogs(uint256 spokeIndex, Vm.Log memory entry) internal returns (bytes memory) {
         return getSpokeData(spokeIndex).wormholeSimulator.fetchSignedMessageFromLogs(entry);
@@ -189,8 +190,8 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
         );
     }
 
-    function registerChainOnHub(uint16 emitterChainId, bytes32 emitterAddress) internal returns (bytes memory) {
-        RegisterChainMessage memory msg = RegisterChainMessage({
+    function registerChainOnHub(uint16 emitterChainId, bytes32 emitterAddress) internal {
+        RegisterChainMessage memory registerMsg = RegisterChainMessage({
             module: 0x000000000000000000000000000000000000000000546f6b656e427269646765,
             action: 1, 
             chainId: 0,
@@ -205,7 +206,7 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
             bytes32(0x0000000000000000000000000000000000000000000000000000000000000004), // this should be the spoke address
             uint64(1),
             uint8(15),
-            abi.encodePacked(msg.module, msg.action, msg.chainId, msg.emitterChainId, msg.emitterAddress)
+            abi.encodePacked(registerMsg.module, registerMsg.action, registerMsg.chainId, registerMsg.emitterChainId, registerMsg.emitterAddress)
         );
 
         bytes memory registerChainSignedMsg = getSignedWHMsg(payload);
@@ -214,7 +215,7 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
         
     }
 
-    function getActionStateData(address vault, address assetAddress) internal returns(ActionStateData memory data) {
+    function getActionStateData(address vault, address assetAddress) internal view returns(ActionStateData memory data) {
         data = ActionStateData({
             global: getHub().getGlobalAmounts(assetAddress),
             vault: getHub().getVaultAmounts(vault, assetAddress),
@@ -224,12 +225,18 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
     }
 
     function requireActionDataValid(Action action, uint256 assetAmount, ActionStateData memory beforeData, ActionStateData memory afterData, bool paymentReversion) internal {
+
+        uint256 normalizedAssetAmountDeposited = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).deposited);
+        uint256 normalizedAssetAmountBorrowed = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).borrowed);
+
+
         if(action == Action.Deposit) {
-            require(beforeData.global.deposited + assetAmount == afterData.global.deposited, "Did not deposit globally");
-            require(beforeData.vault.deposited + assetAmount == afterData.vault.deposited, "Did not deposit in vault");
+            require(beforeData.global.deposited + normalizedAssetAmountDeposited == afterData.global.deposited, "Did not deposit globally");
+            require(beforeData.vault.deposited + normalizedAssetAmountDeposited == afterData.vault.deposited, "Did not deposit in vault");
             require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
             require(beforeData.balanceUser - assetAmount == afterData.balanceUser, "Did not transfer money from user");
         } else if(action == Action.Repay) {
+
             if(paymentReversion){
                 require(beforeData.global.borrowed == afterData.global.borrowed, "Repay should not have gone through, so expect no changes to global borrowed");
                 require(beforeData.vault.borrowed == afterData.vault.borrowed, "Repay should not have gone through, so expect no changes to vault borrowed");
@@ -241,15 +248,18 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
                 require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
             }
 
+            require(beforeData.global.borrowed - normalizedAssetAmountBorrowed == afterData.global.borrowed, "Did not repay globally");
+            require(beforeData.vault.borrowed - normalizedAssetAmountBorrowed == afterData.vault.borrowed, "Did not repay in vault");
+            require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
             require(beforeData.balanceUser - assetAmount == afterData.balanceUser, "Did not transfer money from user");
         } else if(action == Action.Withdraw) {
-            require(beforeData.global.deposited - assetAmount == afterData.global.deposited, "Did not borrow globally");
-            require(beforeData.vault.deposited - assetAmount == afterData.vault.deposited, "Did not borrow from vault");
+            require(beforeData.global.deposited - normalizedAssetAmountDeposited  == afterData.global.deposited, "Did not borrow globally");
+            require(beforeData.vault.deposited - normalizedAssetAmountDeposited  == afterData.vault.deposited, "Did not borrow from vault");
             require(beforeData.balanceHub - assetAmount == afterData.balanceHub, "Did not transfer money from hub");
             require(beforeData.balanceUser + assetAmount == afterData.balanceUser, "Did not transfer money to user");
         } else if(action == Action.Borrow) {
-            require(beforeData.global.borrowed + assetAmount == afterData.global.borrowed, "Did not withdraw globally");
-            require(beforeData.vault.borrowed + assetAmount == afterData.vault.borrowed, "Did not withdraw from vault");
+            require(beforeData.global.borrowed + normalizedAssetAmountBorrowed == afterData.global.borrowed, "Did not withdraw globally");
+            require(beforeData.vault.borrowed + normalizedAssetAmountBorrowed == afterData.vault.borrowed, "Did not withdraw from vault");
             require(beforeData.balanceHub - assetAmount == afterData.balanceHub, "Did not transfer money from hub");
             require(beforeData.balanceUser + assetAmount == afterData.balanceUser, "Did not transfer money to user");
         }
@@ -263,7 +273,7 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
         return amount;
     }
 
-    function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal {
+    function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal view {
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
 

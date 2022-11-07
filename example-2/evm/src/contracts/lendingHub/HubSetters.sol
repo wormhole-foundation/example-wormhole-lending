@@ -46,15 +46,15 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         _state.assetInfos[assetAddress] = info;
 
         AccrualIndices memory accrualIndices;
-        accrualIndices.deposited = 1*getInterestAccrualIndexPrecision();
-        accrualIndices.borrowed = 1*getInterestAccrualIndexPrecision();
+        accrualIndices.deposited = 1 * getInterestAccrualIndexPrecision();
+        accrualIndices.borrowed = 1 * getInterestAccrualIndexPrecision();
         accrualIndices.lastBlock = block.timestamp;
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
 
         // set the max decimals to max of current max and new asset decimals
         uint8 currentMaxDecimals = getMaxDecimals();
-        if(info.decimals > currentMaxDecimals) {
+        if (info.decimals > currentMaxDecimals) {
             setMaxDecimals(info.decimals);
         }
     }
@@ -93,7 +93,7 @@ contract HubSetters is HubStructs, HubState, HubGetters {
 
     function setVaultAmounts(address vaultOwner, address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.vault[vaultOwner][assetAddress] = vaultAmount;
-    } 
+    }
 
     function setGlobalAmounts(address assetAddress, VaultAmount memory vaultAmount) internal {
         _state.totalAssets[assetAddress] = vaultAmount;
@@ -111,12 +111,29 @@ contract HubSetters is HubStructs, HubState, HubGetters {
         _state.maxLiquidationPortionPrecision = maxLiquidationPortionPrecision;
     }
 
-    function setMockPyth(uint validTimePeriod, uint singleUpdateFeeInWei) internal {
+    function setMockPyth(uint256 validTimePeriod, uint256 singleUpdateFeeInWei) internal {
         _state.provider.mockPyth = new MockPyth(validTimePeriod, singleUpdateFeeInWei);
     }
 
     function setNConf(uint64 nConf, uint64 nConfPrecision) internal {
         _state.nConf = nConf;
         _state.nConfPrecision = nConfPrecision;
+    }
+
+    function setMockPythFeed(
+        bytes32 id,
+        int64 price,
+        uint64 conf,
+        int32 expo,
+        int64 emaPrice,
+        uint64 emaConf,
+        uint64 publishTime
+    ) public {
+        bytes memory priceFeedData =
+            _state.provider.mockPyth.createPriceFeedUpdateData(id, price, conf, expo, emaPrice, emaConf, publishTime);
+
+        bytes[] memory updateData = new bytes[](1);
+        updateData[0] = priceFeedData;
+        _state.provider.mockPyth.updatePriceFeeds(updateData);
     }
 }

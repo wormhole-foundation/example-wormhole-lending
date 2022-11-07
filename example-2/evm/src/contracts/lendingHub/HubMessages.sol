@@ -148,8 +148,4 @@ contract HubMessages is HubStructs {
 
         params.reversionPaymentChainId = reversionPaymentChainId;
     }
-
-  
-
-    
 }

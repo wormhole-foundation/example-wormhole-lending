@@ -108,6 +108,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegisterAsset(0, getAsset(0));
         doRegisterAsset(0, getAsset(1));
         doRegisterAsset(0, getAsset(2));
+
     }
 
     function testD_Fail() public {
@@ -119,8 +120,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     function testRD() public {
         doRegisterSpoke(0);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
 
         deal(getAssetAddress(1), address(this), 1 * 10 ** 17);
         deal(getAssetAddress(0), address(this), 5 * (10 ** 16));
@@ -133,8 +134,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
         deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
 
         doRegisterSpoke(0);
 
@@ -154,8 +155,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
         deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
 
         setPrice(getAsset(0), 100);
         setPrice(getAsset(1), 91);
@@ -173,8 +174,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
         deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
 
         doRegisterSpoke(0);
 
@@ -194,8 +195,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
         deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
 
         doRegisterSpoke(0);
 
@@ -216,8 +217,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(getAssetAddress(0), address(this), 5* 10 ** 16);
         deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
 
         setPrice(getAsset(0), 100);
         setPrice(getAsset(1), 90);
@@ -240,8 +241,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
         deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
 
         setPrice(getAsset(0), 100);
         setPrice(getAsset(1), 90);
@@ -265,8 +266,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(getAssetAddress(1), address(this), 1100 * 10 ** 14);
         deal(getAssetAddress(0), address(0x1), 500 * 10 ** 14);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
 
         setPrice(getAsset(0), 100);
         setPrice(getAsset(1), 90);
@@ -305,8 +306,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         deal(getAssetAddress(0), vaultOther, 3000 * 10 ** 16);
         deal(getAssetAddress(1), vaultOther, 4000 * 10 ** 16);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
 
         setPrice(getAsset(0), 100);
         setPrice(getAsset(1), 90);
@@ -331,7 +332,6 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         assetReceiptAmounts[0] = 240 * 10 ** 14;
 
         IERC20(getAssetAddress(1)).approve(address(getHub()), 500 * 10 ** 14);
-        // uint256 allowanceAmount = IERC20(getAssetAddress(1)).allowance(vault, address(getHub()));
 
         // get vault token balances pre liquidation
         uint256 balance_vault_0_pre = IERC20(getAssetAddress(0)).balanceOf(vault);
@@ -349,11 +349,6 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         uint256 balance_hub_0_post = IERC20(getAssetAddress(0)).balanceOf(address(getHub()));
         uint256 balance_hub_1_post = IERC20(getAssetAddress(1)).balanceOf(address(getHub()));
 
-        //console.log("balance of vault for token 0 went from ", balance_vault_0_pre, " to ", balance_vault_0_post);
-        //console.log("balance of vault for token 1 went from ", balance_vault_1_pre, " to ", balance_vault_1_post);
-        //console.log("balance of hub for token 0 went from ", balance_hub_0_pre, " to ", balance_hub_0_post);
-        //console.log("balance of hub for token 1 went from ", balance_hub_1_pre, " to ", balance_hub_1_post);
-
         require(
             balance_vault_0_pre + balance_hub_0_pre == balance_vault_0_post + balance_hub_0_post,
             "Asset 0 total amounts should not change after liquidation"
@@ -366,6 +361,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         // try repayment of the borrow, should fail bc already paid back
         doRepayRevertPayment(0, getAsset(1), 400 * 10 ** 14, vaultOther);
     }
+
 
     function testRDNative() public {
         uint256 msgFee = getHubData().wormholeContract.messageFee();
@@ -526,266 +522,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doWithdrawRevert(0, getAsset(0), 4 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through");
     }
 
-
-
     // test register SPOKE (make sure nothing is possible without doing this)
 
-    /*
-    // test register asset
-    function testR_FS() public {
-        doRegisterAsset_FS(getAsset(0));
-    }
-
-    function testRD_FS() public {
-        deal(getAssetAddress(0), msg.sender, 5 * 10 ** 18);
-        doRegisterAsset_FS(getAsset(0));
-        doDeposit_FS(msg.sender, getAsset(0), 5 * 10 ** 18);
-    }
-
-    function testD_Fail_FS() public {
-        // Should fail because there is no registered asset
-        deal(getAssetAddress(0), msg.sender, 502 * 10 ** 18);
-        doDeposit_FS(msg.sender, getAsset(0), 502 * 10 ** 18, "Unregistered asset");
-    }
-
-    function testRDB_FS() public {
-        deal(getAssetAddress(0), msg.sender, 500 * 10 ** 18);
-        deal(getAssetAddress(1), address(0x1), 600 * 10 ** 18);
-
-        doRegisterAsset_FS(getAsset(0));
-        doRegisterAsset_FS(getAsset(1));
-
-        doRegisterSpoke_FS();
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doDeposit_FS(msg.sender, getAsset(0), 500 * 10 ** 18);
-        doDeposit_FS(address(0x1), getAsset(1), 600 * 10 ** 18);
-
-        doBorrow_FS(msg.sender, getAsset(1), 500 * 10 ** 18);
-    }
-
-    function testRDB_Fail_FS() public {
-        // Should fail because the price of the borrow asset is a little too high
-
-        deal(getAssetAddress(0), msg.sender, 5 * 10 ** 18);
-        deal(getAssetAddress(1), address(0x1), 6 * 10 ** 18);
-
-        doRegisterAsset_FS(getAsset(0));
-        doRegisterAsset_FS(getAsset(1));
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 91);
-
-        doRegisterSpoke_FS();
-
-        doDeposit_FS(msg.sender, getAsset(0), 5 * 10 ** 18);
-        doDeposit_FS(address(0x1), getAsset(1), 6 * 10 ** 18);
-
-        doBorrow_FS(msg.sender, getAsset(1), 5 * 10 ** 18, "Vault is undercollateralized if this borrow goes through");
-    }
-
-    function testRDBW_FS() public {
-        deal(getAssetAddress(0), msg.sender, 5 * 10 ** 18);
-        deal(getAssetAddress(1), address(0x1), 6 * 10 ** 18);
-
-        doRegisterAsset_FS(getAsset(0));
-        doRegisterAsset_FS(getAsset(1));
-
-        doRegisterSpoke_FS();
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doDeposit_FS(msg.sender, getAsset(0), 5 * 10 ** 18);
-        doDeposit_FS(address(0x1), getAsset(1), 6 * 10 ** 18);
-
-        doBorrow_FS(msg.sender, getAsset(1), 5 * 10 ** 18);
-
-        doWithdraw_FS(msg.sender, getAsset(0), 5 * 10 ** 16);
-    }
-
-    function testRDBW_Fail_FS() public {
-        deal(getAssetAddress(0), msg.sender, 5 * 10 ** 18);
-        deal(getAssetAddress(1), address(0x1), 6 * 10 ** 18);
-
-        doRegisterAsset_FS(getAsset(0));
-        doRegisterAsset_FS(getAsset(1));
-
-        doRegisterSpoke_FS();
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doDeposit_FS(msg.sender, getAsset(0), 5 * 10 ** 18);
-        doDeposit_FS(address(0x1), getAsset(1), 6 * 10 ** 18);
-
-        doBorrow_FS(msg.sender, getAsset(1), 5 * 10 ** 18);
-
-        doWithdraw_FS(
-            msg.sender,
-            getAsset(0),
-            5 * 10 ** 16 + 1 * 10 ** 14,
-            "Vault is undercollateralized if this withdraw goes through"
-        );
-    }
-
-    function testRDBPW_FS() public {
-        deal(getAssetAddress(0), msg.sender, 500 * 10 ** 16);
-        deal(getAssetAddress(1), address(0x1), 600 * 10 ** 16);
-
-        doRegisterAsset_FS(getAsset(0));
-        doRegisterAsset_FS(getAsset(1));
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doRegisterSpoke_FS();
-
-        doDeposit_FS(msg.sender, getAsset(0), 500 * 10 ** 16);
-        doDeposit_FS(address(0x1), getAsset(1), 600 * 10 ** 16);
-
-        doBorrow_FS(msg.sender, getAsset(1), 500 * 10 ** 16);
-
-        doRepay_FS(msg.sender, getAsset(1), 500 * 10 ** 16);
-
-        doWithdraw_FS(msg.sender, getAsset(0), 500 * 10 ** 16);
-    }
-
-    function testRDBPW_Fail_FS() public {
-        // Should fail because still some debt out so cannot withdraw all your deposited assets
-        deal(getAssetAddress(0), msg.sender, 500 * 10 ** 16);
-        deal(getAssetAddress(1), address(0x1), 600 * 10 ** 16);
-
-        doRegisterAsset_FS(getAsset(0));
-        doRegisterAsset_FS(getAsset(1));
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doRegisterSpoke_FS();
-
-        doDeposit_FS(msg.sender, getAsset(0), 500 * 10 ** 16);
-        doDeposit_FS(address(0x1), getAsset(1), 600 * 10 ** 16);
-
-        doBorrow_FS(msg.sender, getAsset(1), 500 * 10 ** 16);
-
-        doRepay_FS(msg.sender, getAsset(1), 500 * 10 ** 16 - 1 * 10 ** 10);
-
-        doWithdraw_FS(
-            msg.sender, getAsset(0), 500 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through"
-        );
-    }
-
-    function testRDBL_Fail_FS() public {
-        // should fail because vault not underwater
-        deal(getAssetAddress(0), msg.sender, 501 * 10 ** 18);
-        deal(getAssetAddress(1), msg.sender, 1100 * 10 ** 18);
-        deal(getAssetAddress(0), address(0x1), 500 * 10 ** 18);
-
-        doRegisterAsset_FS(getAsset(0));
-        doRegisterAsset_FS(getAsset(1));
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doRegisterSpoke_FS();
-
-        doDeposit_FS(address(0x1), getAsset(0), 500 * 10 ** 18);
-        doDeposit_FS(msg.sender, getAsset(1), 600 * 10 ** 18);
-
-        doBorrow_FS(address(0x1), getAsset(1), 500 * 10 ** 18);
-
-        // liquidation attempted by msg.sender
-        address[] memory assetRepayAddresses = new address[](1);
-        assetRepayAddresses[0] = getAssetAddress(1);
-        uint256[] memory assetRepayAmounts = new uint256[](1);
-        assetRepayAmounts[0] = 500 * 10 ** 18;
-        address[] memory assetReceiptAddresses = new address[](1);
-        assetReceiptAddresses[0] = getAssetAddress(0);
-        uint256[] memory assetReceiptAmounts = new uint256[](1);
-        assetReceiptAmounts[0] = 1;
-        vm.prank(msg.sender);
-        vm.expectRevert(bytes("vault not underwater"));
-        getHub().liquidation(
-            address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts
-        );
-    }
-
-    function testRDBL_FS() public {
-        address vault = msg.sender;
-        address vaultOther = address(0x1);
-
-        // prank mint with tokens
-        deal(getAssetAddress(0), vault, 1000 * 10 ** 20);
-        deal(getAssetAddress(1), vault, 2000 * 10 ** 20);
-        deal(getAssetAddress(0), vaultOther, 3000 * 10 ** 20);
-        deal(getAssetAddress(1), vaultOther, 4000 * 10 ** 20);
-
-        doRegisterAsset_FS(getAsset(0));
-        doRegisterAsset_FS(getAsset(1));
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doRegisterSpoke_FS();
-
-        doDeposit_FS(vaultOther, getAsset(0), 500 * 10 ** 18);
-        doDeposit_FS(vault, getAsset(1), 600 * 10 ** 18);
-
-        doBorrow_FS(vaultOther, getAsset(1), 500 * 10 ** 18);
-
-        // move the price up for borrowed asset
-        setPrice(getAsset(1), 95);
-
-        // liquidation attempted by msg.sender
-        address[] memory assetRepayAddresses = new address[](1);
-        assetRepayAddresses[0] = getAssetAddress(1);
-        uint256[] memory assetRepayAmounts = new uint256[](1);
-        assetRepayAmounts[0] = 500 * 10 ** 18;
-        address[] memory assetReceiptAddresses = new address[](1);
-        assetReceiptAddresses[0] = getAssetAddress(0);
-        uint256[] memory assetReceiptAmounts = new uint256[](1);
-        assetReceiptAmounts[0] = 490 * 10 ** 18;
-
-        // prank approve contract to spend tokens
-        vm.prank(vault);
-        IERC20(getAssetAddress(1)).approve(address(getHub()), 500 * 10 ** 18);
-        // uint256 allowanceAmount = IERC20(getAssetAddress(1)).allowance(vault, address(getHub()));
-
-        // get vault token balances pre liquidation
-        uint256 balance_vault_0_pre = IERC20(getAssetAddress(0)).balanceOf(vault);
-        uint256 balance_vault_1_pre = IERC20(getAssetAddress(1)).balanceOf(vault);
-        // get hub contract token balances pre liquidation
-        uint256 balance_hub_0_pre = IERC20(getAssetAddress(0)).balanceOf(address(getHub()));
-        uint256 balance_hub_1_pre = IERC20(getAssetAddress(1)).balanceOf(address(getHub()));
-
-        vm.prank(vault);
-        getHub().liquidation(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
-
-        // get vault token balances post liquidation
-        uint256 balance_vault_0_post = IERC20(getAssetAddress(0)).balanceOf(vault);
-        uint256 balance_vault_1_post = IERC20(getAssetAddress(1)).balanceOf(vault);
-        // get hub contract token balances post liquidation
-        uint256 balance_hub_0_post = IERC20(getAssetAddress(0)).balanceOf(address(getHub()));
-        uint256 balance_hub_1_post = IERC20(getAssetAddress(1)).balanceOf(address(getHub()));
-
-        //console.log("balance of vault for token 0 went from ", balance_vault_0_pre, " to ", balance_vault_0_post);
-        //console.log("balance of vault for token 1 went from ", balance_vault_1_pre, " to ", balance_vault_1_post);
-        //console.log("balance of hub for token 0 went from ", balance_hub_0_pre, " to ", balance_hub_0_post);
-        //console.log("balance of hub for token 1 went from ", balance_hub_1_pre, " to ", balance_hub_1_post);
-
-        require(
-            balance_vault_0_pre + balance_hub_0_pre == balance_vault_0_post + balance_hub_0_post,
-            "Asset 0 total amounts should not change after liquidation"
-        );
-        require(
-            balance_vault_1_pre + balance_hub_1_pre == balance_vault_1_post + balance_hub_1_post,
-            "Asset 1 total amounts should not change after liquidation"
-        );
-    }
-    */
 
     /*
     *       TESTING ENCODING AND DECODING OF MESSAGES

@@ -99,7 +99,7 @@ contract HubGetters is Context, HubStructs, HubState {
 
     function getVaultAmounts(address vaultOwner, address assetAddress) public view returns (VaultAmount memory) {
         return _state.vault[vaultOwner][assetAddress];
-    } 
+    }
 
     function getGlobalAmounts(address assetAddress) public view returns (VaultAmount memory) {
         return _state.totalAssets[assetAddress];

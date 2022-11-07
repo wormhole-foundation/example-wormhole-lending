@@ -119,7 +119,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         return spokeData.spoke;
     }
 
-    function doRegisterAsset(uint256 spokeIndex, Asset memory asset) internal {
+    function doRegisterAsset(Asset memory asset) internal {
         Vm vm = getVm();
         
         uint256 reservePrecision = 1 * 10**18;
@@ -257,6 +257,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         // ActionStateData memory afterData = getActionStateData(vault, params.assetAddress);
 
         // requireActionDataValid(action, params.assetAmount, beforeData, afterData);
+
     }
 
     
