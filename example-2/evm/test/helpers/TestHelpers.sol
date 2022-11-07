@@ -316,6 +316,19 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             prankAddress: address(0x0)
         }));
     }
+    function doRepay(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address prankAddress) internal {
+        doAction(ActionParameters({
+            action: Action.Repay,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            paymentReversion: false,
+            prank: true,
+            prankAddress: prankAddress
+        }));
+    }
     function doRepayRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
         doAction(ActionParameters({
             action: Action.Repay,
@@ -446,6 +459,20 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
+        }));
+    }
+
+    function doBorrowRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString, address prankAddress) internal {
+        doAction(ActionParameters({
+            action: Action.Borrow,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: true,
+            revertString: revertString,
+            paymentReversion: false,
+            prank: true,
+            prankAddress: prankAddress
         }));
     }
     

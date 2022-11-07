@@ -70,9 +70,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_eth") 
     }));
 
-        wrappedGasTokenAddress = address(getHubData().tokenBridgeContract.WETH());
-
-        addAsset(AddAsset({assetAddress: wrappedGasTokenAddress, // WAVAX
+        addAsset(AddAsset({assetAddress: address(getHubData().tokenBridgeContract.WETH()), // WAVAX
                 collateralizationRatioDeposit: 100 * 10 ** 16,
                 collateralizationRatioBorrow: 110 * 10 ** 16,
                 ratePrecision: 1 * 10**18,
@@ -98,14 +96,11 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
     }
 
-    function testD_Fail() public {
-        doRegisterSpoke(0);
-
-        doDepositRevert(0, getAsset(0), 0, "Unregistered asset");
-    }
 
     function testRD() public {
         doRegisterSpoke(0);
+
+        doDepositRevert(0, getAsset(0), 0, "Unregistered asset");
 
         doRegisterAsset(getAsset(0));
         doRegisterAsset(getAsset(1));
@@ -127,34 +122,17 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         doRegisterSpoke(0);
 
         setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doDeposit(0, getAsset(0), 5 * 10 ** 16);
-
-        doDeposit(0, getAsset(1), 6 * 10 ** 16, address(0x1));
-
-        doBorrow(0, getAsset(1), 5 * 10 ** 16);
-    }
-
-    function testRDB_Fail() public {
-        // Should fail because the price of the borrow asset is a little too high
-
-        deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
-        deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
-
-        doRegisterAsset(getAsset(0));
-        doRegisterAsset(getAsset(1));
-
-        setPrice(getAsset(0), 100);
         setPrice(getAsset(1), 91);
-
-        doRegisterSpoke(0);
 
         doDeposit(0, getAsset(0), 5 * 10 ** 16);
 
         doDeposit(0, getAsset(1), 6 * 10 ** 16, address(0x1));
 
         doBorrowRevert(0, getAsset(1), 5 * 10 ** 16, "Vault is undercollateralized if this borrow goes through");
+
+        setPrice(getAsset(1), 90);
+
+        doBorrow(0, getAsset(1), 5 * 10 ** 16);
     }
 
     function testRDBW() public {
@@ -175,30 +153,13 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doBorrow(0, getAsset(1), 5 * 10 ** 16);
 
-        doWithdraw(0, getAsset(0), 5 * 10 ** 14);
-    }
-
-    function testRDBW_Fail() public {
-        deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
-        deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
-
-        doRegisterAsset(getAsset(0));
-        doRegisterAsset(getAsset(1));
-
-        doRegisterSpoke(0);
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doDeposit(0, getAsset(0), 5 * 10 ** 16);
-        doDeposit(0, getAsset(1), 6 * 10 ** 16, address(0x1));
-
-        doBorrow(0, getAsset(1), 5 * 10 ** 16);
-
         doWithdrawRevert(
             0, getAsset(0), 5 * 10 ** 14 + 1 * 10 ** 10, "Vault is undercollateralized if this withdraw goes through"
         );
+
+        doWithdraw(0, getAsset(0), 5 * 10 ** 14);
     }
+
 
     function testRDBPW() public {
         deal(getAssetAddress(0), address(this), 5* 10 ** 16);
@@ -218,36 +179,16 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doBorrow(0, getAsset(1), 5 * 10 ** 16);
 
-        doRepay(0, getAsset(1), 5 * 10 ** 16);
+        doRepay(0, getAsset(1), 5 * 10 ** 16 - 1 * 10 ** 10);
+
+        doWithdrawRevert(0, getAsset(0), 5 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through");
+
+        doRepay(0, getAsset(1), 1 * 10 ** 10);
 
         doWithdraw(0, getAsset(0), 5 * 10 ** 16);
     }
 
-    function testRDBPW_Fail() public {
-        // Should fail because still some debt out so cannot withdraw all your deposited assets
-        deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
-        deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
-
-        doRegisterAsset(getAsset(0));
-        doRegisterAsset(getAsset(1));
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doRegisterSpoke(0);
-
-        doDeposit(0, getAsset(0), 5 * 10 ** 16);
-     
-        doDeposit(0, getAsset(1), 6 * 10 ** 16, address(0x1));
-
-        doBorrow(0, getAsset(1), 5 * 10 ** 16);
-
-        doRepay(0, getAsset(1), 5 * 10 ** 16 - 1 * 10 ** 10);
-
-        doWithdrawRevert(0, getAsset(0), 5 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through");
-    }
-
-    function testRDBL_Fail() public {
+    function testRDBL() public {
         // should fail because vault not underwater
         deal(getAssetAddress(0), address(this), 501 * 10 ** 14);
         deal(getAssetAddress(1), address(this), 1100 * 10 ** 14);
@@ -278,104 +219,47 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         assetReceiptAmounts[0] = 1;
 
         doLiquidate(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts, "vault not underwater");
-    }
-
-    function testRDBL() public {
-        address vault = address(this);
-        address vaultOther = address(0x1);
-
-        // prank mint with tokens
-        deal(getAssetAddress(1), vault, 850 * 10 ** 14);
-        deal(getAssetAddress(0), vaultOther, 500 * 10 ** 14);
-
-        doRegisterAsset(getAsset(0));
-        doRegisterAsset(getAsset(1));
-
-        setPrice(getAsset(0), 100);
-        setPrice(getAsset(1), 90);
-
-        doRegisterSpoke(0);
-
-        doDeposit(0, getAsset(0), 500 * 10 ** 14, vaultOther);
-        doDeposit(0, getAsset(1), 600 * 10 ** 14);
-        doBorrow(0, getAsset(1), 500 * 10 ** 14, vaultOther);
 
         // move the price up for borrowed asset
         setPrice(getAsset(1), 95);
 
         // liquidation attempted by address(this)
-        address[] memory assetRepayAddresses = new address[](1);
+        assetRepayAddresses = new address[](1);
         assetRepayAddresses[0] = getAssetAddress(1);
-        uint256[] memory assetRepayAmounts = new uint256[](1);
+        assetRepayAmounts = new uint256[](1);
         assetRepayAmounts[0] = 250 * 10 ** 14;
-        address[] memory assetReceiptAddresses = new address[](1);
+        assetReceiptAddresses = new address[](1);
         assetReceiptAddresses[0] = getAssetAddress(0);
-        uint256[] memory assetReceiptAmounts = new uint256[](1);
+        assetReceiptAmounts = new uint256[](1);
         assetReceiptAmounts[0] = 240 * 10 ** 14;
 
-        doLiquidate(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+        doLiquidate(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
 
-        // try repayment of the borrow, should fail bc already paid back
-        doRepayRevertPayment(0, getAsset(1), 400 * 10 ** 14, vaultOther);
+        // try repayment of the borrow, should not execute the repayment because liquidation already occured
+        doRepayRevertPayment(0, getAsset(1), 400 * 10 ** 14, address(0x1));
     }
+
 
 
     function testRDNative() public {
 
-        doRegisterAsset(getAsset(2));
-
         doRegisterSpoke(0);
 
-        vm.deal(address(this), 105 * 10 ** 18);
+        doDepositNativeRevert(0, 5 * (10 ** 16), "Unregistered asset");
+
+        doRegisterAsset(getAsset(2));
+
+        vm.deal(address(this), 5 * 10 ** 16);
 
         doDepositNative(0, 5 * (10 ** 16));
 
     }
 
-    function testDNative_Fail() public {
-        doRegisterSpoke(0);
-
-        address user = address(this);
-
-        uint256 userInitBalance = 105 * 10 ** 18;
-
-        vm.deal(user, userInitBalance);
-
-        doDepositNativeRevert(0, 5 * (10 ** 16), "Unregistered asset");
-    }
-
     function testRDNativeB() public {
-        address user = address(this);
 
-        deal(getAssetAddress(0), address(0x1), 6 * 10 ** 16);
-        uint256 userInitBalance = 105 * 10 ** 18;
-        vm.deal(user, userInitBalance);
+        deal(getAssetAddress(0), address(0x1), 100 * 10 ** 16);
 
-        doRegisterAsset(getAsset(0));
-        doRegisterAsset(getAsset(2));
-
-        doRegisterSpoke(0);
-
-        setPrice(getAsset(0), 80);
-        setPrice(getAsset(2), 90);
-
-        doDepositNative(0, 5 * 10 ** 16);
-
-        doDeposit(0, getAsset(0), 6 * 10 ** 16, address(0x1));
-
-        doBorrow(0, getAsset(0), 5 * 10 ** 16);
-
-        doBorrow(0, getAsset(2), 4 * 10 ** 16, address(0x1));
-    }
-
-    function testRDNativeB_Fail() public {
-        // Should fail because the price of the borrow asset is a little too high
-
-        address user = address(this);
-
-        deal(getAssetAddress(0), address(0x1), 6 * 10 ** 16);
-        uint256 userInitBalance = 105 * 10 ** 18;
-        vm.deal(user, userInitBalance);
+        vm.deal(address(this), 200 * 10 ** 16);
 
         doRegisterAsset(getAsset(0));
         doRegisterAsset(getAsset(2));
@@ -385,11 +269,21 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         setPrice(getAsset(0), 80);
         setPrice(getAsset(2), 90);
 
-        doDepositNative(0, 5 * 10 ** 16);
+        doDepositNative(0, 200 * 10 ** 16);
 
-        doDeposit(0, getAsset(0), 6 * 10 ** 16, address(0x1));
+        doDeposit(0, getAsset(0), 100 * 10 ** 16, address(0x1));
 
-        doBorrowRevert(0, getAsset(0), 6 * 10 ** 16, "Vault is undercollateralized if this borrow goes through");
+        doBorrowRevert(0, getAsset(2), 81 * 10 ** 16, "Vault is undercollateralized if this borrow goes through", address(0x1));
+
+        doBorrow(0, getAsset(2), 80 * 10 ** 16, address(0x1));
+
+        doRepay(0, getAsset(2), 80 * 10 ** 16, address(0x1));
+
+        setPrice(getAsset(0), 125);
+
+        doBorrowRevert(0, getAsset(2), 127 * 10 ** 16, "Vault is undercollateralized if this borrow goes through", address(0x1));
+
+        doBorrow(0, getAsset(2), 126 * 10 ** 16, address(0x1));
     }
 
     function testRDNativeBPW() public {
@@ -414,37 +308,13 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
         doBorrow(0, getAsset(2), 4 * 10 ** 16);
 
-        doRepayNative(0, 3 * 10 ** 16);
-
-        doWithdraw(0, getAsset(0), 4 * 10 ** 16);
-    }
-
-    function testRDNativeBPW_Fail() public {
-        // Should fail because still some debt out so cannot withdraw all your deposited assets
-        address user = address(this);
-
-        deal(getAssetAddress(0), user, 6 * 10 ** 16);
-        uint256 userInitBalance = 105 * 10 ** 18;
-        vm.deal(user, userInitBalance);
-        vm.deal(address(0x1), userInitBalance);
-
-        doRegisterAsset(getAsset(0));
-        doRegisterAsset(getAsset(2));
-
-        doRegisterSpoke(0);
-
-        setPrice(getAsset(0), 80);
-        setPrice(getAsset(2), 90);
-
-        doDepositNative(0, 5 * 10 ** 16, address(0x1));
-
-        doDeposit(0, getAsset(0), 6 * 10 ** 16);
-
-        doBorrow(0, getAsset(2), 4 * 10 ** 16);
-
         doRepayNative(0, 2 * 10 ** 16);
 
         doWithdrawRevert(0, getAsset(0), 4 * 10 ** 16, "Vault is undercollateralized if this withdraw goes through");
+
+        doRepayNative(0, 1 * 10 ** 16);
+
+        doWithdraw(0, getAsset(0), 4 * 10 ** 16);
     }
 
     // test register SPOKE (make sure nothing is possible without doing this)
