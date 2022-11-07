@@ -334,47 +334,15 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
 
 
     function testRDNative() public {
-        uint256 msgFee = getHubData().wormholeContract.messageFee();
-        Hub hub = getHub();
 
         doRegisterAsset(getAsset(2));
 
         doRegisterSpoke(0);
 
-        address user = address(this);
-
-        uint256 userInitBalance = 105 * 10 ** 18;
-
-        vm.deal(user, userInitBalance);
-   
-        VaultAmount memory globalBefore = hub.getGlobalAmounts(wrappedGasTokenAddress);
-        VaultAmount memory vaultBefore = hub.getVaultAmounts(user, wrappedGasTokenAddress);
-
-        uint256 balance_user_native_pre = address(user).balance;
-        uint256 balance_hub_native_pre = IERC20(wrappedGasTokenAddress).balanceOf(address(hub));
+        vm.deal(address(this), 105 * 10 ** 18);
 
         doDepositNative(0, 5 * (10 ** 16));
 
-        uint256 balance_user_native_post = address(user).balance;
-
-        uint256 balance_hub_native_post = IERC20(wrappedGasTokenAddress).balanceOf(address(hub));
-
-        VaultAmount memory globalAfter = hub.getGlobalAmounts(wrappedGasTokenAddress);
-        VaultAmount memory vaultAfter = hub.getVaultAmounts(user, wrappedGasTokenAddress);
-
-        require(globalBefore.deposited == 0, "Deposited not initialized to 0");
-        require(globalAfter.deposited == 5 * 10 ** 16 , "5 * 10 ** 16 wasn't deposited (globally)");
-
-        require(vaultBefore.deposited == 0, "Deposited not initialized to 0");
-        require(vaultAfter.deposited == 5 * 10 ** 16 - msgFee, "Amount minus WH msg fee wasn't deposited (in the vault)");
-
-        require(balance_user_native_pre == userInitBalance , "User gas token balance not correct initially");
-
-        require(balance_hub_native_pre == 0, "Hub gas token balance not 0 initially");
-
-        require(balance_user_native_post == userInitBalance - 5 * (10 ** 16), "User gas token balance not correct after");
-
-        require(balance_hub_native_post == 5 * (10 ** 16) - msgFee, "Hub gas token balance not correctly amount transferred minus WH msg fee after");
     }
 
     function testDNative_Fail() public {
