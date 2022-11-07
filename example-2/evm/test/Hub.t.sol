@@ -80,22 +80,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
                 rateCoefficientA: 0,
                 reserveFactor: 0,
                  pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_avax") 
-    }));
+        }));
         
-
-        for (uint256 i = 0; i < 3; i++) {
-            int64 startPrice = 0;
-            uint64 startConf = 0;
-            int32 startExpo = 0;
-            int64 startEmaPrice = 0;
-            uint64 startEmaConf = 0;
-            uint64 startPublishTime = 1;
-
-            getHub().setMockPythFeed(
-                getAsset(i).pythId, startPrice, startConf, startExpo, startEmaPrice, startEmaConf, startPublishTime
-            );
-        }
-
         addSpoke(
             uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
             vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"),

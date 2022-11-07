@@ -51,6 +51,17 @@ contract TestSetters is TestStructs, TestState, TestGetters {
             pythId: addAssetData.pythId
         });
         addAsset(asset);
+
+         int64 startPrice = 0;
+            uint64 startConf = 0;
+            int32 startExpo = 0;
+            int64 startEmaPrice = 0;
+            uint64 startEmaConf = 0;
+            uint64 startPublishTime = 1;
+
+            getHub().setMockPythFeed(
+                addAssetData.pythId, startPrice, startConf, startExpo, startEmaPrice, startEmaConf, startPublishTime
+            );
     }
 
     function addSpoke(uint16 chainId, address wormholeAddress, address tokenBridgeAddress) internal {
