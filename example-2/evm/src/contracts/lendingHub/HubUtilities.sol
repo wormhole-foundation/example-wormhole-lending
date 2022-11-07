@@ -305,7 +305,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            require(amount <= denormalizeAmount(getVaultAmounts(vault, asset).deposited, indices.deposited), "cannot receive more than has been deposited");
+            require(amount <= denormalizeAmount(getVaultAmounts(vault, asset).deposited, indices.deposited), "cannot receive more than has been deposited in vault");
+
+            require(amount <= denormalizeAmount(getGlobalAmounts(asset).deposited, indices.deposited), "cannot receive more than has been deposited globally");
 
             notionalReceived += amount * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
         }
