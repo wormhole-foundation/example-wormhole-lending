@@ -290,10 +290,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         uint256[] memory assetReceiptAmounts = new uint256[](1);
         assetReceiptAmounts[0] = 1;
 
-        vm.expectRevert(bytes("vault not underwater"));
-        getHub().liquidation(
-            address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts
-        );
+        doLiquidate(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts, "vault not underwater");
     }
 
     function testRDBL() public {
@@ -301,10 +298,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         address vaultOther = address(0x1);
 
         // prank mint with tokens
-        deal(getAssetAddress(0), vault, 1000 * 10 ** 16);
-        deal(getAssetAddress(1), vault, 2000 * 10 ** 16);
-        deal(getAssetAddress(0), vaultOther, 3000 * 10 ** 16);
-        deal(getAssetAddress(1), vaultOther, 4000 * 10 ** 16);
+        deal(getAssetAddress(1), vault, 850 * 10 ** 14);
+        deal(getAssetAddress(0), vaultOther, 500 * 10 ** 14);
 
         doRegisterAsset(getAsset(0));
         doRegisterAsset(getAsset(1));
@@ -331,32 +326,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         uint256[] memory assetReceiptAmounts = new uint256[](1);
         assetReceiptAmounts[0] = 240 * 10 ** 14;
 
-        IERC20(getAssetAddress(1)).approve(address(getHub()), 500 * 10 ** 14);
-
-        // get vault token balances pre liquidation
-        uint256 balance_vault_0_pre = IERC20(getAssetAddress(0)).balanceOf(vault);
-        uint256 balance_vault_1_pre = IERC20(getAssetAddress(1)).balanceOf(vault);
-        // get hub contract token balances pre liquidation
-        uint256 balance_hub_0_pre = IERC20(getAssetAddress(0)).balanceOf(address(getHub()));
-        uint256 balance_hub_1_pre = IERC20(getAssetAddress(1)).balanceOf(address(getHub()));
-
-        getHub().liquidation(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
-
-        // get vault token balances post liquidation
-        uint256 balance_vault_0_post = IERC20(getAssetAddress(0)).balanceOf(vault);
-        uint256 balance_vault_1_post = IERC20(getAssetAddress(1)).balanceOf(vault);
-        // get hub contract token balances post liquidation
-        uint256 balance_hub_0_post = IERC20(getAssetAddress(0)).balanceOf(address(getHub()));
-        uint256 balance_hub_1_post = IERC20(getAssetAddress(1)).balanceOf(address(getHub()));
-
-        require(
-            balance_vault_0_pre + balance_hub_0_pre == balance_vault_0_post + balance_hub_0_post,
-            "Asset 0 total amounts should not change after liquidation"
-        );
-        require(
-            balance_vault_1_pre + balance_hub_1_pre == balance_vault_1_post + balance_hub_1_post,
-            "Asset 1 total amounts should not change after liquidation"
-        );
+        doLiquidate(vaultOther, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
 
         // try repayment of the borrow, should fail bc already paid back
         doRepayRevertPayment(0, getAsset(1), 400 * 10 ** 14, vaultOther);

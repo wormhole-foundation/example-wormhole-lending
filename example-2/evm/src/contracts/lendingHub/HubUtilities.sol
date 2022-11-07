@@ -254,23 +254,22 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         return uint256(price + nConf * conf / nConfPrecision);
     }
 
-    /**
+     /*
      * Check if vaultOwner is allowed to, for each i, repay assetRepayAmounts[i] of the asset at assetRepayAddresses[i] to the vault at 'vault',
      * and receive from the vault, for each i, assetReceiptAmounts[i] of the asset at assetReceiptAddresses[i]. Uses the Pyth prices to see if this liquidation should be allowed
      * @param {address} vault - The address of the owner of the vault
-     * @param {address} assetRepayAddresses - The array of addresses of the assets being repayed
-     * @param {uint256} assetRepayAmounts - The array of amounts of each asset in assetRepayAddresses
-     * @param {address} assetReceiptAddresses - The array of addresses of the assets being repayed
-     * @param {uint256} assetReceiptAmounts - The array of amounts of each asset in assetRepayAddresses
-     * @return {bool} True or false depending on if this liquidation attempt is allowed
+     * @param {address[]} assetRepayAddresses - The array of addresses of the assets being repayed
+     * @param {uint256[]} assetRepayAmounts - The array of amounts of each asset in assetRepayAddresses
+     * @param {address[]} assetReceiptAddresses - The array of addresses of the assets being repayed
+     * @param {uint256[]} assetReceiptAmounts - The array of amounts of each asset in assetRepayAddresses
      */
-    function allowedToLiquidate(
+    function checkAllowedToLiquidate(
         address vault,
         address[] memory assetRepayAddresses,
         uint256[] memory assetRepayAmounts,
         address[] memory assetReceiptAddresses,
         uint256[] memory assetReceiptAmounts
-    ) internal view returns (bool) {
+    ) internal view {
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault);
 
         require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");
@@ -278,14 +277,19 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         uint256 notionalRepaid = 0;
         uint256 notionalReceived = 0;
 
+        
+
         // get notional repaid
         for (uint256 i = 0; i < assetRepayAddresses.length; i++) {
             address asset = assetRepayAddresses[i];
             uint256 amount = assetRepayAmounts[i];
+            AccrualIndices memory indices = getInterestAccrualIndices(asset);
 
             (uint64 price, ) = getOraclePrices(asset);
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
+
+            require(amount <= denormalizeAmount(getVaultAmounts(vault, asset).borrowed, indices.borrowed), "cannot repay more than has been borrowed");
 
             notionalRepaid += amount * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
         }
@@ -294,10 +298,14 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
             address asset = assetReceiptAddresses[i];
             uint256 amount = assetReceiptAmounts[i];
+             AccrualIndices memory indices = getInterestAccrualIndices(asset);
+
 
             (uint64 price, ) = getOraclePrices(asset);
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
+
+            require(amount <= denormalizeAmount(getVaultAmounts(vault, asset).deposited, indices.deposited), "cannot receive more than has been deposited");
 
             notionalReceived += amount * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
         }
@@ -314,8 +322,28 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         // check if notional received <= notional repaid * max liquidation bonus
         uint256 maxLiquidationBonus = getMaxLiquidationBonus();
 
-        return (notionalReceived <= maxLiquidationBonus * notionalRepaid / getCollateralizationRatioPrecision());
+        require(notionalReceived <= maxLiquidationBonus * notionalRepaid / getCollateralizationRatioPrecision(), "Liquidator receiving too much value");
     }
+
+    function checkLiquidationInputsValid(address[] memory assetRepayAddresses,
+        uint256[] memory assetRepayAmounts,
+        address[] memory assetReceiptAddresses,
+        uint256[] memory assetReceiptAmounts) internal view {
+        for (uint256 i = 0; i < assetRepayAddresses.length; i++) {
+            checkValidAddress(assetRepayAddresses[i]);
+        }
+        for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
+            checkValidAddress(assetReceiptAddresses[i]);
+        }
+        checkDuplicates(assetRepayAddresses);
+        checkDuplicates(assetReceiptAddresses);
+
+        require(assetRepayAddresses.length == assetRepayAmounts.length, "Repay array lengths do not match");
+        require(assetReceiptAddresses.length == assetReceiptAmounts.length, "Repay array lengths do not match");
+        
+    }
+        
+        
 
     /**
      * Check if an address has been registered on the Hub yet (through the registerAsset function)

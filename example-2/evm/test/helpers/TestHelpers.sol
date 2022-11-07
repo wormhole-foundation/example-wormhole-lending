@@ -365,6 +365,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             prankAddress: vault
         }));
     }
+    
     function doRepayRevertPayment(uint256 spokeIndex, Asset memory asset, uint256 assetAmount) internal {
         doAction(ActionParameters({
             action: Action.Repay,
@@ -391,6 +392,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             prankAddress: vault
         }));
     }
+    
     function doRepayNative(uint256 spokeIndex, uint256 amount) internal {
         doActionNative(ActionParameters({
             action: Action.Repay,
@@ -540,6 +542,99 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         else if(getHub().getOracleMode() == 2){
             getHub().setOraclePrice(asset.pythId, Price({price: price, conf: conf, expo: expo, publishTime: publishTime}));
         }
+    }
+
+    function doLiquidate(address vaultToLiquidate, address[] memory repayAddresses, uint256[] memory repayAmounts, address[] memory receiptAddresses, uint256[] memory receiptAmounts) internal {
+        doLiquidate(vaultToLiquidate, repayAddresses, repayAmounts, receiptAddresses, receiptAmounts, false, "");
+    }
+
+    function doLiquidate(address vaultToLiquidate, address[] memory repayAddresses, uint256[] memory repayAmounts, address[] memory receiptAddresses, uint256[] memory receiptAmounts, string memory revertString) internal {
+        doLiquidate(vaultToLiquidate, repayAddresses, repayAmounts, receiptAddresses, receiptAmounts, true, revertString);
+    }
+
+    function doLiquidate(address vaultToLiquidate, address[] memory repayAddresses, uint256[] memory repayAmounts, address[] memory receiptAddresses, uint256[] memory receiptAmounts, bool expectRevert, string memory revertString) internal {
+        uint256 repayLength = repayAddresses.length;
+        uint256 receiptLength = repayAddresses.length;
+
+        LiquidationDataArrays memory lda;
+
+        lda.userBalancePreRepay = new uint256[](repayLength);
+        lda.hubBalancePreRepay  = new uint256[](repayLength);
+        lda.userBalancePostRepay  = new uint256[](repayLength);
+        lda.hubBalancePostRepay  = new uint256[](repayLength);
+
+        lda.userBalancePreReceipt = new uint256[](receiptLength);
+        lda.hubBalancePreReceipt  = new uint256[](receiptLength);
+        lda.userBalancePostReceipt = new uint256[](receiptLength);
+        lda.hubBalancePostReceipt  = new uint256[](receiptLength);
+
+        lda.vaultToLiquidateAmountRepayPre = new uint256[](repayLength);
+        lda.vaultToLiquidateAmountReceiptPre = new uint256[](receiptLength);
+        lda.vaultToLiquidateAmountRepayPost = new uint256[](repayLength);
+        lda.vaultToLiquidateAmountReceiptPost = new uint256[](receiptLength);
+
+        lda.globalAmountRepayPre = new uint256[](repayLength);
+        lda.globalAmountReceiptPre = new uint256[](receiptLength);
+        lda.globalAmountRepayPost = new uint256[](repayLength);
+        lda.globalAmountReceiptPost = new uint256[](receiptLength);
+
+        for(uint256 i=0; i<repayLength; i++) {
+            IERC20(repayAddresses[i]).approve(address(getHub()), repayAmounts[i]);
+            lda.userBalancePreRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(this));
+            lda.hubBalancePreRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(getHub()));
+
+            lda.vaultToLiquidateAmountRepayPre[i] = getHub().getVaultAmounts(vaultToLiquidate, repayAddresses[i]).borrowed;
+            lda.globalAmountRepayPre[i] = getHub().getGlobalAmounts(repayAddresses[i]).borrowed;
+        }
+
+        for(uint256 i=0; i<receiptLength; i++) {
+            lda.userBalancePreReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(this));
+            lda.hubBalancePreReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(getHub()));
+
+            lda.vaultToLiquidateAmountReceiptPre[i] = getHub().getVaultAmounts(vaultToLiquidate, receiptAddresses[i]).deposited;
+            lda.globalAmountReceiptPre[i] = getHub().getGlobalAmounts(receiptAddresses[i]).deposited;
+        }
+
+        if(expectRevert) {
+            getVm().expectRevert(bytes(revertString));
+        }
+        getHub().liquidation(vaultToLiquidate, repayAddresses, repayAmounts, receiptAddresses, receiptAmounts);
+
+        if(expectRevert) {
+            return;
+        }
+    
+        for(uint256 i=0; i<repayLength; i++) {
+            lda.userBalancePostRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(this));
+            lda.hubBalancePostRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(getHub()));
+
+            lda.vaultToLiquidateAmountRepayPost[i] = getHub().getVaultAmounts(vaultToLiquidate, repayAddresses[i]).borrowed;
+            lda.globalAmountRepayPost[i] = getHub().getGlobalAmounts(repayAddresses[i]).borrowed;
+
+            require(lda.userBalancePreRepay[i] == lda.userBalancePostRepay[i] + repayAmounts[i], "User didn't pay tokens for the repay");
+            require(lda.hubBalancePreRepay[i] + repayAmounts[i] == lda.hubBalancePostRepay[i], "Hub didn't receive tokens for the repay");
+
+            uint256 normalizedAssetAmount = getHub().normalizeAmount(repayAmounts[i], getHub().getInterestAccrualIndices(repayAddresses[i]).borrowed);
+
+            require(lda.vaultToLiquidateAmountRepayPost[i] + normalizedAssetAmount== lda.vaultToLiquidateAmountRepayPre[i], "Vault repay amount not tracked properly");
+            require(lda.globalAmountRepayPost[i] + normalizedAssetAmount == lda.globalAmountRepayPre[i], "Global repay amount not tracked properly");
+        }
+        for(uint256 i=0; i<receiptLength; i++) {
+            lda.userBalancePostReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(this));
+            lda.hubBalancePostReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(getHub()));
+
+            lda.vaultToLiquidateAmountReceiptPost[i] = getHub().getVaultAmounts(vaultToLiquidate, receiptAddresses[i]).deposited;
+            lda.globalAmountReceiptPost[i] = getHub().getGlobalAmounts(receiptAddresses[i]).deposited;
+
+            require(lda.userBalancePreReceipt[i] + receiptAmounts[i] == lda.userBalancePostReceipt[i], "User didn't receive tokens for the receipt");
+            require(lda.hubBalancePreReceipt[i] == lda.hubBalancePostReceipt[i] + receiptAmounts[i], "Hub didn't pay tokens for the receipt");
+        
+            uint256 normalizedAssetAmount = getHub().normalizeAmount(receiptAmounts[i], getHub().getInterestAccrualIndices(receiptAddresses[i]).deposited);
+
+            require(lda.vaultToLiquidateAmountReceiptPost[i] + normalizedAssetAmount == lda.vaultToLiquidateAmountReceiptPre[i], "Vault receipt amount not tracked properly");
+            require(lda.globalAmountReceiptPost[i] + normalizedAssetAmount == lda.globalAmountReceiptPre[i] , "Global receipt amount not tracked properly");
+        }
+
     }
 
 }
