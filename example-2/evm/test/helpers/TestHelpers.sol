@@ -210,7 +210,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
 
         ActionStateData memory afterData = getActionStateData(vault, params.assetAddress);
 
-        requireActionDataValid(action, params.assetAmount, beforeData, afterData, params.paymentReversion);
+        requireActionDataValid(action, params.assetAddress, params.assetAmount, beforeData, afterData, params.paymentReversion);
     }
 
     function doActionNative(ActionParameters memory params) internal {

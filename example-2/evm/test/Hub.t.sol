@@ -105,9 +105,9 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     function testR() public {
         doRegisterSpoke(0);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(1));
-        doRegisterAsset(0, getAsset(2));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
+        doRegisterAsset(getAsset(2));
 
     }
 
@@ -367,7 +367,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         uint256 msgFee = getHubData().wormholeContract.messageFee();
         Hub hub = getHub();
 
-        doRegisterAsset(0, getAsset(2));
+        doRegisterAsset(getAsset(2));
 
         doRegisterSpoke(0);
 
@@ -426,8 +426,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         uint256 userInitBalance = 105 * 10 ** 18;
         vm.deal(user, userInitBalance);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(2));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(2));
 
         doRegisterSpoke(0);
 
@@ -452,8 +452,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         uint256 userInitBalance = 105 * 10 ** 18;
         vm.deal(user, userInitBalance);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(2));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(2));
 
         doRegisterSpoke(0);
 
@@ -475,8 +475,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         vm.deal(user, userInitBalance);
         vm.deal(address(0x1), userInitBalance);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(2));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(2));
 
         doRegisterSpoke(0);
 
@@ -503,8 +503,8 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
         vm.deal(user, userInitBalance);
         vm.deal(address(0x1), userInitBalance);
 
-        doRegisterAsset(0, getAsset(0));
-        doRegisterAsset(0, getAsset(2));
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(2));
 
         doRegisterSpoke(0);
 
