@@ -234,12 +234,14 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
     * @return {bool} True or false depending on if the outstanding borrows for this assetAddress >= assetAmount 
     */
     function allowedToRepay(address vaultOwner, address assetAddress, uint256 assetAmount) internal view returns (bool) {       
-        
-        AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
         VaultAmount memory vaultAmount = getVaultAmounts(vaultOwner, assetAddress);
 
-        bool check = vaultAmount.borrowed >= assetAmount;
+        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+
+        uint256 normalizedAmount = normalizeAmount(assetAmount, indices.borrowed);
+
+        bool check = vaultAmount.borrowed >= normalizedAmount;
 
         return check;
     }
