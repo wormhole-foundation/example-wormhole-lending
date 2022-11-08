@@ -34,30 +34,34 @@ contract TestSetters is TestStructs, TestState, TestGetters {
     }
 
     function addAsset(
-        address assetAddress, 
-        uint256 collateralizationRatioDeposit, 
-        uint256 collateralizationRatioBorrow, 
-        uint64 ratePrecision,
-        uint64 rateIntercept,
-        uint64 rateCoefficientA,
-        uint256 reserveFactor, 
-        bytes32 pythId
+        AddAsset memory addAssetData
     ) internal {
-        (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
+        (,bytes memory queriedDecimals) = addAssetData.assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
         Asset memory asset = Asset({
-            assetAddress: assetAddress,
-            asset: IERC20(assetAddress),
-            collateralizationRatioDeposit: collateralizationRatioDeposit,
-            collateralizationRatioBorrow: collateralizationRatioBorrow,
+            assetAddress: addAssetData.assetAddress,
+            asset: IERC20(addAssetData.assetAddress),
+            collateralizationRatioDeposit: addAssetData.collateralizationRatioDeposit,
+            collateralizationRatioBorrow: addAssetData.collateralizationRatioBorrow,
             decimals: decimals,
-            ratePrecision: ratePrecision,
-            rateIntercept: rateIntercept,
-            rateCoefficientA: rateCoefficientA,
-            reserveFactor: reserveFactor,
-            pythId: pythId
+            ratePrecision: addAssetData.ratePrecision,
+            rateIntercept: addAssetData.rateIntercept,
+            rateCoefficientA: addAssetData.rateCoefficientA,
+            reserveFactor: addAssetData.reserveFactor,
+            pythId: addAssetData.pythId
         });
         addAsset(asset);
+
+         int64 startPrice = 0;
+            uint64 startConf = 0;
+            int32 startExpo = 0;
+            int64 startEmaPrice = 0;
+            uint64 startEmaConf = 0;
+            uint64 startPublishTime = 1;
+
+            getHub().setMockPythFeed(
+                addAssetData.pythId, startPrice, startConf, startExpo, startEmaPrice, startEmaConf, startPublishTime
+            );
     }
 
     function addSpoke(uint16 chainId, address wormholeAddress, address tokenBridgeAddress) internal {

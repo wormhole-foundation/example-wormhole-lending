@@ -333,30 +333,17 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         address[] memory assetReceiptAddresses,
         uint256[] memory assetReceiptAmounts
     ) public {
-        // check if asset addresses all valid
-        for (uint256 i = 0; i < assetRepayAddresses.length; i++) {
-            checkValidAddress(assetRepayAddresses[i]);
-        }
-        for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
-            checkValidAddress(assetReceiptAddresses[i]);
-        }
-        checkDuplicates(assetRepayAddresses);
-        checkDuplicates(assetReceiptAddresses);
-        
+        // check if inputs are valid
+        checkLiquidationInputsValid(assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+
+        // check if intended liquidation is valid
+        checkAllowedToLiquidate(vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+
         // update the interest accrual indices
-        // TODO: Make more efficient
         address[] memory allowList = getAllowList();
         for (uint256 i = 0; i < allowList.length; i++) {
             updateAccrualIndices(allowList[i]);
         }
-
-        // check if intended liquidation is valid
-        require(
-            allowedToLiquidate(
-                vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts
-            ),
-            "Liquidation attempt not allowed"
-        );
 
         // for repay assets update amounts for vault and global
         for (uint256 i = 0; i < assetRepayAddresses.length; i++) {
@@ -370,7 +357,6 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
             // require that amount paid back <= amount borrowed
             uint256 denormalizedBorrowedAmount = denormalizeAmount(vaultAmounts.borrowed, indices.borrowed);
-            require(denormalizedBorrowedAmount >= assetAmount, "cannot repay more than has been borrowed");
             vaultAmounts.borrowed -= normalizedAmount;
             // update global state
             VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
@@ -392,9 +378,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
             // require that amount received <= amount deposited
             uint256 denormalizedDepositedAmount = denormalizeAmount(vaultAmounts.deposited, indices.deposited);
-            require(
-                denormalizedDepositedAmount >= assetAmount, "cannot take out more collateral than vault has deposited"
-            );
+
             vaultAmounts.deposited -= normalizedAmount;
             // update global state
             VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);

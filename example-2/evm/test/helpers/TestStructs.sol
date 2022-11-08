@@ -41,6 +41,18 @@ contract TestStructs is HubStructs {
         uint256 reserveFactor;
         bytes32 pythId;
     }
+
+    struct AddAsset {
+        address assetAddress;
+        uint256 collateralizationRatioDeposit;
+        uint256 collateralizationRatioBorrow;
+        uint64 ratePrecision;
+        uint64 rateIntercept;
+        uint64 rateCoefficientA;
+        uint256 reserveFactor;
+        bytes32 pythId;
+    }
+
     struct RegisterChainMessage {
         bytes32 module;
         uint8 action;
@@ -49,7 +61,7 @@ contract TestStructs is HubStructs {
         bytes32 emitterAddress;
     }
 
-    enum Action{Deposit, Borrow, Withdraw, Repay}
+    enum Action{Deposit, Borrow, Withdraw, Repay, DepositNative, RepayNative}
 
     struct ActionParameters {
         Action action;
@@ -69,6 +81,25 @@ contract TestStructs is HubStructs {
         VaultAmount vault;
         uint256 balanceHub;
         uint256 balanceUser;
+    }
+
+    struct LiquidationDataArrays {
+            uint256[] userBalancePreRepay;
+            uint256[] hubBalancePreRepay;
+            uint256[] userBalancePostRepay;
+            uint256[] hubBalancePostRepay;
+            uint256[] userBalancePreReceipt;
+            uint256[] hubBalancePreReceipt;
+            uint256[] userBalancePostReceipt;
+            uint256[] hubBalancePostReceipt;
+            uint256[] vaultToLiquidateAmountRepayPre;
+            uint256[] vaultToLiquidateAmountReceiptPre;
+            uint256[] vaultToLiquidateAmountRepayPost;
+            uint256[] vaultToLiquidateAmountReceiptPost;
+            uint256[] globalAmountRepayPre;
+            uint256[] globalAmountReceiptPre;
+            uint256[] globalAmountRepayPost;
+            uint256[] globalAmountReceiptPost;
     }
 
     

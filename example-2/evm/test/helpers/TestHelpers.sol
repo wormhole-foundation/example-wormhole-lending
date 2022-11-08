@@ -149,14 +149,17 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
    
     function doAction(ActionParameters memory params) internal {
         Action action = Action(params.action);
-        requireAssetAmountValidForTokenBridge(params.assetAddress, params.assetAmount);
+        bool isNative = params.action == Action.DepositNative || params.action == Action.RepayNative;
+        if(!isNative) {
+            requireAssetAmountValidForTokenBridge(params.assetAddress, params.assetAmount);
+        }
         Spoke spoke = getSpoke(params.spokeIndex);
         address vault = address(this);
         if(params.prank) {
             vault = params.prankAddress;
         }
         Vm vm = getVm();
-        ActionStateData memory beforeData = getActionStateData(vault, params.assetAddress);
+        ActionStateData memory beforeData = getActionStateData(vault, params.assetAddress, isNative);
         if(action == Action.Deposit || action == Action.Repay) {
             if(params.prank) {
                 vm.prank(vault);
@@ -179,17 +182,23 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         }
         else if(action == Action.Withdraw) {
             spoke.withdrawCollateral(params.assetAddress, params.assetAmount);
+        } else if(action == Action.DepositNative) {
+            spoke.depositCollateralNative{value: params.assetAmount}();
         }
+        else if(action == Action.RepayNative) {
+            spoke.repayNative{value: params.assetAmount}();
+        }
+        
         Vm.Log[] memory entries = vm.getRecordedLogs();
         bytes memory encodedMessage = fetchSignedMessageFromSpokeLogs(params.spokeIndex, entries[entries.length - 1]);
 
         if(params.expectRevert) {
             vm.expectRevert(bytes(params.revertString));
         }
-        if(action == Action.Deposit) {
+        if(action == Action.Deposit || action == Action.DepositNative) {
             getHub().completeDeposit(encodedMessage);
         }
-        else if(action == Action.Repay) {
+        else if(action == Action.Repay || action == Action.RepayNative) {
             getHub().completeRepay(encodedMessage);
         }
         else if(action == Action.Borrow) {
@@ -197,7 +206,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         }
         else if(action == Action.Withdraw) {
             getHub().completeWithdraw(encodedMessage);
-        }
+        } 
         if(params.expectRevert) {
             return;
         }
@@ -208,56 +217,11 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             getHubData().tokenBridgeContract.completeTransfer(encodedMessage);
         }
 
-        ActionStateData memory afterData = getActionStateData(vault, params.assetAddress);
+        ActionStateData memory afterData = getActionStateData(vault, params.assetAddress, isNative);
 
+        uint256 amount = params.assetAmount;
+        if(isNative) amount = amount - getHubData().wormholeContract.messageFee();
         requireActionDataValid(action, params.assetAddress, params.assetAmount, beforeData, afterData, params.paymentReversion);
-    }
-
-    function doActionNative(ActionParameters memory params) internal {
-        Action action = Action(params.action);
-        
-        // TODO:?
-        // requireAssetAmountValidForTokenBridge(params.assetAddress, params.assetAmount);
-        Spoke spoke = getSpoke(params.spokeIndex);
-        address vault = address(this);
-        if(params.prank) {
-            vault = params.prankAddress;
-        }
-        Vm vm = getVm();
-        // TODO:?
-        // ActionStateData memory beforeData = getActionStateData(vault, params.assetAddress);
-        if(params.prank) {
-            vm.prank(vault);
-        }
-
-        vm.recordLogs();
-        if(action == Action.Deposit) {
-            spoke.depositCollateralNative{value: params.assetAmount}();
-        }
-        else if(action == Action.Repay) {
-            spoke.repayNative{value: params.assetAmount}();
-        }
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        bytes memory encodedMessage = fetchSignedMessageFromSpokeLogs(params.spokeIndex, entries[entries.length - 1]);
-
-        if(params.expectRevert) {
-            vm.expectRevert(bytes(params.revertString));
-        }
-        if(action == Action.Deposit) {
-            getHub().completeDeposit(encodedMessage);
-        }
-        else if(action == Action.Repay) {
-            getHub().completeRepay(encodedMessage);
-        }
-        if(params.expectRevert) {
-            return;
-        }
-
-        // TODO:?
-        // ActionStateData memory afterData = getActionStateData(vault, params.assetAddress);
-
-        // requireActionDataValid(action, params.assetAmount, beforeData, afterData);
-
     }
 
     
@@ -301,10 +265,10 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         }));
     }
     function doDepositNative(uint256 spokeIndex, uint256 amount) internal {
-        doActionNative(ActionParameters({
-            action: Action.Deposit,
+        doAction(ActionParameters({
+            action: Action.DepositNative,
             spokeIndex: spokeIndex,
-            assetAddress: address(0x0),
+            assetAddress: address(getHubData().tokenBridgeContract.WETH()),
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
@@ -314,10 +278,10 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         }));
     }
     function doDepositNative(uint256 spokeIndex, uint256 amount, address vault) internal {
-        doActionNative(ActionParameters({
-            action: Action.Deposit,
+        doAction(ActionParameters({
+            action: Action.DepositNative,
             spokeIndex: spokeIndex,
-            assetAddress: address(0x0),
+            assetAddress: address(getHubData().tokenBridgeContract.WETH()),
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
@@ -327,10 +291,10 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         }));
     }
     function doDepositNativeRevert(uint256 spokeIndex, uint256 amount, string memory revertString) internal {
-        doActionNative(ActionParameters({
-            action: Action.Deposit,
+        doAction(ActionParameters({
+            action: Action.DepositNative,
             spokeIndex: spokeIndex,
-            assetAddress: address(0x0),
+            assetAddress: address(getHubData().tokenBridgeContract.WETH()),
             assetAmount: amount,
             expectRevert: true,
             revertString: revertString,
@@ -352,6 +316,19 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             prankAddress: address(0x0)
         }));
     }
+    function doRepay(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address prankAddress) internal {
+        doAction(ActionParameters({
+            action: Action.Repay,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: false,
+            revertString: "",
+            paymentReversion: false,
+            prank: true,
+            prankAddress: prankAddress
+        }));
+    }
     function doRepayRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
         doAction(ActionParameters({
             action: Action.Repay,
@@ -365,6 +342,7 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             prankAddress: vault
         }));
     }
+    
     function doRepayRevertPayment(uint256 spokeIndex, Asset memory asset, uint256 assetAmount) internal {
         doAction(ActionParameters({
             action: Action.Repay,
@@ -391,11 +369,12 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             prankAddress: vault
         }));
     }
+    
     function doRepayNative(uint256 spokeIndex, uint256 amount) internal {
-        doActionNative(ActionParameters({
-            action: Action.Repay,
+        doAction(ActionParameters({
+            action: Action.RepayNative,
             spokeIndex: spokeIndex,
-            assetAddress: address(0x0),
+            assetAddress: address(getHubData().tokenBridgeContract.WETH()),
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
@@ -405,10 +384,10 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         }));
     }
     function doRepayNative(uint256 spokeIndex, uint256 amount, address vault) internal {
-        doActionNative(ActionParameters({
-            action: Action.Repay,
+        doAction(ActionParameters({
+            action: Action.RepayNative,
             spokeIndex: spokeIndex,
-            assetAddress: address(0x0),
+            assetAddress: address(getHubData().tokenBridgeContract.WETH()),
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
@@ -418,10 +397,10 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         }));
     }
     function doRepayNativeRevertPayment(uint256 spokeIndex, uint256 amount) internal {
-        doActionNative(ActionParameters({
-            action: Action.Repay,
+        doAction(ActionParameters({
+            action: Action.RepayNative,
             spokeIndex: spokeIndex,
-            assetAddress: address(0x0),
+            assetAddress: address(getHubData().tokenBridgeContract.WETH()),
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
@@ -431,10 +410,10 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         }));
     }
     function doRepayNativeRevertPayment(uint256 spokeIndex, uint256 amount, address vault) internal {
-        doActionNative(ActionParameters({
-            action: Action.Repay,
+        doAction(ActionParameters({
+            action: Action.RepayNative,
             spokeIndex: spokeIndex,
-            assetAddress: address(0x0),
+            assetAddress: address(getHubData().tokenBridgeContract.WETH()),
             assetAmount: amount,
             expectRevert: false,
             revertString: "",
@@ -480,6 +459,20 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
             paymentReversion: false,
             prank: false,
             prankAddress: address(0x0)
+        }));
+    }
+
+    function doBorrowRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString, address prankAddress) internal {
+        doAction(ActionParameters({
+            action: Action.Borrow,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: true,
+            revertString: revertString,
+            paymentReversion: false,
+            prank: true,
+            prankAddress: prankAddress
         }));
     }
     
@@ -540,6 +533,99 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
         else if(getHub().getOracleMode() == 2){
             getHub().setOraclePrice(asset.pythId, Price({price: price, conf: conf, expo: expo, publishTime: publishTime}));
         }
+    }
+
+    function doLiquidate(address vaultToLiquidate, address[] memory repayAddresses, uint256[] memory repayAmounts, address[] memory receiptAddresses, uint256[] memory receiptAmounts) internal {
+        doLiquidate(vaultToLiquidate, repayAddresses, repayAmounts, receiptAddresses, receiptAmounts, false, "");
+    }
+
+    function doLiquidate(address vaultToLiquidate, address[] memory repayAddresses, uint256[] memory repayAmounts, address[] memory receiptAddresses, uint256[] memory receiptAmounts, string memory revertString) internal {
+        doLiquidate(vaultToLiquidate, repayAddresses, repayAmounts, receiptAddresses, receiptAmounts, true, revertString);
+    }
+
+    function doLiquidate(address vaultToLiquidate, address[] memory repayAddresses, uint256[] memory repayAmounts, address[] memory receiptAddresses, uint256[] memory receiptAmounts, bool expectRevert, string memory revertString) internal {
+        uint256 repayLength = repayAddresses.length;
+        uint256 receiptLength = repayAddresses.length;
+
+        LiquidationDataArrays memory lda;
+
+        lda.userBalancePreRepay = new uint256[](repayLength);
+        lda.hubBalancePreRepay  = new uint256[](repayLength);
+        lda.userBalancePostRepay  = new uint256[](repayLength);
+        lda.hubBalancePostRepay  = new uint256[](repayLength);
+
+        lda.userBalancePreReceipt = new uint256[](receiptLength);
+        lda.hubBalancePreReceipt  = new uint256[](receiptLength);
+        lda.userBalancePostReceipt = new uint256[](receiptLength);
+        lda.hubBalancePostReceipt  = new uint256[](receiptLength);
+
+        lda.vaultToLiquidateAmountRepayPre = new uint256[](repayLength);
+        lda.vaultToLiquidateAmountReceiptPre = new uint256[](receiptLength);
+        lda.vaultToLiquidateAmountRepayPost = new uint256[](repayLength);
+        lda.vaultToLiquidateAmountReceiptPost = new uint256[](receiptLength);
+
+        lda.globalAmountRepayPre = new uint256[](repayLength);
+        lda.globalAmountReceiptPre = new uint256[](receiptLength);
+        lda.globalAmountRepayPost = new uint256[](repayLength);
+        lda.globalAmountReceiptPost = new uint256[](receiptLength);
+
+        for(uint256 i=0; i<repayLength; i++) {
+            IERC20(repayAddresses[i]).approve(address(getHub()), repayAmounts[i]);
+            lda.userBalancePreRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(this));
+            lda.hubBalancePreRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(getHub()));
+
+            lda.vaultToLiquidateAmountRepayPre[i] = getHub().getVaultAmounts(vaultToLiquidate, repayAddresses[i]).borrowed;
+            lda.globalAmountRepayPre[i] = getHub().getGlobalAmounts(repayAddresses[i]).borrowed;
+        }
+
+        for(uint256 i=0; i<receiptLength; i++) {
+            lda.userBalancePreReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(this));
+            lda.hubBalancePreReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(getHub()));
+
+            lda.vaultToLiquidateAmountReceiptPre[i] = getHub().getVaultAmounts(vaultToLiquidate, receiptAddresses[i]).deposited;
+            lda.globalAmountReceiptPre[i] = getHub().getGlobalAmounts(receiptAddresses[i]).deposited;
+        }
+
+        if(expectRevert) {
+            getVm().expectRevert(bytes(revertString));
+        }
+        getHub().liquidation(vaultToLiquidate, repayAddresses, repayAmounts, receiptAddresses, receiptAmounts);
+
+        if(expectRevert) {
+            return;
+        }
+    
+        for(uint256 i=0; i<repayLength; i++) {
+            lda.userBalancePostRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(this));
+            lda.hubBalancePostRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(getHub()));
+
+            lda.vaultToLiquidateAmountRepayPost[i] = getHub().getVaultAmounts(vaultToLiquidate, repayAddresses[i]).borrowed;
+            lda.globalAmountRepayPost[i] = getHub().getGlobalAmounts(repayAddresses[i]).borrowed;
+
+            require(lda.userBalancePreRepay[i] == lda.userBalancePostRepay[i] + repayAmounts[i], "User didn't pay tokens for the repay");
+            require(lda.hubBalancePreRepay[i] + repayAmounts[i] == lda.hubBalancePostRepay[i], "Hub didn't receive tokens for the repay");
+
+            uint256 normalizedAssetAmount = getHub().normalizeAmount(repayAmounts[i], getHub().getInterestAccrualIndices(repayAddresses[i]).borrowed);
+
+            require(lda.vaultToLiquidateAmountRepayPost[i] + normalizedAssetAmount== lda.vaultToLiquidateAmountRepayPre[i], "Vault repay amount not tracked properly");
+            require(lda.globalAmountRepayPost[i] + normalizedAssetAmount == lda.globalAmountRepayPre[i], "Global repay amount not tracked properly");
+        }
+        for(uint256 i=0; i<receiptLength; i++) {
+            lda.userBalancePostReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(this));
+            lda.hubBalancePostReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(getHub()));
+
+            lda.vaultToLiquidateAmountReceiptPost[i] = getHub().getVaultAmounts(vaultToLiquidate, receiptAddresses[i]).deposited;
+            lda.globalAmountReceiptPost[i] = getHub().getGlobalAmounts(receiptAddresses[i]).deposited;
+
+            require(lda.userBalancePreReceipt[i] + receiptAmounts[i] == lda.userBalancePostReceipt[i], "User didn't receive tokens for the receipt");
+            require(lda.hubBalancePreReceipt[i] == lda.hubBalancePostReceipt[i] + receiptAmounts[i], "Hub didn't pay tokens for the receipt");
+        
+            uint256 normalizedAssetAmount = getHub().normalizeAmount(receiptAmounts[i], getHub().getInterestAccrualIndices(receiptAddresses[i]).deposited);
+
+            require(lda.vaultToLiquidateAmountReceiptPost[i] + normalizedAssetAmount == lda.vaultToLiquidateAmountReceiptPre[i], "Vault receipt amount not tracked properly");
+            require(lda.globalAmountReceiptPost[i] + normalizedAssetAmount == lda.globalAmountReceiptPre[i] , "Global receipt amount not tracked properly");
+        }
+
     }
 
 }

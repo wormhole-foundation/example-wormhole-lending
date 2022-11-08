@@ -215,12 +215,18 @@ contract TestUtilities is HubUtilities, TestStructs, TestState, TestGetters, Tes
         
     }
 
-    function getActionStateData(address vault, address assetAddress) internal view returns(ActionStateData memory data) {
+    function getActionStateData(address vault, address assetAddress, bool isNative) internal view returns(ActionStateData memory data) {
+        uint256 balanceUser;
+        if(isNative) {
+            balanceUser = address(vault).balance;
+        } else {
+            balanceUser = IERC20(assetAddress).balanceOf(vault);
+        }
         data = ActionStateData({
             global: getHub().getGlobalAmounts(assetAddress),
             vault: getHub().getVaultAmounts(vault, assetAddress),
             balanceHub: IERC20(assetAddress).balanceOf(address(getHub())),
-            balanceUser: IERC20(assetAddress).balanceOf(vault)
+            balanceUser: balanceUser
         });
     }
 
