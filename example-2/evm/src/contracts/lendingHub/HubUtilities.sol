@@ -154,20 +154,19 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         priceDebt = price + nConf * conf / nConfPrecision;
     }
 
-    /**
+    /*
      * Check if vaultOwner is allowed to withdraw assetAmount of assetAddress from their vault
      * @param {address} vaultOwner - The address of the owner of the vault
      * @param {address} assetAddress - The address of the relevant asset
      * @param {uint256} assetAmount - The amount of the relevant asset
-     * @return {bool} True or false depending on if this withdrawal keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices)
+     * Only returns (otherwise reverts) if this withdrawal keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices)
      * (where the deposit values are divided by the deposit collateralization ratio and the borrow values are multiplied by the borrow collateralization ratio)
      * and also if there is enough asset in the vault to complete the withdrawal
      * and also if there is enough asset in the total reserve of the protocol to complete the withdrawal
      */
-    function allowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount)
+    function checkAllowedToWithdraw(address vaultOwner, address assetAddress, uint256 assetAmount)
         internal
         view
-        returns (bool, bool, bool)
     {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
@@ -188,29 +187,23 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         // use conservative (from protocol's perspective) price for collateral (low)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
         uint64 priceCollateral = price - nConf * conf / nConfPrecision;
 
-        return (
-            (amounts.deposited - amounts.borrowed >= assetAmount),
-            (globalAmounts.deposited - globalAmounts.borrowed >= assetAmount),
-            (
-                (vaultDepositedValue - vaultBorrowedValue)
-                    >= assetAmount * priceCollateral * (10 ** (getMaxDecimals() - assetInfo.decimals))
-                )
-        );
+        require(amounts.deposited >= amounts.borrowed + assetAmount, "Not enough in vault");
+        require(globalAmounts.deposited  >= globalAmounts.borrowed + assetAmount, "Not enough in global supply");
+        require(vaultDepositedValue >= vaultBorrowedValue + assetAmount * priceCollateral * (10 ** (getMaxDecimals() - assetInfo.decimals)), "Vault is undercollateralized if this withdraw goes through");
     }
 
-    /**
+    /*
      * Check if vaultOwner is allowed to borrow assetAmount of assetAddress from their vault
      * @param {address} vaultOwner - The address of the owner of the vault
      * @param {address} assetAddress - The address of the relevant asset
      * @param {uint256} assetAmount - The amount of the relevant asset
-     * @return {bool} True or false depending on if this borrow keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices)
+     * Only returns (otherwise reverts) if this borrow keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices)
      * (where the deposit values are divided by the deposit collateralization ratio and the borrow values are multiplied by the borrow collateralization ratio)
      * and also if there is enough asset in the total reserve of the protocol to complete the borrow
      */
-    function allowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount)
+    function checkAllowedToBorrow(address vaultOwner, address assetAddress, uint256 assetAmount)
         internal
         view
-        returns (bool, bool)
     {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
@@ -218,12 +211,11 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
 
-        bool check1 = (globalAmounts.deposited >= globalAmounts.borrowed + assetAmount);
-        bool check2 = (vaultDepositedValue)
+        require(globalAmounts.deposited >= globalAmounts.borrowed + assetAmount, "Not enough in global supply");
+        require((vaultDepositedValue)
             >= vaultBorrowedValue
                 + assetAmount * getPriceDebt(assetAddress) * assetInfo.collateralizationRatioBorrow
-                    * (10 ** (getMaxDecimals() - assetInfo.decimals)) / getCollateralizationRatioPrecision();
-        return (check1, check2);
+                    * (10 ** (getMaxDecimals() - assetInfo.decimals)) / getCollateralizationRatioPrecision(), "Vault is undercollateralized if this borrow goes through");
     }
 
     /** 
@@ -417,6 +409,11 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }
+   
+
+    /**
+     *   Wormhole Utility Functions
+     */
 
     function transferTokens(address receiver, address assetAddress, uint256 amount, uint16 recipientChain) internal {
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), amount);
@@ -431,6 +428,16 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         );
     }
 
+    function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
+        (IWormhole.VM memory parsed,,) = wormhole().parseAndVerifyVM(encodedMessage);
+
+        verifySenderIsSpoke(
+            parsed.emitterChainId, address(uint160(uint256(parsed.payload.toBytes32(1 + 32 + 32 + 2 + 32 + 2))))
+        );
+
+        payload = tokenBridge().completeTransferWithPayload(encodedMessage);
+    }
+
     function getWormholeParsed(bytes memory encodedMessage) internal returns (IWormhole.VM memory) {
         (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);
@@ -441,11 +448,7 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         return parsed;
     }
 
-    function extractSerializedFromTransferWithPayload(bytes memory encodedVM)
-        internal
-        pure
-        returns (bytes memory serialized)
-    {
+    function extractPayloadFromTransferPayload(bytes memory encodedVM) internal pure returns (bytes memory serialized) {
         uint256 index = 0;
         uint256 end = encodedVM.length;
 
@@ -455,13 +458,5 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         return encodedVM.slice(index, end - index);
     }
 
-    function getTransferPayload(bytes memory encodedMessage) internal returns (bytes memory payload) {
-        (IWormhole.VM memory parsed,,) = wormhole().parseAndVerifyVM(encodedMessage);
-
-        verifySenderIsSpoke(
-            parsed.emitterChainId, address(uint160(uint256(parsed.payload.toBytes32(1 + 32 + 32 + 2 + 32 + 2))))
-        );
-
-        payload = tokenBridge().completeTransferWithPayload(encodedMessage);
-    }
+    
 }
