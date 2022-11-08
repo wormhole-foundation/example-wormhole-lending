@@ -40,10 +40,5 @@ contract SpokeGetters is Context, HubStructs, SpokeState {
     function hubContractAddress() internal view returns (address) {
         return _state.hubContractAddress;
     }
-
-    function messageHashConsumed(bytes32 vmHash) internal view returns (bool) {
-        return _state.consumedMessages[vmHash];
-    }
-
    
 }

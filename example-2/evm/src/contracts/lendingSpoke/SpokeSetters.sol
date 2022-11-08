@@ -30,8 +30,4 @@ contract SpokeSetters is HubStructs, SpokeState {
         _state.hubContractAddress = hubContractAddress;
     }
 
-    function consumeMessageHash(bytes32 vmHash) internal {
-        _state.consumedMessages[vmHash] = true;
-    }
-
 }

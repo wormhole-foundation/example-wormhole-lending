@@ -42,23 +42,6 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
             hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );
     }
-
-    function getWormholePayload(bytes calldata encodedMessage) internal returns (bytes memory) {
-        (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
-        require(valid, reason);
-
-        require(
-            (hubChainId() == parsed.emitterChainId)
-                && (hubContractAddress() == address(uint160(uint256(parsed.emitterAddress)))),
-            "Not from Hub"
-        );
-
-        require(!messageHashConsumed(parsed.hash), "message already consumed");
-        consumeMessageHash(parsed.hash);
-
-        return parsed.payload;
-    }
-
   
     function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal view {
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
