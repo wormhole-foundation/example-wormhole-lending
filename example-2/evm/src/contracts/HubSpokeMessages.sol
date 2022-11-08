@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "../../libraries/external/BytesLib.sol";
+import "../libraries/external/BytesLib.sol";
 
-import "./HubStructs.sol";
+import "./HubSpokeStructs.sol";
 
-contract HubMessages is HubStructs {
+contract HubSpokeMessages is HubSpokeStructs {
     using BytesLib for bytes;
 
     function encodeActionPayload(ActionPayload memory payload) internal pure returns (bytes memory) {

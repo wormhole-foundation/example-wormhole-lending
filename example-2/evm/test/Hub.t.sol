@@ -7,31 +7,17 @@ import "forge-std/console.sol";
 
 import "../src/libraries/external/BytesLib.sol";
 
-import {Hub} from "../src/contracts/lendingHub/Hub.sol";
-import {HubStructs} from "../src/contracts/lendingHub/HubStructs.sol";
-import {HubMessages} from "../src/contracts/lendingHub/HubMessages.sol";
-import {HubUtilities} from "../src/contracts/lendingHub/HubUtilities.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC20PresetMinterPauser} from "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
-import {IWormhole} from "../src/interfaces/IWormhole.sol";
-import {ITokenBridge} from "../src/interfaces/ITokenBridge.sol";
-import {ITokenImplementation} from "../src/interfaces/ITokenImplementation.sol";
 
-import "../src/contracts/lendingHub/HubGetters.sol";
-
-import {WormholeSimulator} from "./helpers/WormholeSimulator.sol";
-
+import {HubSpokeStructs} from "../src/contracts/HubSpokeStructs.sol";
+import {HubSpokeMessages} from "../src/contracts/HubSpokeMessages.sol";
 import {TestHelpers} from "./helpers/TestHelpers.sol";
 import {TestStructs} from "./helpers/TestStructs.sol";
 import {TestState} from "./helpers/TestState.sol";
 import {TestSetters} from "./helpers/TestSetters.sol";
 import {TestGetters} from "./helpers/TestGetters.sol";
 
-import {Spoke} from "../src/contracts/lendingSpoke/Spoke.sol";
-
-import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
-
-contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, TestStructs, TestState, TestGetters, TestSetters, TestHelpers {
+contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestState, TestGetters, TestSetters, TestHelpers {
     using BytesLib for bytes;
 
     /* action codes
