@@ -118,62 +118,51 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         registerSpokeContract(chainId, spokeContractAddress);
     }
 
-    /**
-     * Completes a deposit that was initiated on a spoke
+    function completeDeposit(bytes memory encodedMessage) public {
+        completeAction(encodedMessage, true);
+    }
+
+    function completeWithdraw(bytes memory encodedMessage) public {
+        completeAction(encodedMessage, false);
+    }
+
+    function completeBorrow(bytes memory encodedMessage) public {
+        completeAction(encodedMessage, false);
+    }
+
+    function completeRepay(bytes memory encodedMessage) public {
+        completeAction(encodedMessage, true);
+    }
+
+     /**
+     * Completes an action (deposit, borrow, withdraw, or repay) that was initiated on a spoke
      *
      * @param encodedMessage - Encoded wormhole VAA with a token bridge message as payload, which allows retrieval of the tokens from token bridge and has deposit information
      */
-    function completeDeposit(bytes memory encodedMessage) public {
-        bytes memory vmPayload = getTransferPayload(encodedMessage);
-
-        bytes memory serialized = extractSerializedFromTransferWithPayload(vmPayload);
-
-        DepositPayload memory params = decodeDepositPayload(serialized);
-
-        deposit(params.header.sender, params.assetAddress, params.assetAmount);
-    }
-
-    /**
-     * Completes a withdraw that was initiated on a spoke
-     *
-     * @param encodedMessage - Encoded wormhole VAA with the withdraw information
-     */
-    function completeWithdraw(bytes calldata encodedMessage) public {
-        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
-        bytes memory serialized = parsed.payload;
-        WithdrawPayload memory params = decodeWithdrawPayload(serialized);
-
-        withdraw(params.header.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
-    }
-
-    /**
-     * Completes a borrow that was initiated on a spoke
-     *
-     * @param encodedMessage - Encoded wormhole VAA with the borrow information
-     */
-    function completeBorrow(bytes calldata encodedMessage) public {
-        // encodedMessage is WH full msg, returns arbitrary bytes
-        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
-        bytes memory serialized = parsed.payload;
-        BorrowPayload memory params = decodeBorrowPayload(serialized);
-
-        borrow(params.header.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
-    }
-
-    /**
-     * Completes a repay that was initiated on a spoke
-     *
-     * @param encodedMessage - Encoded wormhole VAA with a token bridge message as payload, which allows retrieval of the tokens from token bridge and has repay information
-     */
-    function completeRepay(bytes calldata encodedMessage) public {
-        // encodedMessage is Token Bridge payload 3 full msg
-        bytes memory vmPayload = getTransferPayload(encodedMessage);
-
-        bytes memory serialized = extractSerializedFromTransferWithPayload(vmPayload);
-
-        RepayPayload memory params = decodeRepayPayload(serialized);
+    function completeAction(bytes memory encodedMessage, bool isTokenBridgePayload) internal {
         
-        repay(params.header.sender, params.assetAddress, params.assetAmount, params.reversionPaymentChainId);
+        bytes memory serialized;
+        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
+        
+        if(isTokenBridgePayload) {
+            serialized = extractSerializedFromTransferWithPayload(getTransferPayload(encodedMessage));
+        } else {
+            verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.emitterAddress)))); 
+            serialized = parsed.payload;
+        }
+
+        ActionPayload memory params = decodeActionPayload(serialized);
+        Action action = Action(params.action);
+
+        if(action == Action.Deposit) {
+            deposit(params.sender, params.assetAddress, params.assetAmount);
+        } else if(action == Action.Withdraw) {
+            withdraw(params.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
+        } else if(action == Action.Borrow) {
+            borrow(params.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
+        } else if(action == Action.Repay) {
+            repay(params.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
+        } 
     }
 
     /**
@@ -356,7 +345,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             // update state for vault
             VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
             vaultAmounts.borrowed -= normalizedAmount;
-            
+
             // update global state
             VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
             globalAmounts.borrowed -= normalizedAmount;

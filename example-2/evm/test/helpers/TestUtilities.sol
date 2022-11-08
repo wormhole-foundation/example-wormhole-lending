@@ -230,7 +230,7 @@ contract TestUtilities is HubUtilities, TestStructs, TestState, TestGetters, Tes
         });
     }
 
-    function requireActionDataValid(Action action, address assetAddress, uint256 assetAmount, ActionStateData memory beforeData, ActionStateData memory afterData, bool paymentReversion) internal {
+    function requireActionDataValid(Action action, address assetAddress, uint256 assetAmount, ActionStateData memory beforeData, ActionStateData memory afterData, bool paymentReversion) internal view {
 
         uint256 normalizedAssetAmountDeposited = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).deposited);
         uint256 normalizedAssetAmountBorrowed = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).borrowed);

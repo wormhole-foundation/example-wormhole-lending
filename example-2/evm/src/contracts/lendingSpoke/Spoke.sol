@@ -23,131 +23,55 @@ contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtil
         setHubContractAddress(hubContractAddress);
     }
 
-    function depositCollateral(address assetAddress, uint256 assetAmount) public {
-
-        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
-        PayloadHeader memory payloadHeader = PayloadHeader({
-            payloadID: 1,
-            sender: msg.sender
-        });
-
-        DepositPayload memory depositPayload = DepositPayload({
-            header: payloadHeader,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount
-        });
-        // create WH message
-        bytes memory serialized = encodeDepositPayload(depositPayload);
-        sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
+    function depositCollateral(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
+        sequence = doAction(Action.Deposit, assetAddress, assetAmount);
     }
 
     function withdrawCollateral(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
-
-        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
-        PayloadHeader memory payloadHeader = PayloadHeader({
-            payloadID: 2,
-            sender: msg.sender
-        });
-
-        WithdrawPayload memory withdrawPayload = WithdrawPayload({
-            header: payloadHeader,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount
-        });
-
-        // create WH message
-        bytes memory serialized = encodeWithdrawPayload(withdrawPayload);
-
-        sequence = sendWormholeMessage(serialized);
+        sequence = doAction(Action.Withdraw, assetAddress, assetAmount);
     }
 
     function borrow(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
+        sequence = doAction(Action.Borrow, assetAddress, assetAmount);
+    }
 
+    function repay(address assetAddress, uint256 assetAmount) public returns (uint64 sequence) {
+        sequence = doAction(Action.Repay, assetAddress, assetAmount);
+    }
+
+    function depositCollateralNative() public payable returns (uint64 sequence) {
+        sequence = doAction(Action.DepositNative, address(tokenBridge().WETH()), msg.value - wormhole().messageFee());
+    }
+
+    function repayNative() public payable returns (uint64 sequence) {
+        sequence = doAction(Action.RepayNative, address(tokenBridge().WETH()), msg.value - wormhole().messageFee());
+    }
+
+    function doAction(Action action, address assetAddress, uint256 assetAmount) internal returns (uint64 sequence) {
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
-        PayloadHeader memory payloadHeader = PayloadHeader({
-            payloadID: 3,
-            sender: msg.sender
-        });
+        Action hubAction = action;
+        if (action == Action.DepositNative) {
+            hubAction = Action.Deposit;
+        }
+        if (action == Action.RepayNative) {
+            hubAction = Action.Repay;
+        }
 
-        BorrowPayload memory borrowPayload = BorrowPayload({
-            header: payloadHeader,
+        ActionPayload memory payload = ActionPayload({
+            action: hubAction,
+            sender: msg.sender,
             assetAddress: assetAddress,
             assetAmount: assetAmount
         });
 
-        // create WH message
-        bytes memory serialized = encodeBorrowPayload(borrowPayload);
+        bytes memory serialized = encodeActionPayload(payload);
 
-        sequence = sendWormholeMessage(serialized);
-    }
-
-    function repay(address assetAddress, uint256 assetAmount) public {
-        requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
-        PayloadHeader memory payloadHeader = PayloadHeader({
-            payloadID: 4,
-            sender: msg.sender
-        });
-
-        RepayPayload memory repayPayload = RepayPayload({
-            header: payloadHeader,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount,
-            reversionPaymentChainId: chainId()
-        });
-        // create WH message
-        bytes memory serialized = encodeRepayPayload(repayPayload);
-
-        sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
-    }
-
-
-
-
-
-    // handle deposit of native asset
-    function depositCollateralNative() public payable {
-        // get assetAddress of the wrapped token for payload
-        address assetAddress = address(tokenBridge().WETH());
-        uint256 assetAmount = msg.value - wormhole().messageFee();
-        
-        PayloadHeader memory payloadHeader = PayloadHeader({
-            payloadID: 1,
-            sender: msg.sender
-        });
-
-        DepositPayload memory depositPayload = DepositPayload({
-            header: payloadHeader,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount
-        });
-
-        // create WH message
-        bytes memory serialized = encodeDepositPayload(depositPayload);
-
-        sendTokenBridgeMessageNative(msg.value, serialized);  
-    }
-
-    // handle repay of native asset
-    function repayNative() public payable {
-        // get assetAddress of the wrapped token for payload
-        address assetAddress = address(tokenBridge().WETH());
-        uint256 assetAmount = msg.value - wormhole().messageFee();
-
-        PayloadHeader memory payloadHeader = PayloadHeader({
-            payloadID: 4,
-            sender: msg.sender
-        });
-
-        RepayPayload memory repayPayload = RepayPayload({
-            header: payloadHeader,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount,
-            reversionPaymentChainId: chainId()
-        });
-
-        // create WH message
-        bytes memory serialized = encodeRepayPayload(repayPayload);
-
-        sendTokenBridgeMessageNative(msg.value, serialized);
+        if(action == Action.Deposit || action == Action.Repay) {
+            sequence = sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
+        } else if(action == Action.Withdraw || action == Action.Borrow) {
+            sequence = sendWormholeMessage(serialized);
+        } else if(action == Action.DepositNative || action == Action.RepayNative)  {
+            sequence = sendTokenBridgeMessageNative(assetAmount + wormhole().messageFee(), serialized); 
+        }
     }
 }

@@ -25,20 +25,20 @@ contract SpokeUtilities is Context, HubStructs, SpokeState, SpokeGetters, SpokeS
         );
     }
 
-    function sendTokenBridgeMessage(address assetAddress, uint256 assetAmount, bytes memory payload) internal {
+    function sendTokenBridgeMessage(address assetAddress, uint256 assetAmount, bytes memory payload) internal returns (uint64 sequence) {
 
         SafeERC20.safeTransferFrom(IERC20(assetAddress), msg.sender, address(this), assetAmount);
 
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), assetAmount);
 
         // TODO: Do we need to check some sort of maximum limit of assetAmount
-        tokenBridge().transferTokensWithPayload(
+        sequence = tokenBridge().transferTokensWithPayload(
             assetAddress, assetAmount, hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );
     }
 
-    function sendTokenBridgeMessageNative(uint amount, bytes memory payload) internal {
-        tokenBridge().wrapAndTransferETHWithPayload{value: amount}(
+    function sendTokenBridgeMessageNative(uint amount, bytes memory payload) internal returns (uint64 sequence) {
+        sequence = tokenBridge().wrapAndTransferETHWithPayload{value: amount}(
             hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );
     }

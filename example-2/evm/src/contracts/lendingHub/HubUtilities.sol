@@ -431,11 +431,9 @@ contract HubUtilities is Context, HubStructs, HubState, HubGetters, HubSetters {
         );
     }
 
-    function getWormholeParsed(bytes calldata encodedMessage) internal returns (IWormhole.VM memory) {
+    function getWormholeParsed(bytes memory encodedMessage) internal returns (IWormhole.VM memory) {
         (IWormhole.VM memory parsed, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedMessage);
         require(valid, reason);
-
-        verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.emitterAddress))));
 
         require(!messageHashConsumed(parsed.hash), "message already consumed");
         consumeMessageHash(parsed.hash);
