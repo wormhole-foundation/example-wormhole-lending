@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
 import "./SpokeState.sol";
-import "../lendingHub/HubStructs.sol";
+import "../HubSpokeStructs.sol";
 
-contract SpokeGetters is HubStructs, SpokeState {
+contract SpokeGetters is HubSpokeStructs, SpokeState {
     function owner() public view returns (address) {
         return _state.owner;
     }

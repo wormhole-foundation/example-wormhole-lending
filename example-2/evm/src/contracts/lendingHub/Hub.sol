@@ -4,21 +4,16 @@ pragma solidity ^0.8.0;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
-import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
-import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
-
 import "../../interfaces/IWormhole.sol";
 
-import "forge-std/console.sol";
-
 import "./HubSetters.sol";
-import "./HubStructs.sol";
-import "./HubMessages.sol";
+import "../HubSpokeStructs.sol";
+import "../HubSpokeMessages.sol";
 import "./HubGetters.sol";
-import "./HubUtilities.sol";
+import "./HubChecks.sol";
+import "./HubWormholeUtilities.sol";
 
-contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
+contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWormholeUtilities, HubChecks {
     constructor(
         address wormhole_,
         address tokenBridge_,
@@ -139,7 +134,7 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
      *
      * @param encodedMessage - Encoded wormhole VAA with a token bridge message as payload, which allows retrieval of the tokens from token bridge and has deposit information
      */
-    function completeAction(bytes memory encodedMessage, bool isTokenBridgePayload) internal {
+    function completeAction(bytes memory encodedMessage, bool isTokenBridgePayload) internal returns (bool completed, uint64 sequence) {
         
         bytes memory encodedActionPayload;
         IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
@@ -165,14 +160,17 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             returnTokensForInvalidRepay = !allowedToRepay(params.sender, params.assetAddress, params.assetAmount);
         } 
 
-        if(!returnTokensForInvalidRepay) {
-            logActionOnHub(action, params.sender, params.assetAddress, params.assetAmount);
-        }
+        uint256 actualAmount = params.assetAmount;
 
+        if(!returnTokensForInvalidRepay) {
+            actualAmount = logActionOnHub(action, params.sender, params.assetAddress, params.assetAmount);
+        }
 
         if(action == Action.Withdraw || action == Action.Borrow || returnTokensForInvalidRepay) {
-            transferTokens(params.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
+            sequence = transferTokens(params.sender, params.assetAddress, actualAmount, parsed.emitterChainId);
         }
+        
+        completed = !returnTokensForInvalidRepay;
     } 
 
     /**
@@ -204,9 +202,11 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             logActionOnHub(Action.Repay, vault, assetRepayAddresses[i], assetRepayAmounts[i]);
         }
 
+        uint256[] memory assetReceiptActualAmounts = new uint256[](assetReceiptAmounts.length);
+
         // for received assets update amounts for vault and global
         for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
-            logActionOnHub(Action.Withdraw, vault, assetReceiptAddresses[i], assetReceiptAmounts[i]);
+            assetReceiptActualAmounts[i] = logActionOnHub(Action.Withdraw, vault, assetReceiptAddresses[i], assetReceiptAmounts[i]);
         }
 
         // send repay tokens from liquidator to contract
@@ -215,11 +215,11 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         }
         // send receive tokens from contract to liquidator
         for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
-            SafeERC20.safeTransfer(IERC20(assetReceiptAddresses[i]), msg.sender, assetReceiptAmounts[i]);
+            SafeERC20.safeTransfer(IERC20(assetReceiptAddresses[i]), msg.sender, assetReceiptActualAmounts[i]);
         }
     }
 
-    function logActionOnHub(Action action, address vault, address assetAddress, uint256 amount) internal {
+    function logActionOnHub(Action action, address vault, address assetAddress, uint256 amount) internal returns (uint256 actualAmount) {
         updateAccrualIndices(assetAddress);
 
         VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
@@ -231,18 +231,22 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
             vaultAmounts.deposited += normalizedDeposit;
             globalAmounts.deposited += normalizedDeposit;
+            actualAmount = denormalizeAmount(normalizedDeposit, indices.deposited);
         } else if(action == Action.Withdraw) {
             uint256 normalizedWithdraw = normalizeAmount(amount, indices.deposited);
             vaultAmounts.deposited -= normalizedWithdraw;
             globalAmounts.deposited -= normalizedWithdraw;
+            actualAmount = denormalizeAmount(normalizedWithdraw, indices.deposited);
         } else if(action == Action.Borrow) {
             uint256 normalizedBorrow = normalizeAmount(amount, indices.borrowed);
             vaultAmounts.borrowed += normalizedBorrow;
             globalAmounts.borrowed += normalizedBorrow;
+            actualAmount = denormalizeAmount(normalizedBorrow, indices.borrowed);
         } else if(action == Action.Repay) {
             uint256 normalizedRepay = normalizeAmount(amount, indices.borrowed);
             vaultAmounts.borrowed -= normalizedRepay;
             globalAmounts.borrowed -= normalizedRepay;
+            actualAmount = denormalizeAmount(normalizedRepay, indices.borrowed);
         }
 
         setVaultAmounts(vault, assetAddress, vaultAmounts);

@@ -4,12 +4,12 @@ pragma solidity ^0.8.0;
 import "../../interfaces/IWormhole.sol";
 
 import "./SpokeSetters.sol";
-import "../lendingHub/HubStructs.sol";
-import "../lendingHub/HubMessages.sol";
+import "../HubSpokeStructs.sol";
+import "../HubSpokeMessages.sol";
 import "./SpokeGetters.sol";
 import "./SpokeUtilities.sol";
 
-contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtilities {
+contract Spoke is HubSpokeStructs, HubSpokeMessages, SpokeGetters, SpokeSetters, SpokeUtilities {
     constructor(uint16 chainId_, address wormhole_, address tokenBridge_, uint16 hubChainId_, address hubContractAddress) {
         setOwner(msg.sender);
         setChainId(chainId_);

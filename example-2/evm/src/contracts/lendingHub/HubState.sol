@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "./HubStructs.sol";
+import "../HubSpokeStructs.sol";
 
 import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
 
-contract HubStorage is HubStructs {
+contract HubStorage is HubSpokeStructs {
     struct Provider {
         uint16 chainId;
         address payable wormhole;

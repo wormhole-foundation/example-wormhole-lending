@@ -10,9 +10,9 @@ import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
 import {WormholeSimulator} from "./WormholeSimulator.sol";
-import {HubStructs} from "../../src/contracts/lendingHub/HubStructs.sol";
+import {HubSpokeStructs} from "../../src/contracts/HubSpokeStructs.sol";
 
-contract TestStructs is HubStructs {
+contract TestStructs is HubSpokeStructs {
     struct HubData {
         Hub hub;
         uint16 hubChainId;

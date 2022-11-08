@@ -7,23 +7,17 @@ import "forge-std/console.sol";
 
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IWormhole} from "../../src/interfaces/IWormhole.sol";
-import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
 import {ITokenImplementation} from "../../src/interfaces/ITokenImplementation.sol";
-import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
-import {Hub} from "../../src/contracts/lendingHub/Hub.sol";
+
 import {TestStructs} from "./TestStructs.sol";
 import {TestState} from "./TestState.sol";
 import {TestSetters} from "./TestSetters.sol";
 import {TestGetters} from "./TestGetters.sol";
 
-import {HubUtilities} from "../../src/contracts/lendingHub/HubUtilities.sol";
 
-import {WormholeSimulator} from "./WormholeSimulator.sol";
-
-contract TestUtilities is HubUtilities, TestStructs, TestState, TestGetters, TestSetters {
+contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
 
     
     function fetchSignedMessageFromSpokeLogs(uint256 spokeIndex, Vm.Log memory entry) internal returns (bytes memory) {
@@ -139,30 +133,4 @@ contract TestUtilities is HubUtilities, TestStructs, TestState, TestGetters, Tes
             require(beforeData.balanceUser + assetAmount == afterData.balanceUser, "Did not transfer money to user");
         }
     }
-
-
- 
-
-    function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal view {
-        (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
-        uint8 decimals = abi.decode(queriedDecimals, (uint8));
-
-        require(deNormalizeAmountWithinTokenBridge(normalizeAmountWithinTokenBridge(assetAmount, decimals), decimals) == assetAmount, "Too many decimal places");
-    }
-
-    function normalizeAmountWithinTokenBridge(uint256 amount, uint8 decimals) internal pure returns(uint256){
-        if (decimals > 8) {
-            amount /= 10 ** (decimals - 8);
-        }
-        return amount;
-    }
-
-    function deNormalizeAmountWithinTokenBridge(uint256 amount, uint8 decimals) internal pure returns(uint256){
-        if (decimals > 8) {
-            amount *= 10 ** (decimals - 8);
-        }
-        return amount;
-    }
-
-
 }
