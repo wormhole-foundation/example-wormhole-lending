@@ -48,17 +48,4 @@ contract HubSpokeStructs {
         uint256 publishTime;
     }
 
-    // taken from wormhole/ethereum/contracts/bridge/BridgeStructs.sol
-    struct TransferResult {
-        // Chain ID of the token
-        uint16  tokenChain;
-        // Address of the token. Left-zero-padded if shorter than 32 bytes
-        bytes32 tokenAddress;
-        // Amount being transferred (big-endian uint256)
-        uint256 normalizedAmount;
-        // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
-        uint256 normalizedArbiterFee;
-        // Portion of msg.value to be paid as the core bridge fee
-        uint wormholeFee;
-    }
 }
