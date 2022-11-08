@@ -355,9 +355,8 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             uint256 normalizedAmount = normalizeAmount(assetAmount, indices.borrowed);
             // update state for vault
             VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
-            // require that amount paid back <= amount borrowed
-            uint256 denormalizedBorrowedAmount = denormalizeAmount(vaultAmounts.borrowed, indices.borrowed);
             vaultAmounts.borrowed -= normalizedAmount;
+            
             // update global state
             VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
             globalAmounts.borrowed -= normalizedAmount;
@@ -376,8 +375,6 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             uint256 normalizedAmount = normalizeAmount(assetAmount, indices.deposited);
             // update state for vault
             VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
-            // require that amount received <= amount deposited
-            uint256 denormalizedDepositedAmount = denormalizeAmount(vaultAmounts.deposited, indices.deposited);
 
             vaultAmounts.deposited -= normalizedAmount;
             // update global state

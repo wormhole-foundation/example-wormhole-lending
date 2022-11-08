@@ -34,16 +34,13 @@ import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
 contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, TestStructs, TestState, TestGetters, TestSetters, TestHelpers {
     using BytesLib for bytes;
 
-
-    // action codes
-    // register: R
-    // deposit: D
-    // borrow: B
-    // withdraw: W
-    // repay: P
-    // liquidation: L
-    // fake spoke: FS
-    address wrappedGasTokenAddress;
+    /* action codes
+       register: R
+       deposit: D
+       borrow: B
+       withdraw: W
+       repay: P
+       liquidation: L */
 
     function setUp() public {
         
@@ -68,7 +65,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
                 rateCoefficientA: 0,
                 reserveFactor: 0,
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_eth") 
-    }));
+        }));
 
         addAsset(AddAsset({assetAddress: address(getHubData().tokenBridgeContract.WETH()), // WAVAX
                 collateralizationRatioDeposit: 100 * 10 ** 16,
