@@ -1,5 +1,7 @@
 # Wormhole Cross-Chain Lending/Borrowing Example
 
+**WARNING**: This repository has not be audited and should be used for example purposes only.  If you intend to use or build on this example to perform actual lending, it's highly recommended that you have the final code commit audited by a smart contract auditing firm.
+
 ## Objective
 ---
 
