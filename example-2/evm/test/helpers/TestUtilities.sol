@@ -34,137 +34,10 @@ contract TestUtilities is HubUtilities, TestStructs, TestState, TestGetters, Tes
         return getHubData().wormholeSimulator.fetchSignedMessageFromLogs(entry);
     }
 
-    function encodePayload3Message(
-        ITokenBridge.TransferWithPayload memory transfer,
-        // wormhole related
-        IWormhole.WormholeBodyParams memory wormholeParams
-    ) public pure returns (bytes memory encoded) {
-        encoded = abi.encodePacked(
-            wormholeParams.timestamp,
-            wormholeParams.nonce,
-            wormholeParams.emitterChainId,
-            wormholeParams.emitterAddress,
-            wormholeParams.sequence,
-            wormholeParams.consistencyLevel,
-            abi.encodePacked(
-                transfer.payloadID,
-                transfer.amount,
-                transfer.tokenAddress,
-                transfer.tokenChain,
-                transfer.to,
-                transfer.toChain,
-                transfer.fromAddress,
-                transfer.payload
-            )
-        );
-    }
-
-    function encodePayload1Message(
-        ITokenBridge.Transfer memory transfer,
-        // wormhole related
-        IWormhole.WormholeBodyParams memory wormholeParams
-    ) public pure returns (bytes memory encoded) {
-        encoded = abi.encodePacked(
-            wormholeParams.timestamp,
-            wormholeParams.nonce,
-            wormholeParams.emitterChainId,
-            wormholeParams.emitterAddress,
-            wormholeParams.sequence,
-            wormholeParams.consistencyLevel,
-            abi.encodePacked(
-                transfer.payloadID,
-                transfer.amount,
-                transfer.tokenAddress,
-                transfer.tokenChain,
-                transfer.to,
-                transfer.toChain,
-                transfer.fee
-            )
-        );
-    }
-
-    function encodeVM(
-        uint8 version,
-        uint32 timestamp,
-        uint32 nonce,
-        uint16 emitterChainId,
-        bytes32 emitterAddress,
-        uint64 sequence,
-        uint8 consistencyLevel,
-        bytes calldata payload
-    ) public pure returns (bytes memory encodedVm) {
-        encodedVm = abi.encodePacked(
-            version, timestamp, nonce, emitterChainId, emitterAddress, sequence, consistencyLevel, payload
-        );
-    }
-
     function getWrappedInfo(address assetAddress) internal pure returns (ITokenImplementation wrapped) {
         wrapped = ITokenImplementation(assetAddress);
     }
 
-    function getMessageFromTransferTokenBridge(
-        ITokenBridge.TransferWithPayload memory transfer
-    ) internal returns (bytes memory message) {
-        message = encodePayload3Message(
-            transfer,
-            IWormhole.WormholeBodyParams({
-                timestamp: 0,
-                nonce: 0,
-                emitterChainId: uint16(getVm().envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
-                emitterAddress: bytes32(uint256(uint160(getVm().envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
-                sequence: 1,
-                consistencyLevel: 15
-            })
-        );
-    }
-
-    function getMessageFromTransferTokenBridge(
-        ITokenBridge.Transfer memory transfer
-    ) internal returns (bytes memory message) {
-        message = encodePayload1Message(
-            transfer,
-            IWormhole.WormholeBodyParams({
-                timestamp: 0,
-                nonce: 0,
-                emitterChainId: uint16(getVm().envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
-                emitterAddress: bytes32(uint256(uint160(getVm().envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))),
-                sequence: 1,
-                consistencyLevel: 15
-            })
-        );
-    }
-
-    function getSignedWHMsgCoreBridge(bytes memory payload) internal returns (bytes memory encodedVM) {
-        bytes memory message = abi.encodePacked(
-            uint32(0),
-            uint32(0),
-            uint16(getVm().envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
-            bytes32(uint256(uint160(address(this)))), // this should be the spoke address
-            uint64(1),
-            uint8(15),
-            payload
-        );
-
-        encodedVM = getSignedWHMsg(message);
-    }
-
-    function getSignedWHMsgTransferTokenBridge(ITokenBridge.TransferWithPayload memory transfer)
-        internal
-        returns (bytes memory encodedVM)
-    {
-        bytes memory message = getMessageFromTransferTokenBridge(transfer);
-
-        encodedVM = getSignedWHMsg(message);
-    }
-
-    function getSignedWHMsgTransferTokenBridge(ITokenBridge.Transfer memory transfer)
-        internal
-        returns (bytes memory encodedVM)
-    {
-        bytes memory message = getMessageFromTransferTokenBridge(transfer);
-
-        encodedVM = getSignedWHMsg(message);
-    }
 
     function getSignedWHMsg(bytes memory message)
         internal
@@ -230,7 +103,7 @@ contract TestUtilities is HubUtilities, TestStructs, TestState, TestGetters, Tes
         });
     }
 
-    function requireActionDataValid(Action action, address assetAddress, uint256 assetAmount, ActionStateData memory beforeData, ActionStateData memory afterData, bool paymentReversion) internal {
+    function requireActionDataValid(Action action, address assetAddress, uint256 assetAmount, ActionStateData memory beforeData, ActionStateData memory afterData, bool paymentReversion) internal view {
 
         uint256 normalizedAssetAmountDeposited = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).deposited);
         uint256 normalizedAssetAmountBorrowed = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).borrowed);
@@ -268,18 +141,20 @@ contract TestUtilities is HubUtilities, TestStructs, TestState, TestGetters, Tes
     }
 
 
-    function normalizeAmountWithinTokenBridge(uint256 amount, uint8 decimals) internal pure returns(uint256){
-        if (decimals > 8) {
-            amount /= 10 ** (decimals - 8);
-        }
-        return amount;
-    }
+ 
 
     function requireAssetAmountValidForTokenBridge(address assetAddress, uint256 assetAmount) internal view {
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
 
         require(deNormalizeAmountWithinTokenBridge(normalizeAmountWithinTokenBridge(assetAmount, decimals), decimals) == assetAmount, "Too many decimal places");
+    }
+
+    function normalizeAmountWithinTokenBridge(uint256 amount, uint8 decimals) internal pure returns(uint256){
+        if (decimals > 8) {
+            amount /= 10 ** (decimals - 8);
+        }
+        return amount;
     }
 
     function deNormalizeAmountWithinTokenBridge(uint256 amount, uint8 decimals) internal pure returns(uint256){

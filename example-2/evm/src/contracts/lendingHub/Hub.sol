@@ -118,202 +118,62 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         registerSpokeContract(chainId, spokeContractAddress);
     }
 
-    /**
-     * Completes a deposit that was initiated on a spoke
+    function completeDeposit(bytes memory encodedMessage) public {
+        completeAction(encodedMessage, true);
+    }
+
+    function completeWithdraw(bytes memory encodedMessage) public {
+        completeAction(encodedMessage, false);
+    }
+
+    function completeBorrow(bytes memory encodedMessage) public {
+        completeAction(encodedMessage, false);
+    }
+
+    function completeRepay(bytes memory encodedMessage) public {
+        completeAction(encodedMessage, true);
+    }
+
+     /**
+     * Completes an action (deposit, borrow, withdraw, or repay) that was initiated on a spoke
      *
      * @param encodedMessage - Encoded wormhole VAA with a token bridge message as payload, which allows retrieval of the tokens from token bridge and has deposit information
      */
-    function completeDeposit(bytes memory encodedMessage) public {
-        bytes memory vmPayload = getTransferPayload(encodedMessage);
-
-        bytes memory serialized = extractSerializedFromTransferWithPayload(vmPayload);
-
-        DepositPayload memory params = decodeDepositPayload(serialized);
-
-        deposit(params.header.sender, params.assetAddress, params.assetAmount);
-    }
-
-    /**
-     * Completes a withdraw that was initiated on a spoke
-     *
-     * @param encodedMessage - Encoded wormhole VAA with the withdraw information
-     */
-    function completeWithdraw(bytes calldata encodedMessage) public {
-        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
-        bytes memory serialized = parsed.payload;
-        WithdrawPayload memory params = decodeWithdrawPayload(serialized);
-
-        withdraw(params.header.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
-    }
-
-    /**
-     * Completes a borrow that was initiated on a spoke
-     *
-     * @param encodedMessage - Encoded wormhole VAA with the borrow information
-     */
-    function completeBorrow(bytes calldata encodedMessage) public {
-        // encodedMessage is WH full msg, returns arbitrary bytes
-        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
-        bytes memory serialized = parsed.payload;
-        BorrowPayload memory params = decodeBorrowPayload(serialized);
-
-        borrow(params.header.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
-    }
-
-    /**
-     * Completes a repay that was initiated on a spoke
-     *
-     * @param encodedMessage - Encoded wormhole VAA with a token bridge message as payload, which allows retrieval of the tokens from token bridge and has repay information
-     */
-    function completeRepay(bytes calldata encodedMessage) public {
-        // encodedMessage is Token Bridge payload 3 full msg
-        bytes memory vmPayload = getTransferPayload(encodedMessage);
-
-        bytes memory serialized = extractSerializedFromTransferWithPayload(vmPayload);
-
-        RepayPayload memory params = decodeRepayPayload(serialized);
+    function completeAction(bytes memory encodedMessage, bool isTokenBridgePayload) internal {
         
-        repay(params.header.sender, params.assetAddress, params.assetAmount, params.reversionPaymentChainId);
-    }
-
-    /**
-    * Updates vault amounts for a deposit from depositor of the asset at 'assetAddress' and amount 'amount'
-    *
-    * @param depositor - the address of the depositor
-    * @param assetAddress - the address of the asset 
-    * @param amount - the amount of the asset
-    */
-    function deposit(address depositor, address assetAddress, uint256 amount) internal {        
-
-        checkValidAddress(assetAddress);
-
-        // update the interest accrual indices
-        updateAccrualIndices(assetAddress);
-
-        // calculate the normalized amount and store in the vault
-        // update the global contract state with normalized amount
-        VaultAmount memory vaultAmounts = getVaultAmounts(depositor, assetAddress);
-        VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
-
-        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-
-        uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
-
-        vaultAmounts.deposited += normalizedDeposit;
-        globalAmounts.deposited += normalizedDeposit;
-
-        setVaultAmounts(depositor, assetAddress, vaultAmounts);
-        setGlobalAmounts(assetAddress, globalAmounts);
-    }
-
-    /**
-     * Updates vault amounts for a withdraw from withdrawer of the asset at 'assetAddress' and amount 'amount'
-     *
-     * @param withdrawer - the address of the withdrawer
-     * @param assetAddress - the address of the asset
-     * @param amount - the amount of the asset
-     */
-    function withdraw(address withdrawer, address assetAddress, uint256 amount, uint16 recipientChain) internal {
-        checkValidAddress(assetAddress);
-
-        // recheck if withdraw is valid given up to date prices? bc the prices can move in the time for VAA to come
-        (bool check1, bool check2, bool check3) = allowedToWithdraw(withdrawer, assetAddress, amount);
-        require(check1, "Not enough in vault");
-        require(check2, "Not enough in global supply");
-        require(check3, "Vault is undercollateralized if this withdraw goes through");
-
-        // update the interest accrual indices
-        updateAccrualIndices(assetAddress);
-
-        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-
-        uint256 normalizedAmount = normalizeAmount(amount, indices.deposited);
-
-        // update state for vault
-        VaultAmount memory vaultAmounts = getVaultAmounts(withdrawer, assetAddress);
-        vaultAmounts.deposited -= normalizedAmount;
-        // update state for global
-        VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
-        globalAmounts.deposited -= normalizedAmount;
-
-        setVaultAmounts(withdrawer, assetAddress, vaultAmounts);
-        setGlobalAmounts(assetAddress, globalAmounts);
-
-        transferTokens(withdrawer, assetAddress, amount, recipientChain);
-    }
-
-    /**
-     * Updates vault amounts for a borrow from borrower of the asset at 'assetAddress' and amount 'amount'
-     *
-     * @param borrower - the address of the borrower
-     * @param assetAddress - the address of the asset
-     * @param amount - the amount of the asset
-     */
-    function borrow(address borrower, address assetAddress, uint256 amount, uint16 recipientChain) internal {
-        checkValidAddress(assetAddress);
-
-        // recheck if borrow is valid given up to date prices? bc the prices can move in the time for VAA to come
-        (bool check1, bool check2) = allowedToBorrow(borrower, assetAddress, amount);
-
-        require(check1, "Not enough in global supply");
-        require(check2, "Vault is undercollateralized if this borrow goes through");
-
-        // update the interest accrual indices
-        updateAccrualIndices(assetAddress);
-
-        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-
-        uint256 normalizedAmount = normalizeAmount(amount, indices.deposited);
-
-        // update state for vault
-        VaultAmount memory vaultAmounts = getVaultAmounts(borrower, assetAddress);
-        vaultAmounts.borrowed += normalizedAmount;
-
-        // update state for global
-        VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
-        globalAmounts.borrowed += normalizedAmount;
-        setVaultAmounts(borrower, assetAddress, vaultAmounts);
-        setGlobalAmounts(assetAddress, globalAmounts);
-
-        transferTokens(borrower, assetAddress, amount, recipientChain);
-    }
-
-    /**
-    * Updates vault amounts for a repay from repayer of the asset at 'assetAddress' and amount 'amount'
-    *
-    * @param repayer - the address of the repayer
-    * @param assetAddress - the address of the asset 
-    * @param amount - the amount of the asset
-    */
-    function repay(address repayer, address assetAddress, uint256 amount, uint16 recipientChain) internal {
-    
-        checkValidAddress(assetAddress);
-
-        bool check = allowedToRepay(repayer, assetAddress, amount);
-
-        // handle revert--transfer tokens back to the repayer on their original chain
-        if(!check){
-            transferTokens(repayer, assetAddress, amount, recipientChain);
-            return;
+        bytes memory encodedActionPayload;
+        IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
+        
+        if(isTokenBridgePayload) {
+            encodedActionPayload = extractPayloadFromTransferPayload(getTransferPayload(encodedMessage));
+        } else {
+            verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.emitterAddress)))); 
+            encodedActionPayload = parsed.payload;
         }
 
-        // update the interest accrual indices
-        updateAccrualIndices(assetAddress);
+        ActionPayload memory params = decodeActionPayload(encodedActionPayload);
+        Action action = Action(params.action);
 
-        // calculate the normalized amount and store in the vault and global
-        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+        checkValidAddress(params.assetAddress);
+        bool returnTokensForInvalidRepay = false;
 
-        uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed);
-        // update state for vault
-        VaultAmount memory vaultAmounts = getVaultAmounts(repayer, assetAddress);
-        vaultAmounts.borrowed -= normalizedAmount;
-        // update global state
-        VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
-        globalAmounts.borrowed -= normalizedAmount;
+        if(action == Action.Withdraw) {
+            checkAllowedToWithdraw(params.sender, params.assetAddress, params.assetAmount);
+        } else if(action == Action.Borrow) {
+            checkAllowedToBorrow(params.sender, params.assetAddress, params.assetAmount);
+        } else if(action == Action.Repay) {
+            returnTokensForInvalidRepay = !allowedToRepay(params.sender, params.assetAddress, params.assetAmount);
+        } 
 
-        setVaultAmounts(repayer, assetAddress, vaultAmounts);
-        setGlobalAmounts(assetAddress, globalAmounts);
-    }
+        if(!returnTokensForInvalidRepay) {
+            logActionOnHub(action, params.sender, params.assetAddress, params.assetAmount);
+        }
+
+
+        if(action == Action.Withdraw || action == Action.Borrow || returnTokensForInvalidRepay) {
+            transferTokens(params.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
+        }
+    } 
 
     /**
      * Liquidates a vault. The sender of this transaction pays, for each i, assetRepayAmount[i] of the asset assetRepayAddresses[i]
@@ -339,53 +199,14 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
         // check if intended liquidation is valid
         checkAllowedToLiquidate(vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
 
-        // update the interest accrual indices
-        address[] memory allowList = getAllowList();
-        for (uint256 i = 0; i < allowList.length; i++) {
-            updateAccrualIndices(allowList[i]);
-        }
-
         // for repay assets update amounts for vault and global
         for (uint256 i = 0; i < assetRepayAddresses.length; i++) {
-            address assetAddress = assetRepayAddresses[i];
-            uint256 assetAmount = assetRepayAmounts[i];
-
-            AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-
-            uint256 normalizedAmount = normalizeAmount(assetAmount, indices.borrowed);
-            // update state for vault
-            VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
-            // require that amount paid back <= amount borrowed
-            uint256 denormalizedBorrowedAmount = denormalizeAmount(vaultAmounts.borrowed, indices.borrowed);
-            vaultAmounts.borrowed -= normalizedAmount;
-            // update global state
-            VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
-            globalAmounts.borrowed -= normalizedAmount;
-
-            setVaultAmounts(vault, assetAddress, vaultAmounts);
-            setGlobalAmounts(assetAddress, globalAmounts);
+            logActionOnHub(Action.Repay, vault, assetRepayAddresses[i], assetRepayAmounts[i]);
         }
 
         // for received assets update amounts for vault and global
         for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
-            address assetAddress = assetReceiptAddresses[i];
-            uint256 assetAmount = assetReceiptAmounts[i];
-
-            AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-
-            uint256 normalizedAmount = normalizeAmount(assetAmount, indices.deposited);
-            // update state for vault
-            VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
-            // require that amount received <= amount deposited
-            uint256 denormalizedDepositedAmount = denormalizeAmount(vaultAmounts.deposited, indices.deposited);
-
-            vaultAmounts.deposited -= normalizedAmount;
-            // update global state
-            VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
-            globalAmounts.deposited -= normalizedAmount;
-
-            setVaultAmounts(vault, assetAddress, vaultAmounts);
-            setGlobalAmounts(assetAddress, globalAmounts);
+            logActionOnHub(Action.Withdraw, vault, assetReceiptAddresses[i], assetReceiptAmounts[i]);
         }
 
         // send repay tokens from liquidator to contract
@@ -397,4 +218,35 @@ contract Hub is HubStructs, HubMessages, HubGetters, HubSetters, HubUtilities {
             SafeERC20.safeTransfer(IERC20(assetReceiptAddresses[i]), msg.sender, assetReceiptAmounts[i]);
         }
     }
+
+    function logActionOnHub(Action action, address vault, address assetAddress, uint256 amount) internal {
+        updateAccrualIndices(assetAddress);
+
+        VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
+        VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
+
+        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+
+        if(action == Action.Deposit) {
+            uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
+            vaultAmounts.deposited += normalizedDeposit;
+            globalAmounts.deposited += normalizedDeposit;
+        } else if(action == Action.Withdraw) {
+            uint256 normalizedWithdraw = normalizeAmount(amount, indices.deposited);
+            vaultAmounts.deposited -= normalizedWithdraw;
+            globalAmounts.deposited -= normalizedWithdraw;
+        } else if(action == Action.Borrow) {
+            uint256 normalizedBorrow = normalizeAmount(amount, indices.borrowed);
+            vaultAmounts.borrowed += normalizedBorrow;
+            globalAmounts.borrowed += normalizedBorrow;
+        } else if(action == Action.Repay) {
+            uint256 normalizedRepay = normalizeAmount(amount, indices.borrowed);
+            vaultAmounts.borrowed -= normalizedRepay;
+            globalAmounts.borrowed -= normalizedRepay;
+        }
+
+        setVaultAmounts(vault, assetAddress, vaultAmounts);
+        setGlobalAmounts(assetAddress, globalAmounts);
+    }
+
 }

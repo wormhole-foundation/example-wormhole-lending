@@ -61,8 +61,6 @@ contract TestStructs is HubStructs {
         bytes32 emitterAddress;
     }
 
-    enum Action{Deposit, Borrow, Withdraw, Repay, DepositNative, RepayNative}
-
     struct ActionParameters {
         Action action;
         uint256 spokeIndex;

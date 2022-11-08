@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import {Context} from "@openzeppelin/contracts/utils/Context.sol";
-
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
 import "./SpokeState.sol";
 import "../lendingHub/HubStructs.sol";
 
-contract SpokeGetters is Context, HubStructs, SpokeState {
+contract SpokeGetters is HubStructs, SpokeState {
     function owner() public view returns (address) {
         return _state.owner;
     }
@@ -40,10 +38,5 @@ contract SpokeGetters is Context, HubStructs, SpokeState {
     function hubContractAddress() internal view returns (address) {
         return _state.hubContractAddress;
     }
-
-    function messageHashConsumed(bytes32 vmHash) internal view returns (bool) {
-        return _state.consumedMessages[vmHash];
-    }
-
    
 }

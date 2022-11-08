@@ -34,16 +34,13 @@ import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
 contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, TestStructs, TestState, TestGetters, TestSetters, TestHelpers {
     using BytesLib for bytes;
 
-
-    // action codes
-    // register: R
-    // deposit: D
-    // borrow: B
-    // withdraw: W
-    // repay: P
-    // liquidation: L
-    // fake spoke: FS
-    address wrappedGasTokenAddress;
+    /* action codes
+       register: R
+       deposit: D
+       borrow: B
+       withdraw: W
+       repay: P
+       liquidation: L */
 
     function setUp() public {
         
@@ -68,7 +65,7 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
                 rateCoefficientA: 0,
                 reserveFactor: 0,
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_eth") 
-    }));
+        }));
 
         addAsset(AddAsset({assetAddress: address(getHubData().tokenBridgeContract.WETH()), // WAVAX
                 collateralizationRatioDeposit: 100 * 10 ** 16,
@@ -325,81 +322,70 @@ contract HubTest is Test, HubStructs, HubMessages, HubGetters, HubUtilities, Tes
     */
 
     function testEncodeDepositPayload() public view {
-        PayloadHeader memory header = PayloadHeader({
-            payloadID: uint8(1),
-            sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
-        });
+        address sender = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))));
         address assetAddress = getAssetAddress(0);
         uint256 assetAmount = 502;
 
-        DepositPayload memory myPayload =
-            DepositPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
-        bytes memory serialized = encodeDepositPayload(myPayload);
+        ActionPayload memory myPayload =
+            ActionPayload({action: Action.Deposit, sender: sender, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeActionPayload(myPayload);
 
-        DepositPayload memory encodedAndDecodedMsg = decodeDepositPayload(serialized);
+        ActionPayload memory encodedAndDecodedMsg = decodeActionPayload(serialized);
 
-        require(myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID, "payload ids do not match");
-        require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
+        require(myPayload.action == encodedAndDecodedMsg.action, "actions do not match");
+        require(myPayload.sender == encodedAndDecodedMsg.sender, "sender addresses do not match");
         require(myPayload.assetAddress == encodedAndDecodedMsg.assetAddress, "asset addresses do not match ");
         require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
 
     function testEncodeWithdrawPayload() public view {
-        PayloadHeader memory header = PayloadHeader({
-            payloadID: 2,
-            sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
-        });
+        address sender = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))));
         address assetAddress = getAssetAddress(0);
         uint256 assetAmount = 2356;
 
-        WithdrawPayload memory myPayload =
-            WithdrawPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
-        bytes memory serialized = encodeWithdrawPayload(myPayload);
-        WithdrawPayload memory encodedAndDecodedMsg = decodeWithdrawPayload(serialized);
+        ActionPayload memory myPayload =
+            ActionPayload({action: Action.Withdraw, sender: sender, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeActionPayload(myPayload);
 
-        require(myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID, "payload ids do not match");
-        require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
+        ActionPayload memory encodedAndDecodedMsg = decodeActionPayload(serialized);
+
+        require(myPayload.action == encodedAndDecodedMsg.action, "actions do not match");
+        require(myPayload.sender == encodedAndDecodedMsg.sender, "sender addresses do not match");
         require(myPayload.assetAddress == encodedAndDecodedMsg.assetAddress, "asset addresses do not match ");
         require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
 
     function testEncodeBorrowPayload() public view {
-        PayloadHeader memory header = PayloadHeader({
-            payloadID: 3,
-            sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
-        });
+        address sender = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))));
         address assetAddress = getAssetAddress(0);
         uint256 assetAmount = 1242;
 
-        BorrowPayload memory myPayload =
-            BorrowPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount});
-        bytes memory serialized = encodeBorrowPayload(myPayload);
-        BorrowPayload memory encodedAndDecodedMsg = decodeBorrowPayload(serialized);
+        ActionPayload memory myPayload =
+            ActionPayload({action: Action.Borrow, sender: sender, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeActionPayload(myPayload);
 
-        require(myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID, "payload ids do not match");
-        require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
+        ActionPayload memory encodedAndDecodedMsg = decodeActionPayload(serialized);
+
+        require(myPayload.action == encodedAndDecodedMsg.action, "actions do not match");
+        require(myPayload.sender == encodedAndDecodedMsg.sender, "sender addresses do not match");
         require(myPayload.assetAddress == encodedAndDecodedMsg.assetAddress, "asset addresses do not match ");
         require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
     }
 
     function testEncodeRepayPayload() public view {
-        PayloadHeader memory header = PayloadHeader({
-            payloadID: 4,
-            sender: address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))))
-        });
+        address sender = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp)))));
         address assetAddress = getAssetAddress(0);
         uint256 assetAmount = 4253;
-        uint16 reversionPaymentChainId = 2;
 
-        RepayPayload memory myPayload =
-            RepayPayload({header: header, assetAddress: assetAddress, assetAmount: assetAmount, reversionPaymentChainId: reversionPaymentChainId});
-        bytes memory serialized = encodeRepayPayload(myPayload);
-        RepayPayload memory encodedAndDecodedMsg = decodeRepayPayload(serialized);
+        ActionPayload memory myPayload =
+            ActionPayload({action: Action.Repay, sender: sender, assetAddress: assetAddress, assetAmount: assetAmount});
+        bytes memory serialized = encodeActionPayload(myPayload);
 
-        require(myPayload.header.payloadID == encodedAndDecodedMsg.header.payloadID, "payload ids do not match");
-        require(myPayload.header.sender == encodedAndDecodedMsg.header.sender, "sender addresses do not match");
+        ActionPayload memory encodedAndDecodedMsg = decodeActionPayload(serialized);
+
+        require(myPayload.action == encodedAndDecodedMsg.action, "actions do not match");
+        require(myPayload.sender == encodedAndDecodedMsg.sender, "sender addresses do not match");
         require(myPayload.assetAddress == encodedAndDecodedMsg.assetAddress, "asset addresses do not match ");
         require(myPayload.assetAmount == encodedAndDecodedMsg.assetAmount, "asset amounts do not match ");
-        require(myPayload.reversionPaymentChainId == encodedAndDecodedMsg.reversionPaymentChainId, "reversion payment chain ids do not match");
     }
 }

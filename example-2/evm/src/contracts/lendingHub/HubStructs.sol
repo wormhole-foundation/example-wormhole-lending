@@ -31,39 +31,13 @@ contract HubStructs {
         uint256 reservePrecision;
     }
 
-    struct PayloadHeader {
-        uint8 payloadID;
-        // address of the sender
+    enum Action{Deposit, Borrow, Withdraw, Repay, DepositNative, RepayNative}
+
+    struct ActionPayload {
+        Action action;
         address sender;
-    }
-
-    struct DepositPayload {
-        // payloadId = 1
-        PayloadHeader header;
         address assetAddress;
         uint256 assetAmount;
-    }
-
-    struct WithdrawPayload {
-        // payloadId = 2
-        PayloadHeader header;
-        address assetAddress;
-        uint256 assetAmount;
-    }
-
-    struct BorrowPayload {
-        // payloadId = 3
-        PayloadHeader header;
-        address assetAddress;
-        uint256 assetAmount;
-    }
-
-    struct RepayPayload {
-        // payloadId = 4
-        PayloadHeader header;
-        address assetAddress;
-        uint256 assetAmount;
-        uint16 reversionPaymentChainId;
     }
 
     // struct for mock oracle price
