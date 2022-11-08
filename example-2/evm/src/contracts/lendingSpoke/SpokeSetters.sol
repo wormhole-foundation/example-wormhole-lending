@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "./SpokeState.sol";
 import "../lendingHub/HubStructs.sol";
 
-
 contract SpokeSetters is HubStructs, SpokeState {
     function setOwner(address owner) internal {
         _state.owner = owner;
@@ -28,10 +27,6 @@ contract SpokeSetters is HubStructs, SpokeState {
 
     function setHubContractAddress(address hubContractAddress) internal {
         _state.hubContractAddress = hubContractAddress;
-    }
-
-    function consumeMessageHash(bytes32 vmHash) internal {
-        _state.consumedMessages[vmHash] = true;
     }
 
 }
