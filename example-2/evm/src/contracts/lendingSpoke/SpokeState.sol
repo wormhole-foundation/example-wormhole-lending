@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "../lendingHub/HubStructs.sol";
+import "../HubSpokeStructs.sol";
 
-contract SpokeStorage is HubStructs {
+contract SpokeStorage is HubSpokeStructs {
     struct Provider {
         uint16 chainId;
         address payable wormhole;

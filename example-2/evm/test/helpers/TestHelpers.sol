@@ -8,13 +8,8 @@ import "forge-std/console.sol";
 import "../../src/libraries/external/BytesLib.sol";
 
 import {Hub} from "../../src/contracts/lendingHub/Hub.sol";
-import {HubStructs} from "../../src/contracts/lendingHub/HubStructs.sol";
-import {HubMessages} from "../../src/contracts/lendingHub/HubMessages.sol";
-import {HubUtilities} from "../../src/contracts/lendingHub/HubUtilities.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC20PresetMinterPauser} from "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 
 import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
@@ -30,7 +25,7 @@ import "../../src/contracts/lendingHub/HubGetters.sol";
 
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 
-contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGetters, TestSetters, TestUtilities {
+contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUtilities {
     
     using BytesLib for bytes;
 
@@ -150,9 +145,6 @@ contract TestHelpers is HubStructs, HubMessages, TestStructs, TestState, TestGet
     function doAction(ActionParameters memory params) internal {
         Action action = Action(params.action);
         bool isNative = params.action == Action.DepositNative || params.action == Action.RepayNative;
-        if(!isNative) {
-            requireAssetAmountValidForTokenBridge(params.assetAddress, params.assetAmount);
-        }
         Spoke spoke = getSpoke(params.spokeIndex);
         address vault = address(this);
         if(params.prank) {

@@ -6,12 +6,12 @@ import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/ITokenBridge.sol";
 import "../../interfaces/IMockPyth.sol";
-import "./HubStructs.sol";
+import "../HubSpokeStructs.sol";
 import "./HubState.sol";
 
 import "forge-std/console.sol";
 
-contract HubGetters is Context, HubStructs, HubState {
+contract HubGetters is Context, HubSpokeStructs, HubState {
     function owner() public view returns (address) {
         return _state.owner;
     }

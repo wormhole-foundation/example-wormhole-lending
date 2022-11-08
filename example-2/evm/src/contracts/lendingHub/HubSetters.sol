@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "./HubState.sol";
-import "./HubStructs.sol";
+import "../HubSpokeStructs.sol";
 import "./HubGetters.sol";
 
 import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
 
-contract HubSetters is HubStructs, HubState, HubGetters {
+contract HubSetters is HubSpokeStructs, HubState, HubGetters {
     function setOwner(address owner) internal {
         _state.owner = owner;
     }
