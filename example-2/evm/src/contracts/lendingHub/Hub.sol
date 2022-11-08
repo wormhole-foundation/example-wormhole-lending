@@ -41,11 +41,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         setMaxLiquidationBonus(maxLiquidationBonus_); // use the precision of the collateralization ratio
         setMaxLiquidationPortion(maxLiquidationPortion_);
         setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision_);
-
-        uint256 validTimePeriod = 60 * (10 ** 18);
-        uint256 singleUpdateFeeInWei = 0;
-        setMockPyth(validTimePeriod, singleUpdateFeeInWei);
-
+        setMockPyth(60 * (10 ** 18), 0);
         setNConf(nConf_, nConfPrecision_);
     }
 
