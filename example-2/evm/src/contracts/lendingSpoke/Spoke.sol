@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "../../interfaces/IWormhole.sol";
-import "forge-std/console.sol";
 
 import "./SpokeSetters.sol";
 import "../lendingHub/HubStructs.sol";
@@ -10,12 +9,9 @@ import "../lendingHub/HubMessages.sol";
 import "./SpokeGetters.sol";
 import "./SpokeUtilities.sol";
 
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 contract Spoke is HubStructs, HubMessages, SpokeGetters, SpokeSetters, SpokeUtilities {
     constructor(uint16 chainId_, address wormhole_, address tokenBridge_, uint16 hubChainId_, address hubContractAddress) {
-        setOwner(_msgSender());
+        setOwner(msg.sender);
         setChainId(chainId_);
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
