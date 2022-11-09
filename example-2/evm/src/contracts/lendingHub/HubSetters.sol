@@ -115,9 +115,9 @@ contract HubSetters is HubSpokeStructs, HubState, HubGetters {
         _state.provider.mockPyth = new MockPyth(validTimePeriod, singleUpdateFeeInWei);
     }
 
-    function setNConf(uint64 nConf, uint64 nConfPrecision) internal {
-        _state.nConf = nConf;
-        _state.nConfPrecision = nConfPrecision;
+    function setPriceStandardDeviations(uint64 priceStandardDeviations, uint64 priceStandardDeviationsPrecision) internal {
+        _state.priceStandardDeviations = priceStandardDeviations;
+        _state.priceStandardDeviationsPrecision = priceStandardDeviationsPrecision;
     }
 
     function setMockPythFeed(

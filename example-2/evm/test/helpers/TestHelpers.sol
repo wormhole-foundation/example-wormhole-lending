@@ -59,30 +59,27 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         uint8 wormholeFinality = 1;
         uint256 interestAccrualIndexPrecision = 10 ** 18;
         uint256 collateralizationRatioPrecision = 10 ** 18;
-        uint8 initialMaxDecimals = 24;
         uint256 maxLiquidationBonus = 105 * 10**16;
         uint256 maxLiquidationPortion = 100;
         uint256 maxLiquidationPortionPrecision = 100;
         uint8 oracleMode = 1;
-        uint64 nConf = 424;
-        uint64 nConfPrecision = 100;
+        uint64 priceStandardDeviations = 424;
+        uint64 priceStandardDeviationsPrecision = 100;
         address pythAddress = vm.envAddress("TESTING_PYTH_ADDRESS_AVAX");
 
-        Hub hub =
-        new Hub(
+        Hub hub = new Hub(
             address(wormholeContract), 
             address(tokenBridgeContract), 
+            wormholeFinality, 
             pythAddress, 
             oracleMode,
-            wormholeFinality, 
-            interestAccrualIndexPrecision, 
-            collateralizationRatioPrecision, 
-            initialMaxDecimals, 
+            priceStandardDeviations,
+            priceStandardDeviationsPrecision, 
             maxLiquidationBonus, 
             maxLiquidationPortion, 
             maxLiquidationPortionPrecision,
-            nConf,
-            nConfPrecision
+            interestAccrualIndexPrecision, 
+            collateralizationRatioPrecision
         );
 
         setHubData(HubData({
@@ -129,8 +126,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             asset.rateCoefficientA,
             asset.reserveFactor, 
             reservePrecision, 
-            asset.pythId, 
-            asset.decimals
+            asset.pythId
         );
         
         AssetInfo memory info = getHub().getAssetInfo(asset.assetAddress);

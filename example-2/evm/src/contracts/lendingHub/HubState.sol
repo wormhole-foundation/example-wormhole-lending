@@ -61,9 +61,9 @@ contract HubStorage is HubSpokeStructs {
         // precision for maxLiquidationPortion
         uint256 maxLiquidationPortionPrecision;
         // number of conf intervals to shift for lower and upper bound prices
-        uint64 nConf;
-        // precision for nConf
-        uint64 nConfPrecision;
+        uint64 priceStandardDeviations;
+        // precision for priceStandardDeviations
+        uint64 priceStandardDeviationsPrecision;
     }
 }
 

@@ -129,7 +129,7 @@ contract HubGetters is Context, HubSpokeStructs, HubState {
         return _state.provider.mockPyth.getPrice(pythId);
     }
 
-    function getNConf() public view returns (uint64, uint64) {
-        return (_state.nConf, _state.nConfPrecision);
+    function getPriceStandardDeviations() public view returns (uint64, uint64) {
+        return (_state.priceStandardDeviations, _state.priceStandardDeviationsPrecision);
     }
 }

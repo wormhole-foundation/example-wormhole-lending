@@ -15,26 +15,29 @@ import "./HubWormholeUtilities.sol";
 
 contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWormholeUtilities, HubChecks {
     constructor(
+        /* Wormhole Information */
         address wormhole_,
         address tokenBridge_,
+        uint8 consistencyLevel_,
+
+        /* Pyth Information */
         address pythAddress_,
         uint8 oracleMode_,
-        uint8 consistencyLevel_,
-        uint256 interestAccrualIndexPrecision_,
-        uint256 collateralizationRatioPrecision_,
-        uint8 initialMaxDecimals_,
+        uint64 priceStandardDeviations_,
+        uint64 priceStandardDeviationsPrecision_,
+       
         uint256 maxLiquidationBonus_,
         uint256 maxLiquidationPortion_,
         uint256 maxLiquidationPortionPrecision_,
-        uint64 nConf_,
-        uint64 nConfPrecision_
+
+        uint256 interestAccrualIndexPrecision_,
+        uint256 collateralizationRatioPrecision_
     ) {
         setOwner(_msgSender());
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
         setPyth(pythAddress_);
         setOracleMode(oracleMode_);
-        setMaxDecimals(initialMaxDecimals_);
         setConsistencyLevel(consistencyLevel_);
         setInterestAccrualIndexPrecision(interestAccrualIndexPrecision_);
         setCollateralizationRatioPrecision(collateralizationRatioPrecision_);
@@ -42,7 +45,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         setMaxLiquidationPortion(maxLiquidationPortion_);
         setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision_);
         setMockPyth(60 * (10 ** 18), 0);
-        setNConf(nConf_, nConfPrecision_);
+        setPriceStandardDeviations(priceStandardDeviations_, priceStandardDeviationsPrecision_);
     }
 
     /**
@@ -56,8 +59,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
      * (according to Pyth prices)
      * @param reserveFactor - The portion of the paid interest by borrowers that is diverted to the protocol for rainy day,
      * the remainder is distributed among lenders of the asset
-     * @param pythId - Id of the relevant oracle price feed (USD <-> asset) TODO: Make this explanation more precise
-     * @param decimals - Precision that the asset amount is stored in TODO: Make this explanation more precise
+     * @param pythId - Id of the relevant oracle price feed (USD <-> asset)  
      */
     function registerAsset(
         address assetAddress,
@@ -68,8 +70,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         uint64 rateCoefficientA,
         uint256 reserveFactor,
         uint256 reservePrecision,
-        bytes32 pythId,
-        uint8 decimals
+        bytes32 pythId
     ) public {
         require(msg.sender == owner(), "invalid owner");
 
@@ -85,6 +86,9 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
             reserveFactor: reserveFactor,
             reservePrecision: reservePrecision
         });
+
+        (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
+        uint8 decimals = abi.decode(queriedDecimals, (uint8));
 
         AssetInfo memory info = AssetInfo({
             collateralizationRatioDeposit: collateralizationRatioDeposit,
