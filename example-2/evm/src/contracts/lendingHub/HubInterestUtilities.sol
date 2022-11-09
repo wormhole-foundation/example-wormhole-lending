@@ -66,7 +66,7 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         ) / 365 / 24 / 60 / 60;
     }
 
-    /**
+    /*
      * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued).
      * This function updates both the deposit and borrow interest accrual indices of the asset. 
      * 
