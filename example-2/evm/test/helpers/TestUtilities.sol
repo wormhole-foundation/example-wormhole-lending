@@ -9,7 +9,6 @@ import "forge-std/console.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IWormhole} from "../../src/interfaces/IWormhole.sol";
-import {ITokenImplementation} from "../../src/interfaces/ITokenImplementation.sol";
 
 import {TestStructs} from "./TestStructs.sol";
 import {TestState} from "./TestState.sol";
@@ -27,11 +26,6 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
     function fetchSignedMessageFromHubLogs(Vm.Log memory entry) internal returns (bytes memory) {
         return getHubData().wormholeSimulator.fetchSignedMessageFromLogs(entry);
     }
-
-    function getWrappedInfo(address assetAddress) internal pure returns (ITokenImplementation wrapped) {
-        wrapped = ITokenImplementation(assetAddress);
-    }
-
 
     function getSignedWHMsg(bytes memory message)
         internal

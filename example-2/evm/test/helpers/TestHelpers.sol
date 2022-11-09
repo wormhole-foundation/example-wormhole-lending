@@ -13,7 +13,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import {ITokenBridge} from "../../src/interfaces/ITokenBridge.sol";
-import {ITokenImplementation} from "../../src/interfaces/ITokenImplementation.sol";
 import {Spoke} from "../../src/contracts/lendingSpoke/Spoke.sol";
 import {TestStructs} from "./TestStructs.sol";
 import {TestState} from "./TestState.sol";
