@@ -7,6 +7,8 @@ import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 contract HubStorage is HubSpokeStructs {
     struct Provider {
         uint16 chainId;
@@ -18,8 +20,7 @@ contract HubStorage is HubSpokeStructs {
 
     struct State {
         Provider provider;
-        // contract deployer
-        address owner;
+        
         // number of confirmations for wormhole messages
         uint8 consistencyLevel;
         // allowlist for assets
@@ -67,6 +68,6 @@ contract HubStorage is HubSpokeStructs {
     }
 }
 
-contract HubState {
+contract HubState is Ownable {
     HubStorage.State _state;
 }

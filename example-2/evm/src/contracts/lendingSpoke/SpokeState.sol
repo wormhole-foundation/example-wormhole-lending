@@ -12,10 +12,7 @@ contract SpokeStorage is HubSpokeStructs {
 
     struct State {
         Provider provider;
-
-        // contract deployer
-        address owner;
-
+        
         // number of confirmations for wormhole messages
         uint8 consistencyLevel;
 

@@ -12,10 +12,7 @@ import "./HubState.sol";
 import "forge-std/console.sol";
 
 contract HubGetters is Context, HubSpokeStructs, HubState {
-    function owner() public view returns (address) {
-        return _state.owner;
-    }
-
+    
     function getChainId() public view returns (uint16) {
         return _state.provider.chainId;
     }
