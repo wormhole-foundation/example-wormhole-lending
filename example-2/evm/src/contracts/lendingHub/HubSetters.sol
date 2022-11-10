@@ -108,9 +108,12 @@ contract HubSetters is HubSpokeStructs, HubState, HubGetters {
         _state.provider.mockPyth = new MockPyth(validTimePeriod, singleUpdateFeeInWei);
     }
 
-    function setPriceStandardDeviations(uint64 priceStandardDeviations, uint64 priceStandardDeviationsPrecision) internal {
+    function setPriceStandardDeviations(uint64 priceStandardDeviations) internal {
         _state.priceStandardDeviations = priceStandardDeviations;
-        _state.priceStandardDeviationsPrecision = priceStandardDeviationsPrecision;
+    }
+
+    function setPricePrecision(uint64 pricePrecision) internal {
+        _state.pricePrecision = pricePrecision;
     }
 
     function setOraclePrice(bytes32 oracleId, Price memory price) public onlyOwner {
