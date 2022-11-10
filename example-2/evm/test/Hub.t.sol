@@ -34,9 +34,9 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
 
         addAsset(AddAsset({
                 assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
-                collateralizationRatioDeposit: 100 * 10 ** 16,
-                collateralizationRatioBorrow: 110 * 10 ** 16,
-                ratePrecision: 1 * 10**18,
+                collateralizationRatioDeposit: 100 * 10 ** 4,
+                collateralizationRatioBorrow: 110 * 10 ** 4,
+                ratePrecision: 1 * 10**6,
                 rateIntercept: 0,
                 rateCoefficientA: 0,
                 reserveFactor: 0,
@@ -44,9 +44,9 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         }));
 
         addAsset(AddAsset({assetAddress: 0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
-                collateralizationRatioDeposit: 100 * 10 ** 16,
-                collateralizationRatioBorrow: 110 * 10 ** 16,
-                ratePrecision: 1 * 10**18,
+                collateralizationRatioDeposit: 100 * 10 ** 4,
+                collateralizationRatioBorrow: 110 * 10 ** 4,
+                ratePrecision: 1 * 10**6,
                 rateIntercept: 0,
                 rateCoefficientA: 0,
                 reserveFactor: 0,
@@ -54,9 +54,9 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         }));
 
         addAsset(AddAsset({assetAddress: address(getHubData().tokenBridgeContract.WETH()), // WAVAX
-                collateralizationRatioDeposit: 100 * 10 ** 16,
-                collateralizationRatioBorrow: 110 * 10 ** 16,
-                ratePrecision: 1 * 10**18,
+                collateralizationRatioDeposit: 100 * 10 ** 4,
+                collateralizationRatioBorrow: 110 * 10 ** 4,
+                ratePrecision: 1 * 10**6,
                 rateIntercept: 0,
                 rateCoefficientA: 0,
                 reserveFactor: 0,

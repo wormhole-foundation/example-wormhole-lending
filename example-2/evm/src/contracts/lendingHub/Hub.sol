@@ -25,8 +25,8 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     * address pythAddress: Address of the Pyth oracle on the Hub chain
     * uint8 oracleMode: Variable that should be 0 and exists only for testing purposes. 
     * If oracleMode = 0, Hub uses Pyth; if 1, Hub uses a mock Pyth for testing, and if 2, Hub uses a dummy oracle that can be manually set
-    * uint64 priceStandardDeviations: priceStandardDeviations = (psd * priceStandardDeviationsPrecision), where psd is the number of standard deviations that we use for our price intervals in calculations relating to allowing withdraws, borrows, or liquidations
-    * uint64 priceStandardDeviationsPrecision: A precision number that allows us to represent our desired noninteger price standard deviation as an integer (specifically, psd = priceStandardDeviations/priceStandardDeviationsPrecision)
+    * uint64 priceStandardDeviations: priceStandardDeviations = (psd * pricePrecision), where psd is the number of standard deviations that we use for our price intervals in calculations relating to allowing withdraws, borrows, or liquidations
+    * uint64 pricePrecision: A precision number that allows us to represent our desired noninteger price standard deviation as an integer (specifically, psd = priceStandardDeviations/pricePrecision)
     *
     * uint256 maxLiquidationBonus: maxLiquidationBonus = (mlb * collateralizationRatioPrecision), where mlb is the multiplier such that if the fair value of a liquidator's repayed assets is v, the assets they receive can have a maximum of mlb*v in fair value. Fair value is computed using Pyth prices.
     * uint256 maxLiquidationPortion: maxLiquidationPortion = (mlp * maxLiquidationPortionPrecision), where mlp is the maximum fraction of the borrowed value vault that a liquidator can liquidate at once. 
@@ -45,7 +45,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         address pythAddress,
         uint8 oracleMode,
         uint64 priceStandardDeviations,
-        uint64 priceStandardDeviationsPrecision,
+        uint64 pricePrecision,
        
        /* Liquidation Information */
         uint256 maxLiquidationBonus,
@@ -55,6 +55,11 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         uint256 interestAccrualIndexPrecision,
         uint256 collateralizationRatioPrecision
     ) {
+        require(interestAccrualIndexPrecision <= 10 ** 6);
+        require(collateralizationRatioPrecision <= 10 ** 6);
+        require(maxLiquidationPortionPrecision <= 10 ** 6);
+        require(pricePrecision <= 10 ** 6);
+        
         setWormhole(wormhole);
         setTokenBridge(tokenBridge);
         setPyth(pythAddress);
@@ -66,15 +71,17 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         setMaxLiquidationPortion(maxLiquidationPortion);
         setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision);
         setMockPyth(60 * (10 ** 18), 0);
-        setPriceStandardDeviations(priceStandardDeviations, priceStandardDeviationsPrecision);
+        setPriceStandardDeviations(priceStandardDeviations);
+        setPricePrecision(pricePrecision);
     }
 
     /**
+     * TODO: Update this spec
      * Registers asset on the hub. Only registered assets are allowed to be stored in the protocol.
      *
      * @param assetAddress - The address to be checked
      * @param collateralizationRatioDeposit - The constant c multiplied by collateralizationRatioPrecision,
-     * where c is such that we account $1 worth of effective deposits per actual $c worth of this asset deposited
+     * where c is such that we account $c worth of effective deposits per actual $1 worth of this asset deposited
      * @param collateralizationRatioBorrow - The constant c multiplied by collateralizationRatioPrecision,
      * where c is such that for every $1 worth of effective deposits we allow $c worth of this asset borrowed
      * (according to Pyth prices)
@@ -109,6 +116,11 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
 
         (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
+        if(decimals > 18) {
+            decimals = 18;
+        }
+        require(ratePrecision <= 10 ** 6);
+        require(reservePrecision <= 10 ** 6);
 
         AssetInfo memory info = AssetInfo({
             collateralizationRatioDeposit: collateralizationRatioDeposit,
@@ -180,14 +192,12 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
             returnTokensForInvalidRepay = !allowedToRepay(params.sender, params.assetAddress, params.assetAmount);
         } 
 
-        uint256 actualAmount = params.assetAmount;
-
         if(!returnTokensForInvalidRepay) {
-            actualAmount = logActionOnHub(action, params.sender, params.assetAddress, params.assetAmount);
+            logActionOnHub(action, params.sender, params.assetAddress, params.assetAmount);
         }
 
         if(action == Action.Withdraw || action == Action.Borrow || returnTokensForInvalidRepay) {
-            sequence = transferTokens(params.sender, params.assetAddress, actualAmount, parsed.emitterChainId);
+            sequence = transferTokens(params.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
         }
         
         completed = !returnTokensForInvalidRepay;
@@ -222,11 +232,9 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
             logActionOnHub(Action.Repay, vault, assetRepayAddresses[i], assetRepayAmounts[i]);
         }
 
-        uint256[] memory assetReceiptActualAmounts = new uint256[](assetReceiptAmounts.length);
-
         // for received assets update amounts for vault and global
         for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
-            assetReceiptActualAmounts[i] = logActionOnHub(Action.Withdraw, vault, assetReceiptAddresses[i], assetReceiptAmounts[i]);
+            logActionOnHub(Action.Withdraw, vault, assetReceiptAddresses[i], assetReceiptAmounts[i]);
         }
 
         // send repay tokens from liquidator to contract
@@ -235,7 +243,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         }
         // send receive tokens from contract to liquidator
         for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
-            SafeERC20.safeTransfer(IERC20(assetReceiptAddresses[i]), msg.sender, assetReceiptActualAmounts[i]);
+            SafeERC20.safeTransfer(IERC20(assetReceiptAddresses[i]), msg.sender, assetReceiptAmounts[i]);
         }
     }
 
@@ -256,25 +264,21 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
 
         if(action == Action.Deposit) {
-            uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited);
+            uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited, Round.DOWN);
             vaultAmounts.deposited += normalizedDeposit;
             globalAmounts.deposited += normalizedDeposit;
-            actualAmount = denormalizeAmount(normalizedDeposit, indices.deposited);
         } else if(action == Action.Withdraw) {
-            uint256 normalizedWithdraw = normalizeAmount(amount, indices.deposited);
+            uint256 normalizedWithdraw = normalizeAmount(amount, indices.deposited, Round.UP);
             vaultAmounts.deposited -= normalizedWithdraw;
             globalAmounts.deposited -= normalizedWithdraw;
-            actualAmount = denormalizeAmount(normalizedWithdraw, indices.deposited);
         } else if(action == Action.Borrow) {
-            uint256 normalizedBorrow = normalizeAmount(amount, indices.borrowed);
+            uint256 normalizedBorrow = normalizeAmount(amount, indices.borrowed, Round.UP);
             vaultAmounts.borrowed += normalizedBorrow;
             globalAmounts.borrowed += normalizedBorrow;
-            actualAmount = denormalizeAmount(normalizedBorrow, indices.borrowed);
         } else if(action == Action.Repay) {
-            uint256 normalizedRepay = normalizeAmount(amount, indices.borrowed);
+            uint256 normalizedRepay = normalizeAmount(amount, indices.borrowed, Round.DOWN);
             vaultAmounts.borrowed -= normalizedRepay;
             globalAmounts.borrowed -= normalizedRepay;
-            actualAmount = denormalizeAmount(normalizedRepay, indices.borrowed);
         }
 
         setVaultAmounts(vault, assetAddress, vaultAmounts);

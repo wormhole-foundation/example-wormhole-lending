@@ -57,14 +57,14 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
 
         // initialize Hub contract
         uint8 wormholeFinality = 1;
-        uint256 interestAccrualIndexPrecision = 10 ** 18;
-        uint256 collateralizationRatioPrecision = 10 ** 18;
-        uint256 maxLiquidationBonus = 105 * 10**16;
+        uint256 interestAccrualIndexPrecision = 10 ** 6;
+        uint256 collateralizationRatioPrecision = 10 ** 6;
+        uint256 maxLiquidationBonus = 105 * 10**4;
         uint256 maxLiquidationPortion = 100;
-        uint256 maxLiquidationPortionPrecision = 100;
+        uint256 maxLiquidationPortionPrecision = 10 ** 2;
         uint8 oracleMode = 1;
         uint64 priceStandardDeviations = 424;
-        uint64 priceStandardDeviationsPrecision = 100;
+        uint64 pricePrecision = 10 ** 2;
         address pythAddress = vm.envAddress("TESTING_PYTH_ADDRESS_AVAX");
 
         Hub hub = new Hub(
@@ -74,7 +74,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             pythAddress, 
             oracleMode,
             priceStandardDeviations,
-            priceStandardDeviationsPrecision, 
+            pricePrecision, 
             maxLiquidationBonus, 
             maxLiquidationPortion, 
             maxLiquidationPortionPrecision,
@@ -113,7 +113,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
     function doRegisterAsset(Asset memory asset) internal {
         Vm vm = getVm();
         
-        uint256 reservePrecision = 1 * 10**18;
+        uint256 reservePrecision = 1 * 10**6;
         
         // register asset
         vm.recordLogs();
@@ -132,7 +132,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         AssetInfo memory info = getHub().getAssetInfo(asset.assetAddress);
 
         require(
-            (info.collateralizationRatioDeposit == asset.collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == asset.collateralizationRatioBorrow) && (info.decimals == asset.decimals) && (info.pythId == asset.pythId) && (info.exists) && (info.interestRateModel.ratePrecision == 1 * 10 ** 18) && (info.interestRateModel.rateIntercept == 0) && (info.interestRateModel.rateCoefficientA == 0) && (info.interestRateModel.reserveFactor == asset.reserveFactor) && (info.interestRateModel.reservePrecision == reservePrecision),
+            (info.collateralizationRatioDeposit == asset.collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == asset.collateralizationRatioBorrow) && (info.decimals == asset.decimals) && (info.pythId == asset.pythId) && (info.exists) && (info.interestRateModel.ratePrecision == asset.ratePrecision) && (info.interestRateModel.rateIntercept == asset.rateIntercept) && (info.interestRateModel.rateCoefficientA == asset.rateCoefficientA) && (info.interestRateModel.reserveFactor == asset.reserveFactor) && (info.interestRateModel.reservePrecision == reservePrecision),
             "didn't register properly" 
         );
     }
@@ -592,7 +592,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             require(lda.userBalancePreRepay[i] == lda.userBalancePostRepay[i] + repayAmounts[i], "User didn't pay tokens for the repay");
             require(lda.hubBalancePreRepay[i] + repayAmounts[i] == lda.hubBalancePostRepay[i], "Hub didn't receive tokens for the repay");
 
-            uint256 normalizedAssetAmount = getHub().normalizeAmount(repayAmounts[i], getHub().getInterestAccrualIndices(repayAddresses[i]).borrowed);
+            uint256 normalizedAssetAmount = getHub().normalizeAmount(repayAmounts[i], getHub().getInterestAccrualIndices(repayAddresses[i]).borrowed, Round.DOWN);
 
             require(lda.vaultToLiquidateAmountRepayPost[i] + normalizedAssetAmount== lda.vaultToLiquidateAmountRepayPre[i], "Vault repay amount not tracked properly");
             require(lda.globalAmountRepayPost[i] + normalizedAssetAmount == lda.globalAmountRepayPre[i], "Global repay amount not tracked properly");
@@ -607,7 +607,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             require(lda.userBalancePreReceipt[i] + receiptAmounts[i] == lda.userBalancePostReceipt[i], "User didn't receive tokens for the receipt");
             require(lda.hubBalancePreReceipt[i] == lda.hubBalancePostReceipt[i] + receiptAmounts[i], "Hub didn't pay tokens for the receipt");
         
-            uint256 normalizedAssetAmount = getHub().normalizeAmount(receiptAmounts[i], getHub().getInterestAccrualIndices(receiptAddresses[i]).deposited);
+            uint256 normalizedAssetAmount = getHub().normalizeAmount(receiptAmounts[i], getHub().getInterestAccrualIndices(receiptAddresses[i]).deposited, Round.UP);
 
             require(lda.vaultToLiquidateAmountReceiptPost[i] + normalizedAssetAmount == lda.vaultToLiquidateAmountReceiptPre[i], "Vault receipt amount not tracked properly");
             require(lda.globalAmountReceiptPost[i] + normalizedAssetAmount == lda.globalAmountReceiptPre[i] , "Global receipt amount not tracked properly");

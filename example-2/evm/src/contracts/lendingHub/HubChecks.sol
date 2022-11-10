@@ -25,15 +25,15 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
     {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
+        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+
+        uint256 normalizedAmount = normalizeAmount(assetAmount, indices.deposited, Round.UP);
+
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
 
-        VaultAmount memory amounts = denormalizeVaultAmount(getVaultAmounts(vaultOwner, assetAddress), assetAddress);
-
-        VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
-
-        require(amounts.deposited >= amounts.borrowed + assetAmount, "Not enough in vault");
-        require(globalAmounts.deposited  >= globalAmounts.borrowed + assetAmount, "Not enough in global supply");
-        require(vaultDepositedValue >= vaultBorrowedValue + assetAmount * getPriceCollateral(assetAddress) * (10 ** (getMaxDecimals() - assetInfo.decimals)), "Vault is undercollateralized if this withdraw goes through");
+        checkVaultHasAssets(vaultOwner, assetAddress, normalizedAmount);
+        checkProtocolGloballyHasAssets(assetAddress, normalizedAmount);
+        require(vaultDepositedValue >= vaultBorrowedValue + normalizedAmount * indices.deposited * getPriceCollateral(assetAddress) * (10 ** (getMaxDecimals() - assetInfo.decimals)) * assetInfo.collateralizationRatioDeposit, "Vault is undercollateralized if this withdraw goes through");
     }
 
     /*
@@ -51,15 +51,17 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
     {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
+        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
+
+        uint256 normalizedAmount = normalizeAmount(assetAmount, indices.borrowed, Round.UP);
+
         (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
 
-        VaultAmount memory globalAmounts = denormalizeVaultAmount(getGlobalAmounts(assetAddress), assetAddress);
-
-        require(globalAmounts.deposited >= globalAmounts.borrowed + assetAmount, "Not enough in global supply");
+        checkProtocolGloballyHasAssets(assetAddress, normalizedAmount);
         require((vaultDepositedValue)
             >= vaultBorrowedValue
-                + assetAmount * getPriceDebt(assetAddress) * assetInfo.collateralizationRatioBorrow
-                    * (10 ** (getMaxDecimals() - assetInfo.decimals)) / getCollateralizationRatioPrecision(), "Vault is undercollateralized if this borrow goes through");
+                + normalizedAmount * indices.borrowed * getPriceDebt(assetAddress) * assetInfo.collateralizationRatioBorrow
+                    * (10 ** (getMaxDecimals() - assetInfo.decimals)), "Vault is undercollateralized if this borrow goes through");
     }
 
     /** 
@@ -75,7 +77,7 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
         AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
 
-        uint256 normalizedAmount = normalizeAmount(assetAmount, indices.borrowed);
+        uint256 normalizedAmount = normalizeAmount(assetAmount, indices.borrowed, Round.DOWN);
 
         bool check = vaultAmount.borrowed >= normalizedAmount;
 
@@ -117,9 +119,11 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            require(amount <= denormalizeAmount(getVaultAmounts(vault, asset).borrowed, indices.borrowed), "cannot repay more than has been borrowed");
+            uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed, Round.DOWN);
 
-            notionalRepaid += amount * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
+            require(allowedToRepay(vault, asset, amount), "cannot repay more than has been borrowed");
+
+            notionalRepaid += normalizedAmount * indices.borrowed * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
         }
 
         // get notional received
@@ -132,11 +136,13 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            require(amount <= denormalizeAmount(getVaultAmounts(vault, asset).deposited, indices.deposited), "cannot receive more than has been deposited in vault");
+            uint256 normalizedAmount = normalizeAmount(amount, indices.deposited, Round.UP);
 
-            require(amount <= denormalizeAmount(getGlobalAmounts(asset).deposited, indices.deposited), "cannot receive more than has been deposited globally");
+            checkVaultHasAssets(vault, asset, normalizedAmount);
 
-            notionalReceived += amount * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
+            checkProtocolGloballyHasAssets(asset, normalizedAmount);
+
+            notionalReceived += normalizedAmount * indices.deposited * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
         }
 
         // safety check to ensure liquidator doesn't play themselves
@@ -144,7 +150,7 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
         // check to ensure that amount of debt repaid <= maxLiquidationPortion * amount of debt / liquidationPortionPrecision
         require(
-            notionalRepaid <= getMaxLiquidationPortion() * vaultBorrowedValue / getMaxLiquidationPortionPrecision(),
+            notionalRepaid * getCollateralizationRatioPrecision() <= getMaxLiquidationPortion() * vaultBorrowedValue / getMaxLiquidationPortionPrecision(),
             "Liquidator cannot claim more than maxLiquidationPortion of the total debt of the vault"
         );
 
@@ -152,6 +158,16 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
         uint256 maxLiquidationBonus = getMaxLiquidationBonus();
 
         require(notionalReceived <= maxLiquidationBonus * notionalRepaid / getCollateralizationRatioPrecision(), "Liquidator receiving too much value");
+    }
+
+    function checkVaultHasAssets(address vault, address assetAddress, uint256 normalizedAmount) internal view {
+        VaultAmount memory amounts = getVaultAmounts(vault, assetAddress);
+        require(amounts.deposited >= amounts.borrowed + normalizedAmount, "Vault does not have required assets");
+    }
+
+    function checkProtocolGloballyHasAssets(address assetAddress, uint256 normalizedAmount) internal view {
+        VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
+        require(globalAmounts.deposited  >= globalAmounts.borrowed + normalizedAmount, "Global supply does not have required assets");
     }
 
     function checkLiquidationInputsValid(address[] memory assetRepayAddresses,

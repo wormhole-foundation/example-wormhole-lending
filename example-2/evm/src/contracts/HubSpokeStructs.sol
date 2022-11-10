@@ -33,6 +33,8 @@ contract HubSpokeStructs {
 
     enum Action{Deposit, Borrow, Withdraw, Repay, DepositNative, RepayNative}
 
+    enum Round {UP, DOWN}
+
     struct ActionPayload {
         Action action;
         address sender;
