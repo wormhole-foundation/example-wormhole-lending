@@ -5,9 +5,6 @@ import "./SpokeState.sol";
 import "../HubSpokeStructs.sol";
 
 contract SpokeSetters is HubSpokeStructs, SpokeState {
-    function setOwner(address owner) internal {
-        _state.owner = owner;
-    }
 
     function setChainId(uint16 chainId) internal {
         _state.provider.chainId = chainId;
