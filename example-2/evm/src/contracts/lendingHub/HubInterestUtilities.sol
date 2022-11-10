@@ -6,7 +6,7 @@ import "./HubGetters.sol";
 import "./HubSetters.sol";
 
 contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
-    
+
     /**
      * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued).
      *
@@ -16,8 +16,8 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
      * @return {uint256} The normalized amount of the asset
      */
 
-    function normalizeAmount(uint256 denormalizedAmount, uint256 interestAccrualIndex) public view returns (uint256) {
-        return (denormalizedAmount * getInterestAccrualIndexPrecision()) / interestAccrualIndex;
+    function normalizeAmount(uint256 denormalizedAmount, uint256 interestAccrualIndex, Round round) public view returns (uint256) {
+        return divide(denormalizedAmount * getInterestAccrualIndexPrecision(), interestAccrualIndex, round);
     }
 
     /**
@@ -27,26 +27,8 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
      * @param {uint256} interestAccrualIndex - The amount of interest that has accrued, multiplied by getInterestAccrualIndexPrecision().
      * @return {uint256} The true amount of the asset
      */
-    function denormalizeAmount(uint256 normalizedAmount, uint256 interestAccrualIndex) public view returns (uint256) {
-        return (normalizedAmount * interestAccrualIndex) / getInterestAccrualIndexPrecision();
-    }
-
-    /**
-     * Denormalize both the 'deposited' and 'borrowed' values in the 'VaultAmount' struct, using the interest accrual indices corresponding
-     * to deposit and borrow for the asset at address 'assetAddress'.
-     * @param {VaultAmount} va - The amount deposited and borrowed for an asset in a vault. Stored as two uint256s.
-     * @param {address} assetAddress - The address of the asset that 'va' is showing the amounts of.
-     * @return {uint256} The denormalized amounts of 'assetAddress' that have been deposited and borrowed in the 'va' vault
-     */
-    function denormalizeVaultAmount(VaultAmount memory va, address assetAddress)
-        internal
-        view
-        returns (VaultAmount memory)
-    {
-        AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
-        uint256 denormalizedDeposited = denormalizeAmount(va.deposited, indices.deposited);
-        uint256 denormalizedBorrowed = denormalizeAmount(va.borrowed, indices.borrowed);
-        return VaultAmount({deposited: denormalizedDeposited, borrowed: denormalizedBorrowed});
+    function denormalizeAmount(uint256 normalizedAmount, uint256 interestAccrualIndex, Round round) public view returns (uint256) {
+        return divide(normalizedAmount * interestAccrualIndex, getInterestAccrualIndexPrecision(), round);
     }
 
     function computeSourceInterestFactor(
@@ -100,5 +82,17 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         accrualIndices.deposited += (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
+    }
+
+    /*
+     * Divide helper function, for rounding
+     */
+    function divide(uint256 dividend, uint256 divisor, Round round) internal view returns (uint256) {
+        uint256 modulo = dividend % divisor;
+        uint256 quotient = dividend / divisor;
+        if(modulo == 0 || round == Round.DOWN) {
+            return quotient;
+        }
+        return quotient + 1;
     }
 }
