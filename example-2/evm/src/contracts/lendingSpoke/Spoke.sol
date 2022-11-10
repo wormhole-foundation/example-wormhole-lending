@@ -11,7 +11,6 @@ import "./SpokeUtilities.sol";
 
 contract Spoke is HubSpokeStructs, HubSpokeMessages, SpokeGetters, SpokeSetters, SpokeUtilities {
     constructor(uint16 chainId_, address wormhole_, address tokenBridge_, uint16 hubChainId_, address hubContractAddress) {
-        setOwner(msg.sender);
         setChainId(chainId_);
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
@@ -43,6 +42,12 @@ contract Spoke is HubSpokeStructs, HubSpokeMessages, SpokeGetters, SpokeSetters,
         sequence = doAction(Action.RepayNative, address(tokenBridge().WETH()), msg.value - wormhole().messageFee());
     }
 
+    /**
+     * Initiates an action (deposit, borrow, withdraw, or repay) on the spoke by sending a Wormhole message (potentially a TokenBridge message with tokens) to the Hub
+     * @param action - the action (either Deposit, Borrow, Withdraw, or Repay)
+     * @param assetAddress - the address of the relevant asset 
+     * @param assetAmount - the amount of the asset assetAddress 
+     */
     function doAction(Action action, address assetAddress, uint256 assetAmount) internal returns (uint64 sequence) {
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
         Action hubAction = action;

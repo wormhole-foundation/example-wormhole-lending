@@ -23,33 +23,33 @@ contract HubPriceUtilities is HubSpokeStructs, HubGetters, HubSetters, HubIntere
         uint8 oracleMode = getOracleMode();
 
         int64 priceValue;
-        uint64 confValue;
+        uint64 priceStandardDeviationsValue;
 
         if (oracleMode == 0) {
             // using Pyth price
             PythStructs.Price memory oraclePrice = getPythPriceStruct(assetInfo.pythId);
 
             priceValue = oraclePrice.price;
-            confValue = oraclePrice.conf;
+            priceStandardDeviationsValue = oraclePrice.conf;
         } else if (oracleMode == 1) {
             // using mock Pyth price
             PythStructs.Price memory oraclePrice = getMockPythPriceStruct(assetInfo.pythId);
 
             priceValue = oraclePrice.price;
-            confValue = oraclePrice.conf;
+            priceStandardDeviationsValue = oraclePrice.conf;
         } else {
             // using fake oracle price
             Price memory oraclePrice = getOraclePrice(assetInfo.pythId);
 
             priceValue = oraclePrice.price;
-            confValue = oraclePrice.conf;
+            priceStandardDeviationsValue = oraclePrice.conf;
         }
 
         require(priceValue >= 0, "no negative price assets allowed in XC borrow-lend");
 
         // Users of Pyth prices should read: https://docs.pyth.network/consumers/best-practices
         // before using the price feed. Blindly using the price alone is not recommended.
-        return (uint64(priceValue), confValue);
+        return (uint64(priceValue), priceStandardDeviationsValue);
         // return uint64(feed.price.price);
     }
 
@@ -99,9 +99,9 @@ contract HubPriceUtilities is HubSpokeStructs, HubGetters, HubSetters, HubIntere
     {
         (uint64 price, uint64 conf) = getOraclePrices(assetAddress);
         // use conservative (from protocol's perspective) prices for collateral (low) and debt (high)--see https://docs.pyth.network/consume-data/best-practices#confidence-intervals
-        (uint64 nConf, uint64 nConfPrecision) = getNConf();
-        priceCollateral = price - nConf * conf / nConfPrecision;
-        priceDebt = price + nConf * conf / nConfPrecision;
+        (uint64 priceStandardDeviations, uint64 priceStandardDeviationsPrecision) = getPriceStandardDeviations();
+        priceCollateral = price - conf * priceStandardDeviations / priceStandardDeviationsPrecision;
+        priceDebt = price + conf * priceStandardDeviations / priceStandardDeviationsPrecision;
     }
 
     function getPriceDebt(address assetAddress) internal view returns (uint64) {

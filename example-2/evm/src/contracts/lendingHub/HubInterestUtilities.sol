@@ -66,6 +66,14 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         ) / 365 / 24 / 60 / 60;
     }
 
+    /*
+     * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued).
+     * This function updates both the deposit and borrow interest accrual indices of the asset. 
+     * 
+     * TODO: IMPORTANT! Substitute this function out for whatever desired interest update process you wish to have
+     *
+     * @param {address} assetAddress - The asset to update the interest accrual indices of
+     */
     function updateAccrualIndices(address assetAddress) internal {
         uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
         uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;

@@ -10,9 +10,6 @@ import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
 
 contract HubSetters is HubSpokeStructs, HubState, HubGetters {
-    function setOwner(address owner) internal {
-        _state.owner = owner;
-    }
 
     function setChainId(uint16 chainId) internal {
         _state.provider.chainId = chainId;
@@ -99,10 +96,6 @@ contract HubSetters is HubSpokeStructs, HubState, HubGetters {
         _state.totalAssets[assetAddress] = vaultAmount;
     }
 
-    function setOraclePrice(bytes32 oracleId, Price memory price) public {
-        _state.oracle[oracleId] = price;
-    }
-
     function setMaxLiquidationPortion(uint256 maxLiquidationPortion) internal {
         _state.maxLiquidationPortion = maxLiquidationPortion;
     }
@@ -115,9 +108,13 @@ contract HubSetters is HubSpokeStructs, HubState, HubGetters {
         _state.provider.mockPyth = new MockPyth(validTimePeriod, singleUpdateFeeInWei);
     }
 
-    function setNConf(uint64 nConf, uint64 nConfPrecision) internal {
-        _state.nConf = nConf;
-        _state.nConfPrecision = nConfPrecision;
+    function setPriceStandardDeviations(uint64 priceStandardDeviations, uint64 priceStandardDeviationsPrecision) internal {
+        _state.priceStandardDeviations = priceStandardDeviations;
+        _state.priceStandardDeviationsPrecision = priceStandardDeviationsPrecision;
+    }
+
+    function setOraclePrice(bytes32 oracleId, Price memory price) public onlyOwner {
+        _state.oracle[oracleId] = price;
     }
 
     function setMockPythFeed(
@@ -128,7 +125,7 @@ contract HubSetters is HubSpokeStructs, HubState, HubGetters {
         int64 emaPrice,
         uint64 emaConf,
         uint64 publishTime
-    ) public {
+    ) public onlyOwner {
         bytes memory priceFeedData =
             _state.provider.mockPyth.createPriceFeedUpdateData(id, price, conf, expo, emaPrice, emaConf, publishTime);
 
