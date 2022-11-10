@@ -107,9 +107,6 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
         uint256 notionalRepaid = 0;
         uint256 notionalReceived = 0;
 
-        
-
-        // get notional repaid
         for (uint256 i = 0; i < assetRepayAddresses.length; i++) {
             address asset = assetRepayAddresses[i];
             uint256 amount = assetRepayAmounts[i];
@@ -126,7 +123,6 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
             notionalRepaid += normalizedAmount * indices.borrowed * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
         }
 
-        // get notional received
         for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
             address asset = assetReceiptAddresses[i];
             uint256 amount = assetReceiptAmounts[i];
@@ -145,7 +141,7 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
             notionalReceived += normalizedAmount * indices.deposited * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
         }
 
-        // safety check to ensure liquidator doesn't play themselves
+        // safety check to ensure liquidator receives greater than or equal to the amount they pay 
         require(notionalReceived >= notionalRepaid, "Liquidator receipt less than amount they repaid");
 
         // check to ensure that amount of debt repaid <= maxLiquidationPortion * amount of debt / liquidationPortionPrecision
@@ -160,16 +156,36 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
         require(notionalReceived <= maxLiquidationBonus * notionalRepaid / getCollateralizationRatioPrecision(), "Liquidator receiving too much value");
     }
 
+    /**
+     * Checks if the vault 'vault' has greater than or equal to normalizedAmount of the asset at assetAddress
+     * @param vault - the address of the vault to be checked
+     * @param assetAddress - the address of the relevant asset
+     * @param normalizedAmount - an arbitrary integer
+     */
     function checkVaultHasAssets(address vault, address assetAddress, uint256 normalizedAmount) internal view {
         VaultAmount memory amounts = getVaultAmounts(vault, assetAddress);
         require(amounts.deposited >= amounts.borrowed + normalizedAmount, "Vault does not have required assets");
     }
 
+    /**
+     * Checks if the protocol globally has greater than or equal to normalizedAmount of the asset at assetAddress
+     * @param assetAddress - the address of the relevant asset
+     * @param normalizedAmount - an arbitrary integer
+     */
     function checkProtocolGloballyHasAssets(address assetAddress, uint256 normalizedAmount) internal view {
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
         require(globalAmounts.deposited  >= globalAmounts.borrowed + normalizedAmount, "Global supply does not have required assets");
     }
 
+    /**
+     * Checks if the inputs for a liquidation are valid
+     * Specifically, checks if each address is a registered asset
+     * and both address arrays do not contain duplicate addresses
+     * @param {address[]} assetRepayAddresses - The array of addresses of the assets being repayed
+     * @param {uint256[]} assetRepayAmounts - The array of amounts of each asset in assetRepayAddresses
+     * @param {address[]} assetReceiptAddresses - The array of addresses of the assets being repayed
+     * @param {uint256[]} assetReceiptAmounts - The array of amounts of each asset in assetRepayAddresses
+     */
     function checkLiquidationInputsValid(address[] memory assetRepayAddresses,
         uint256[] memory assetRepayAmounts,
         address[] memory assetReceiptAddresses,
@@ -187,8 +203,6 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
         require(assetReceiptAddresses.length == assetReceiptAmounts.length, "Repay array lengths do not match");
         
     }
-        
-        
 
     /**
      * Check if an address has been registered on the Hub yet (through the registerAsset function)
@@ -201,8 +215,10 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
         require(registeredInfo.exists, "Unregistered asset");
     }
 
-    // TODO: Write docstrings for these functions
-
+    /**
+     * Checks if the array of addresses has duplicate addresses
+     * @param assetAddresess - The address array to be checked
+     */
     function checkDuplicates(address[] memory assetAddresses) internal pure {
         // check if asset address array contains duplicates
         for (uint256 i = 0; i < assetAddresses.length; i++) {

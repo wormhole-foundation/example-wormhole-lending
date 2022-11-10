@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-
 import "../../interfaces/IWormhole.sol";
 
 import "./HubSetters.sol";
@@ -16,42 +15,39 @@ import "./HubWormholeUtilities.sol";
 
 contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWormholeUtilities, HubChecks {
     /**
-    * address wormhole: Address of the Wormhole contract on the Hub chain
-    * address tokenBridge: Address of the TokenBridge contract on the Hub chain
-    * uint8 consistencyLevel: Desired level of finality the Wormhole guardians will reach before signing the messages
-    * Note: consistencyLevel = 200 will result in an instant message, while all other values will wait for finality
-    * Recommended finality levels can be found here: https://book.wormhole.com/reference/contracts.html
-    * 
-    * address pythAddress: Address of the Pyth oracle on the Hub chain
-    * uint8 oracleMode: Variable that should be 0 and exists only for testing purposes. 
-    * If oracleMode = 0, Hub uses Pyth; if 1, Hub uses a mock Pyth for testing, and if 2, Hub uses a dummy oracle that can be manually set
-    * uint64 priceStandardDeviations: priceStandardDeviations = (psd * pricePrecision), where psd is the number of standard deviations that we use for our price intervals in calculations relating to allowing withdraws, borrows, or liquidations
-    * uint64 pricePrecision: A precision number that allows us to represent our desired noninteger price standard deviation as an integer (specifically, psd = priceStandardDeviations/pricePrecision)
-    *
-    * uint256 maxLiquidationBonus: maxLiquidationBonus = (mlb * collateralizationRatioPrecision), where mlb is the multiplier such that if the fair value of a liquidator's repayed assets is v, the assets they receive can have a maximum of mlb*v in fair value. Fair value is computed using Pyth prices.
-    * uint256 maxLiquidationPortion: maxLiquidationPortion = (mlp * maxLiquidationPortionPrecision), where mlp is the maximum fraction of the borrowed value vault that a liquidator can liquidate at once. 
-    * uint256 maxLiquidationPortionPrecision: A precision number that allows us to represent our desired noninteger max liquidation portion mlp as an integer (specifically, mlp = maxLiquidationPortion/maxLiquidationPortionPrecision)
-    *
-    * uint256 interestAccrualIndexPrecision: A precision number that allows us to represent our noninteger interest accrual indices as integers; we store each index as its true value multiplied by interestAccrualIndexPrecision
-    * uint256 collateralizationRatioPrecision: A precision number that allows us to represent our noninteger collateralization ratios as integers; we store each ratio as its true value multiplied by collateralizationRatioPrecision
-    */
+     * address wormhole: Address of the Wormhole contract on the Hub chain
+     * address tokenBridge: Address of the TokenBridge contract on the Hub chain
+     * uint8 consistencyLevel: Desired level of finality the Wormhole guardians will reach before signing the messages
+     * Note: consistencyLevel = 200 will result in an instant message, while all other values will wait for finality
+     * Recommended finality levels can be found here: https://book.wormhole.com/reference/contracts.html
+     *
+     * address pythAddress: Address of the Pyth oracle on the Hub chain
+     * uint8 oracleMode: Variable that should be 0 and exists only for testing purposes.
+     * If oracleMode = 0, Hub uses Pyth; if 1, Hub uses a mock Pyth for testing, and if 2, Hub uses a dummy oracle that can be manually set
+     * uint64 priceStandardDeviations: priceStandardDeviations = (psd * pricePrecision), where psd is the number of standard deviations that we use for our price intervals in calculations relating to allowing withdraws, borrows, or liquidations
+     * uint64 pricePrecision: A precision number that allows us to represent our desired noninteger price standard deviation as an integer (specifically, psd = priceStandardDeviations/pricePrecision)
+     *
+     * uint256 maxLiquidationBonus: maxLiquidationBonus = (mlb * collateralizationRatioPrecision), where mlb is the multiplier such that if the fair value of a liquidator's repayed assets is v, the assets they receive can have a maximum of mlb*v in fair value. Fair value is computed using Pyth prices.
+     * uint256 maxLiquidationPortion: maxLiquidationPortion = (mlp * maxLiquidationPortionPrecision), where mlp is the maximum fraction of the borrowed value vault that a liquidator can liquidate at once.
+     * uint256 maxLiquidationPortionPrecision: A precision number that allows us to represent our desired noninteger max liquidation portion mlp as an integer (specifically, mlp = maxLiquidationPortion/maxLiquidationPortionPrecision)
+     *
+     * uint256 interestAccrualIndexPrecision: A precision number that allows us to represent our noninteger interest accrual indices as integers; we store each index as its true value multiplied by interestAccrualIndexPrecision
+     * uint256 collateralizationRatioPrecision: A precision number that allows us to represent our noninteger collateralization ratios as integers; we store each ratio as its true value multiplied by collateralizationRatioPrecision
+     */
     constructor(
         /* Wormhole Information */
         address wormhole,
         address tokenBridge,
         uint8 consistencyLevel,
-
         /* Pyth Information */
         address pythAddress,
         uint8 oracleMode,
         uint64 priceStandardDeviations,
         uint64 pricePrecision,
-       
-       /* Liquidation Information */
+        /* Liquidation Information */
         uint256 maxLiquidationBonus,
         uint256 maxLiquidationPortion,
         uint256 maxLiquidationPortionPrecision,
-
         uint256 interestAccrualIndexPrecision,
         uint256 collateralizationRatioPrecision
     ) {
@@ -59,7 +55,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         require(collateralizationRatioPrecision <= 10 ** 6);
         require(maxLiquidationPortionPrecision <= 10 ** 6);
         require(pricePrecision <= 10 ** 6);
-        
+
         setWormhole(wormhole);
         setTokenBridge(tokenBridge);
         setPyth(pythAddress);
@@ -76,18 +72,23 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * TODO: Update this spec
      * Registers asset on the hub. Only registered assets are allowed to be stored in the protocol.
      *
-     * @param assetAddress - The address to be checked
-     * @param collateralizationRatioDeposit - The constant c multiplied by collateralizationRatioPrecision,
-     * where c is such that we account $c worth of effective deposits per actual $1 worth of this asset deposited
-     * @param collateralizationRatioBorrow - The constant c multiplied by collateralizationRatioPrecision,
-     * where c is such that for every $1 worth of effective deposits we allow $c worth of this asset borrowed
-     * (according to Pyth prices)
-     * @param reserveFactor - The portion of the paid interest by borrowers that is diverted to the protocol for rainy day,
+     * @param assetAddress: The address to be checked
+     * @param collateralizationRatioDeposit: collateralizationRatioDeposit = crd * collateralizationRatioPrecision,
+     * where crd is such that when we calculate 'fair prices' to see if a vault, after an action, would have positive value,
+     * for purposes of allowing withdraws, borrows, or liquidations, we multiply any deposited amount of this asset by crd.
+     * @param collateralizationRatioBorrow: collateralizationRatioBorrow = crb * collateralizationRatioPrecision,
+     * where crb is such that when we calculate 'fair prices' to see if a vault, after an action, would have positive value,
+     * for purposes of allowing withdraws, borrows, or liquidations, we multiply any borrowed amount of this asset by crb.
+     * One way to think about crb is that for every '$1 worth' of effective deposits we allow $c worth of this asset borrowed
+     * @param ratePrecision: A precision number that allows us to represent noninteger rate intercept value ri and rate coefficient value rca as integers.
+     * @param rateIntercept: rateIntercept = ri * ratePrecision, where ri is the intercept of the interest rate model in HubInterestUtilities.sol used to set our interest accrual indices
+     * @param rateCoefficientA: rateCoefficientA = rca * ratePrecision, where rca is the first coefficient of the interest rate model in HubInterestUtilities.sol used to set our interest accrual indices
+     * @param reserveFactor: reserveFactor = rf * reservePrecision, The portion of the paid interest by borrowers that is diverted to the protocol for rainy day,
      * the remainder is distributed among lenders of the asset
-     * @param pythId - Id of the relevant oracle price feed (USD <-> asset)  
+     * @param reservePrecision: A precision number that allows us to represent our noninteger reserve factor rf as an integer (specifically reserveFactor = rf * reservePrecision)
+     * @param pythId: Id of the relevant oracle price feed (USD <-> asset)
      */
     function registerAsset(
         address assetAddress,
@@ -100,7 +101,6 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         uint256 reservePrecision,
         bytes32 pythId
     ) public onlyOwner {
-
         AssetInfo memory registeredInfo = getAssetInfo(assetAddress);
         require(!registeredInfo.exists, "Asset already registered");
 
@@ -114,9 +114,9 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
             reservePrecision: reservePrecision
         });
 
-        (,bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
+        (, bytes memory queriedDecimals) = assetAddress.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
-        if(decimals > 18) {
+        if (decimals > 18) {
             decimals = 18;
         }
         require(ratePrecision <= 10 ** 6);
@@ -144,37 +144,59 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         registerSpokeContract(chainId, spokeContractAddress);
     }
 
+    /**
+     * Completes a deposit that was initiated on a spoke
+     * @param encodedMessage: encoded Wormhole message with a TokenBridge message as the payload
+     * The TokenBridge message is used to complete a TokenBridge transfer of tokens to the Hub,
+     * and contains a payload of the deposit information
+     */
     function completeDeposit(bytes memory encodedMessage) public {
         completeAction(encodedMessage, true);
     }
 
+    /**
+     * Completes a borrow that was initiated on a spoke
+     * @param encodedMessage: encoded Wormhole message with withdraw information as the payload
+     */
     function completeWithdraw(bytes memory encodedMessage) public {
         completeAction(encodedMessage, false);
     }
 
+    /**
+     * Completes a borrow that was initiated on a spoke
+     * @param encodedMessage: encoded Wormhole message with borrow information as the payload
+     */
     function completeBorrow(bytes memory encodedMessage) public {
         completeAction(encodedMessage, false);
     }
 
+    /**
+     * Completes a repay that was initiated on a spoke
+     * @param encodedMessage: encoded Wormhole message with a TokenBridge message as the payload
+     * The TokenBridge message is used to complete a TokenBridge transfer of tokens to the Hub,
+     * and contains a payload of the repay information
+     */
     function completeRepay(bytes memory encodedMessage) public {
         completeAction(encodedMessage, true);
     }
 
-     /**
+    /**
      * Completes an action (deposit, borrow, withdraw, or repay) that was initiated on a spoke
      *
-     * @param encodedMessage - Encoded wormhole VAA with either a TokenBridge payload with tokens as well as deposit/repay info, or a regular wormhole payload with withdraw/borrow info
+     * @param encodedMessage - Encoded wormhole message with either a TokenBridge payload with tokens as well as deposit/repay info, or a regular wormhole payload with withdraw/borrow info
      * @param isTokenBridgePayload - Whether or not the wormhole payload is a TokenBridge message (for Deposit or Repay) or a normal message (for Borrow or Withdraw)
      */
-    function completeAction(bytes memory encodedMessage, bool isTokenBridgePayload) internal returns (bool completed, uint64 sequence) {
-        
+    function completeAction(bytes memory encodedMessage, bool isTokenBridgePayload)
+        internal
+        returns (bool completed, uint64 sequence)
+    {
         bytes memory encodedActionPayload;
         IWormhole.VM memory parsed = getWormholeParsed(encodedMessage);
-        
-        if(isTokenBridgePayload) {
+
+        if (isTokenBridgePayload) {
             encodedActionPayload = extractPayloadFromTransferPayload(getTransferPayload(encodedMessage));
         } else {
-            verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.emitterAddress)))); 
+            verifySenderIsSpoke(parsed.emitterChainId, address(uint160(uint256(parsed.emitterAddress))));
             encodedActionPayload = parsed.payload;
         }
 
@@ -184,24 +206,24 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         checkValidAddress(params.assetAddress);
         bool returnTokensForInvalidRepay = false;
 
-        if(action == Action.Withdraw) {
+        if (action == Action.Withdraw) {
             checkAllowedToWithdraw(params.sender, params.assetAddress, params.assetAmount);
-        } else if(action == Action.Borrow) {
+        } else if (action == Action.Borrow) {
             checkAllowedToBorrow(params.sender, params.assetAddress, params.assetAmount);
-        } else if(action == Action.Repay) {
+        } else if (action == Action.Repay) {
             returnTokensForInvalidRepay = !allowedToRepay(params.sender, params.assetAddress, params.assetAmount);
-        } 
+        }
 
-        if(!returnTokensForInvalidRepay) {
+        if (!returnTokensForInvalidRepay) {
             logActionOnHub(action, params.sender, params.assetAddress, params.assetAmount);
         }
 
-        if(action == Action.Withdraw || action == Action.Borrow || returnTokensForInvalidRepay) {
+        if (action == Action.Withdraw || action == Action.Borrow || returnTokensForInvalidRepay) {
             sequence = transferTokens(params.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
         }
-        
+
         completed = !returnTokensForInvalidRepay;
-    } 
+    }
 
     /**
      * Liquidates a vault. The sender of this transaction pays, for each i, assetRepayAmount[i] of the asset assetRepayAddresses[i]
@@ -225,7 +247,9 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         checkLiquidationInputsValid(assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
 
         // check if intended liquidation is valid
-        checkAllowedToLiquidate(vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+        checkAllowedToLiquidate(
+            vault, assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts
+        );
 
         // for repay assets update amounts for vault and global
         for (uint256 i = 0; i < assetRepayAddresses.length; i++) {
@@ -255,7 +279,10 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
      * @param assetAddress - the address of the relevant asset being logged
      * @param amount - the amount of the asset assetAddress being logged
      */
-    function logActionOnHub(Action action, address vault, address assetAddress, uint256 amount) internal returns (uint256 actualAmount) {
+    function logActionOnHub(Action action, address vault, address assetAddress, uint256 amount)
+        internal
+        returns (uint256 actualAmount)
+    {
         updateAccrualIndices(assetAddress);
 
         VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
@@ -263,19 +290,19 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
 
         AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
 
-        if(action == Action.Deposit) {
+        if (action == Action.Deposit) {
             uint256 normalizedDeposit = normalizeAmount(amount, indices.deposited, Round.DOWN);
             vaultAmounts.deposited += normalizedDeposit;
             globalAmounts.deposited += normalizedDeposit;
-        } else if(action == Action.Withdraw) {
+        } else if (action == Action.Withdraw) {
             uint256 normalizedWithdraw = normalizeAmount(amount, indices.deposited, Round.UP);
             vaultAmounts.deposited -= normalizedWithdraw;
             globalAmounts.deposited -= normalizedWithdraw;
-        } else if(action == Action.Borrow) {
+        } else if (action == Action.Borrow) {
             uint256 normalizedBorrow = normalizeAmount(amount, indices.borrowed, Round.UP);
             vaultAmounts.borrowed += normalizedBorrow;
             globalAmounts.borrowed += normalizedBorrow;
-        } else if(action == Action.Repay) {
+        } else if (action == Action.Repay) {
             uint256 normalizedRepay = normalizeAmount(amount, indices.borrowed, Round.DOWN);
             vaultAmounts.borrowed -= normalizedRepay;
             globalAmounts.borrowed -= normalizedRepay;
@@ -284,5 +311,4 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         setVaultAmounts(vault, assetAddress, vaultAmounts);
         setGlobalAmounts(assetAddress, globalAmounts);
     }
-
 }
