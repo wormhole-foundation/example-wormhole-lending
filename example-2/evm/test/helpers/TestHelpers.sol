@@ -208,7 +208,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
 
         uint256 amount = params.assetAmount;
         if(isNative) amount = amount - getHubData().wormholeContract.messageFee();
-        requireActionDataValid(action, params.assetAddress, params.assetAmount, beforeData, afterData, params.paymentReversion);
+        requireActionDataValid(action, params.assetAddress, amount, beforeData, afterData, params.paymentReversion);
     }
 
     
