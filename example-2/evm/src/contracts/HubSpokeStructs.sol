@@ -31,9 +31,19 @@ contract HubSpokeStructs {
         uint256 reservePrecision;
     }
 
-    enum Action{Deposit, Borrow, Withdraw, Repay, DepositNative, RepayNative}
+    enum Action {
+        Deposit,
+        Borrow,
+        Withdraw,
+        Repay,
+        DepositNative,
+        RepayNative
+    }
 
-    enum Round {UP, DOWN}
+    enum Round {
+        UP,
+        DOWN
+    }
 
     struct ActionPayload {
         Action action;
@@ -49,5 +59,4 @@ contract HubSpokeStructs {
         int32 expo;
         uint256 publishTime;
     }
-
 }

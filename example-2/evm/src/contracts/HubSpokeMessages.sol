@@ -9,12 +9,7 @@ contract HubSpokeMessages is HubSpokeStructs {
     using BytesLib for bytes;
 
     function encodeActionPayload(ActionPayload memory payload) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            uint8(payload.action),
-            payload.sender,
-            payload.assetAddress,
-            payload.assetAmount
-        );
+        return abi.encodePacked(uint8(payload.action), payload.sender, payload.assetAddress, payload.assetAmount);
     }
 
     function decodeActionPayload(bytes memory serialized) internal pure returns (ActionPayload memory params) {
@@ -31,5 +26,4 @@ contract HubSpokeMessages is HubSpokeStructs {
 
         params.assetAmount = serialized.toUint256(index);
     }
-   
 }
