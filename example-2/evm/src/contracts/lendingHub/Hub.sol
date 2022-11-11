@@ -15,24 +15,26 @@ import "./HubWormholeUtilities.sol";
 
 contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWormholeUtilities, HubChecks {
     /**
-     * address wormhole: Address of the Wormhole contract on the Hub chain
-     * address tokenBridge: Address of the TokenBridge contract on the Hub chain
-     * uint8 consistencyLevel: Desired level of finality the Wormhole guardians will reach before signing the messages
+     * @notice Hub constructor - Initializes a new hub with given parameters
+     * 
+     * @param wormhole: Address of the Wormhole contract on the Hub chain
+     * @param tokenBridge: Address of the TokenBridge contract on the Hub chain
+     * @param consistencyLevel: Desired level of finality the Wormhole guardians will reach before signing the messages
      * Note: consistencyLevel = 200 will result in an instant message, while all other values will wait for finality
      * Recommended finality levels can be found here: https://book.wormhole.com/reference/contracts.html
      *
-     * address pythAddress: Address of the Pyth oracle on the Hub chain
-     * uint8 oracleMode: Variable that should be 0 and exists only for testing purposes.
+     * @param pythAddress: Address of the Pyth oracle on the Hub chain
+     * @param oracleMode: Variable that should be 0 and exists only for testing purposes.
      * If oracleMode = 0, Hub uses Pyth; if 1, Hub uses a mock Pyth for testing, and if 2, Hub uses a dummy oracle that can be manually set
-     * uint64 priceStandardDeviations: priceStandardDeviations = (psd * pricePrecision), where psd is the number of standard deviations that we use for our price intervals in calculations relating to allowing withdraws, borrows, or liquidations
-     * uint64 pricePrecision: A precision number that allows us to represent our desired noninteger price standard deviation as an integer (specifically, psd = priceStandardDeviations/pricePrecision)
+     * @param priceStandardDeviations: priceStandardDeviations = (psd * pricePrecision), where psd is the number of standard deviations that we use for our price intervals in calculations relating to allowing withdraws, borrows, or liquidations
+     * @param pricePrecision: A precision number that allows us to represent our desired noninteger price standard deviation as an integer (specifically, psd = priceStandardDeviations/pricePrecision)
      *
-     * uint256 maxLiquidationBonus: maxLiquidationBonus = (mlb * collateralizationRatioPrecision), where mlb is the multiplier such that if the fair value of a liquidator's repayed assets is v, the assets they receive can have a maximum of mlb*v in fair value. Fair value is computed using Pyth prices.
-     * uint256 maxLiquidationPortion: maxLiquidationPortion = (mlp * maxLiquidationPortionPrecision), where mlp is the maximum fraction of the borrowed value vault that a liquidator can liquidate at once.
-     * uint256 maxLiquidationPortionPrecision: A precision number that allows us to represent our desired noninteger max liquidation portion mlp as an integer (specifically, mlp = maxLiquidationPortion/maxLiquidationPortionPrecision)
+     * @param maxLiquidationBonus: maxLiquidationBonus = (mlb * collateralizationRatioPrecision), where mlb is the multiplier such that if the fair value of a liquidator's repayed assets is v, the assets they receive can have a maximum of mlb*v in fair value. Fair value is computed using Pyth prices.
+     * @param maxLiquidationPortion: maxLiquidationPortion = (mlp * maxLiquidationPortionPrecision), where mlp is the maximum fraction of the borrowed value vault that a liquidator can liquidate at once.
+     * @param maxLiquidationPortionPrecision: A precision number that allows us to represent our desired noninteger max liquidation portion mlp as an integer (specifically, mlp = maxLiquidationPortion/maxLiquidationPortionPrecision)
      *
-     * uint256 interestAccrualIndexPrecision: A precision number that allows us to represent our noninteger interest accrual indices as integers; we store each index as its true value multiplied by interestAccrualIndexPrecision
-     * uint256 collateralizationRatioPrecision: A precision number that allows us to represent our noninteger collateralization ratios as integers; we store each ratio as its true value multiplied by collateralizationRatioPrecision
+     * @param interestAccrualIndexPrecision: A precision number that allows us to represent our noninteger interest accrual indices as integers; we store each index as its true value multiplied by interestAccrualIndexPrecision
+     * @param collateralizationRatioPrecision: A precision number that allows us to represent our noninteger collateralization ratios as integers; we store each ratio as its true value multiplied by collateralizationRatioPrecision
      */
     constructor(
         /* Wormhole Information */
@@ -72,7 +74,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * Registers asset on the hub. Only registered assets are allowed to be stored in the protocol.
+     * @notice Registers asset on the hub. Only registered assets are allowed to be stored in the protocol.
      *
      * @param assetAddress: The address to be checked
      * @param collateralizationRatioDeposit: collateralizationRatioDeposit = crd * collateralizationRatioPrecision,
@@ -135,7 +137,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * Registers a spoke contract. Only wormhole messages from registered spoke contracts are allowed.
+     * @notice Registers a spoke contract. Only wormhole messages from registered spoke contracts are allowed.
      *
      * @param chainId - The chain id which the spoke is deployed on
      * @param spokeContractAddress - The address of the spoke contract on its chain
@@ -145,7 +147,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * Completes a deposit that was initiated on a spoke
+     * @notice Completes a deposit that was initiated on a spoke
      * @param encodedMessage: encoded Wormhole message with a TokenBridge message as the payload
      * The TokenBridge message is used to complete a TokenBridge transfer of tokens to the Hub,
      * and contains a payload of the deposit information
@@ -155,7 +157,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * Completes a borrow that was initiated on a spoke
+     * @notice Completes a borrow that was initiated on a spoke
      * @param encodedMessage: encoded Wormhole message with withdraw information as the payload
      */
     function completeWithdraw(bytes memory encodedMessage) public {
@@ -163,7 +165,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * Completes a borrow that was initiated on a spoke
+     * @notice Completes a borrow that was initiated on a spoke
      * @param encodedMessage: encoded Wormhole message with borrow information as the payload
      */
     function completeBorrow(bytes memory encodedMessage) public {
@@ -171,7 +173,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * Completes a repay that was initiated on a spoke
+     * @notice Completes a repay that was initiated on a spoke
      * @param encodedMessage: encoded Wormhole message with a TokenBridge message as the payload
      * The TokenBridge message is used to complete a TokenBridge transfer of tokens to the Hub,
      * and contains a payload of the repay information
@@ -181,7 +183,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * Completes an action (deposit, borrow, withdraw, or repay) that was initiated on a spoke
+     * @notice Completes an action (deposit, borrow, withdraw, or repay) that was initiated on a spoke
      *
      * @param encodedMessage - Encoded wormhole message with either a TokenBridge payload with tokens as well as deposit/repay info, or a regular wormhole payload with withdraw/borrow info
      * @param isTokenBridgePayload - Whether or not the wormhole payload is a TokenBridge message (for Deposit or Repay) or a normal message (for Borrow or Withdraw)
@@ -226,7 +228,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * Liquidates a vault. The sender of this transaction pays, for each i, assetRepayAmount[i] of the asset assetRepayAddresses[i]
+     * @notice Liquidates a vault. The sender of this transaction pays, for each i, assetRepayAmount[i] of the asset assetRepayAddresses[i]
      * and receives, for each i, assetReceiptAmount[i] of the asset at assetReceiptAddresses[i].
      * A check is made to see if this liquidation attempt should be allowed
      *
@@ -272,7 +274,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * Updates the vault's state to log either a deposit, borrow, withdraw, or repay
+     * @notice Updates the vault's state to log either a deposit, borrow, withdraw, or repay
      *
      * @param action - the action (either Deposit, Borrow, Withdraw, or Repay)
      * @param vault - the address of the vault
@@ -281,7 +283,6 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
      */
     function logActionOnHub(Action action, address vault, address assetAddress, uint256 amount)
         internal
-        returns (uint256 actualAmount)
     {
         updateAccrualIndices(assetAddress);
 

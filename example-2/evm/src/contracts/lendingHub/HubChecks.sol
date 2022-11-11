@@ -8,11 +8,11 @@ import "./HubPriceUtilities.sol";
 import "./HubInterestUtilities.sol";
 
 contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilities, HubPriceUtilities {
-    /*
-     * Check if vaultOwner is allowed to withdraw assetAmount of assetAddress from their vault
-     * @param {address} vaultOwner - The address of the owner of the vault
-     * @param {address} assetAddress - The address of the relevant asset
-     * @param {uint256} assetAmount - The amount of the relevant asset
+    /** @notice Check if vaultOwner is allowed to withdraw assetAmount of assetAddress from their vault
+     * 
+     * @param vaultOwner - The address of the owner of the vault
+     * @param assetAddress - The address of the relevant asset
+     * @param assetAmount - The amount of the relevant asset
      * Only returns (otherwise reverts) if this withdrawal keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices)
      * (where the deposit values are divided by the deposit collateralization ratio and the borrow values are multiplied by the borrow collateralization ratio)
      * and also if there is enough asset in the vault to complete the withdrawal
@@ -38,11 +38,12 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
         );
     }
 
-    /*
-     * Check if vaultOwner is allowed to borrow assetAmount of assetAddress from their vault
-     * @param {address} vaultOwner - The address of the owner of the vault
-     * @param {address} assetAddress - The address of the relevant asset
-     * @param {uint256} assetAmount - The amount of the relevant asset
+    /** 
+     * @notice Check if vaultOwner is allowed to borrow assetAmount of assetAddress from their vault
+     *
+     * @param vaultOwner - The address of the owner of the vault
+     * @param assetAddress - The address of the relevant asset
+     * @param assetAmount - The amount of the relevant asset
      * Only returns (otherwise reverts) if this borrow keeps the vault at a nonnegative notional value (worth >= $0 according to Pyth prices)
      * (where the deposit values are divided by the deposit collateralization ratio and the borrow values are multiplied by the borrow collateralization ratio)
      * and also if there is enough asset in the total reserve of the protocol to complete the borrow
@@ -67,10 +68,11 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
     }
 
     /**
-     * Check if vaultOwner is allowed to repay assetAmount of assetAddress to their vault; they must have outstanding borrows of at least assetAmount for assetAddress to enable repayment
-     * @param {address} vaultOwner - The address of the owner of the vault
-     * @param {address} assetAddress - The address of the relevant asset
-     * @param {uint256} assetAmount - The amount of the relevant asset
+     * @notice Check if vaultOwner is allowed to repay assetAmount of assetAddress to their vault; they must have outstanding borrows of at least assetAmount for assetAddress to enable repayment
+     * 
+     * @param vaultOwner - The address of the owner of the vault
+     * @param assetAddress - The address of the relevant asset
+     * @param assetAmount - The amount of the relevant asset
      * @return {bool} True or false depending on if the outstanding borrows for this assetAddress >= assetAmount
      */
     function allowedToRepay(address vaultOwner, address assetAddress, uint256 assetAmount)
@@ -89,14 +91,15 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
         return check;
     }
 
-    /*
-     * Check if vaultOwner is allowed to, for each i, repay assetRepayAmounts[i] of the asset at assetRepayAddresses[i] to the vault at 'vault',
+    /** 
+     * @notice Check if vaultOwner is allowed to, for each i, repay assetRepayAmounts[i] of the asset at assetRepayAddresses[i] to the vault at 'vault',
      * and receive from the vault, for each i, assetReceiptAmounts[i] of the asset at assetReceiptAddresses[i]. Uses the Pyth prices to see if this liquidation should be allowed
-     * @param {address} vault - The address of the owner of the vault
-     * @param {address[]} assetRepayAddresses - The array of addresses of the assets being repayed
-     * @param {uint256[]} assetRepayAmounts - The array of amounts of each asset in assetRepayAddresses
-     * @param {address[]} assetReceiptAddresses - The array of addresses of the assets being repayed
-     * @param {uint256[]} assetReceiptAmounts - The array of amounts of each asset in assetRepayAddresses
+     * 
+     * @param vault - The address of the owner of the vault
+     * @param assetRepayAddresses - The array of addresses of the assets being repayed
+     * @param assetRepayAmounts - The array of amounts of each asset in assetRepayAddresses
+     * @param assetReceiptAddresses - The array of addresses of the assets being repayed
+     * @param assetReceiptAmounts - The array of amounts of each asset in assetRepayAddresses
      */
     function checkAllowedToLiquidate(
         address vault,
@@ -168,7 +171,8 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
     }
 
     /**
-     * Checks if the vault 'vault' has greater than or equal to normalizedAmount of the asset at assetAddress
+     * @notice Checks if the vault 'vault' has greater than or equal to normalizedAmount of the asset at assetAddress
+     *
      * @param vault - the address of the vault to be checked
      * @param assetAddress - the address of the relevant asset
      * @param normalizedAmount - an arbitrary integer
@@ -179,7 +183,8 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
     }
 
     /**
-     * Checks if the protocol globally has greater than or equal to normalizedAmount of the asset at assetAddress
+     * @notice Checks if the protocol globally has greater than or equal to normalizedAmount of the asset at assetAddress
+     *
      * @param assetAddress - the address of the relevant asset
      * @param normalizedAmount - an arbitrary integer
      */
@@ -192,13 +197,14 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
     }
 
     /**
-     * Checks if the inputs for a liquidation are valid
+     * @notice Checks if the inputs for a liquidation are valid
      * Specifically, checks if each address is a registered asset
      * and both address arrays do not contain duplicate addresses
-     * @param {address[]} assetRepayAddresses - The array of addresses of the assets being repayed
-     * @param {uint256[]} assetRepayAmounts - The array of amounts of each asset in assetRepayAddresses
-     * @param {address[]} assetReceiptAddresses - The array of addresses of the assets being repayed
-     * @param {uint256[]} assetReceiptAmounts - The array of amounts of each asset in assetRepayAddresses
+     *
+     * @param assetRepayAddresses - The array of addresses of the assets being repayed
+     * @param assetRepayAmounts - The array of amounts of each asset in assetRepayAddresses
+     * @param assetReceiptAddresses - The array of addresses of the assets being repayed
+     * @param assetReceiptAmounts - The array of amounts of each asset in assetRepayAddresses
      */
     function checkLiquidationInputsValid(
         address[] memory assetRepayAddresses,
@@ -220,7 +226,7 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
     }
 
     /**
-     * Check if an address has been registered on the Hub yet (through the registerAsset function)
+     * @notice Check if an address has been registered on the Hub yet (through the registerAsset function)
      * Errors out if assetAddress has not been registered yet
      * @param assetAddress - The address to be checked
      */
@@ -231,8 +237,8 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
     }
 
     /**
-     * Checks if the array of addresses has duplicate addresses
-     * @param assetAddresess - The address array to be checked
+     * @notice Checks if the array of addresses has duplicate addresses
+     * @param assetAddresses - The address array to be checked
      */
     function checkDuplicates(address[] memory assetAddresses) internal pure {
         // check if asset address array contains duplicates
