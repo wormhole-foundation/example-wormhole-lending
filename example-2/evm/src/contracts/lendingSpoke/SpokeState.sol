@@ -12,14 +12,10 @@ contract SpokeStorage is HubSpokeStructs {
 
     struct State {
         Provider provider;
-        
         // number of confirmations for wormhole messages
         uint8 consistencyLevel;
-
         uint16 hubChainId;
-
         address hubContractAddress;
-
         // @dev storage gap
         uint256[50] ______gap;
     }

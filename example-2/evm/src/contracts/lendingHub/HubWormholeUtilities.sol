@@ -10,14 +10,17 @@ import "../../interfaces/IWormhole.sol";
 import "./HubGetters.sol";
 import "./HubSetters.sol";
 
-
 contract HubWormholeUtilities is HubGetters, HubSetters {
     using BytesLib for bytes;
 
-
-    function transferTokens(address receiver, address assetAddress, uint256 amount, uint16 recipientChain) internal returns (uint64 sequence) {
+    function transferTokens(address receiver, address assetAddress, uint256 amount, uint16 recipientChain)
+        internal
+        returns (uint64 sequence)
+    {
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), amount);
-        sequence = tokenBridge().transferTokens(assetAddress, amount, recipientChain, bytes32(uint256(uint160(receiver))), 0, 0);
+        sequence = tokenBridge().transferTokens(
+            assetAddress, amount, recipientChain, bytes32(uint256(uint160(receiver))), 0, 0
+        );
     }
 
     function sendWormholeMessage(bytes memory payload) internal returns (uint64 sequence) {
@@ -48,7 +51,11 @@ contract HubWormholeUtilities is HubGetters, HubSetters {
         return parsed;
     }
 
-    function extractPayloadFromTransferPayload(bytes memory encodedVM) internal pure returns (bytes memory serialized) {
+    function extractPayloadFromTransferPayload(bytes memory encodedVM)
+        internal
+        pure
+        returns (bytes memory serialized)
+    {
         uint256 index = 0;
         uint256 end = encodedVM.length;
 
@@ -61,5 +68,4 @@ contract HubWormholeUtilities is HubGetters, HubSetters {
     function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
-
 }

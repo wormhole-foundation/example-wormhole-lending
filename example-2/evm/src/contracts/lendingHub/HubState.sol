@@ -20,7 +20,6 @@ contract HubStorage is HubSpokeStructs {
 
     struct State {
         Provider provider;
-        
         // number of confirmations for wormhole messages
         uint8 consistencyLevel;
         // allowlist for assets
