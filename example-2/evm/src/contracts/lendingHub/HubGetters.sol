@@ -12,7 +12,6 @@ import "./HubState.sol";
 import "forge-std/console.sol";
 
 contract HubGetters is Context, HubSpokeStructs, HubState {
-    
     function getChainId() public view returns (uint16) {
         return _state.provider.chainId;
     }

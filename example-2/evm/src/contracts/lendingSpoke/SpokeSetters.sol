@@ -5,7 +5,6 @@ import "./SpokeState.sol";
 import "../HubSpokeStructs.sol";
 
 contract SpokeSetters is HubSpokeStructs, SpokeState {
-
     function setChainId(uint16 chainId) internal {
         _state.provider.chainId = chainId;
     }
@@ -25,5 +24,4 @@ contract SpokeSetters is HubSpokeStructs, SpokeState {
     function setHubContractAddress(address hubContractAddress) internal {
         _state.hubContractAddress = hubContractAddress;
     }
-
 }

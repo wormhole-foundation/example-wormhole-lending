@@ -7,7 +7,6 @@ import "./SpokeState.sol";
 import "../HubSpokeStructs.sol";
 
 contract SpokeGetters is HubSpokeStructs, SpokeState {
-
     function chainId() public view returns (uint16) {
         return _state.provider.chainId;
     }
@@ -35,5 +34,4 @@ contract SpokeGetters is HubSpokeStructs, SpokeState {
     function hubContractAddress() internal view returns (address) {
         return _state.hubContractAddress;
     }
-   
 }

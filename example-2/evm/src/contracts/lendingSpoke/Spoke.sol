@@ -10,7 +10,13 @@ import "./SpokeGetters.sol";
 import "./SpokeUtilities.sol";
 
 contract Spoke is HubSpokeStructs, HubSpokeMessages, SpokeGetters, SpokeSetters, SpokeUtilities {
-    constructor(uint16 chainId_, address wormhole_, address tokenBridge_, uint16 hubChainId_, address hubContractAddress) {
+    constructor(
+        uint16 chainId_,
+        address wormhole_,
+        address tokenBridge_,
+        uint16 hubChainId_,
+        address hubContractAddress
+    ) {
         setChainId(chainId_);
         setWormhole(wormhole_);
         setTokenBridge(tokenBridge_);
@@ -45,8 +51,8 @@ contract Spoke is HubSpokeStructs, HubSpokeMessages, SpokeGetters, SpokeSetters,
     /**
      * Initiates an action (deposit, borrow, withdraw, or repay) on the spoke by sending a Wormhole message (potentially a TokenBridge message with tokens) to the Hub
      * @param action - the action (either Deposit, Borrow, Withdraw, or Repay)
-     * @param assetAddress - the address of the relevant asset 
-     * @param assetAmount - the amount of the asset assetAddress 
+     * @param assetAddress - the address of the relevant asset
+     * @param assetAmount - the amount of the asset assetAddress
      */
     function doAction(Action action, address assetAddress, uint256 assetAmount) internal returns (uint64 sequence) {
         requireAssetAmountValidForTokenBridge(assetAddress, assetAmount);
@@ -58,21 +64,17 @@ contract Spoke is HubSpokeStructs, HubSpokeMessages, SpokeGetters, SpokeSetters,
             hubAction = Action.Repay;
         }
 
-        ActionPayload memory payload = ActionPayload({
-            action: hubAction,
-            sender: msg.sender,
-            assetAddress: assetAddress,
-            assetAmount: assetAmount
-        });
+        ActionPayload memory payload =
+            ActionPayload({action: hubAction, sender: msg.sender, assetAddress: assetAddress, assetAmount: assetAmount});
 
         bytes memory serialized = encodeActionPayload(payload);
 
-        if(action == Action.Deposit || action == Action.Repay) {
+        if (action == Action.Deposit || action == Action.Repay) {
             sequence = sendTokenBridgeMessage(assetAddress, assetAmount, serialized);
-        } else if(action == Action.Withdraw || action == Action.Borrow) {
+        } else if (action == Action.Withdraw || action == Action.Borrow) {
             sequence = sendWormholeMessage(serialized);
-        } else if(action == Action.DepositNative || action == Action.RepayNative)  {
-            sequence = sendTokenBridgeMessageNative(assetAmount + wormhole().messageFee(), serialized); 
+        } else if (action == Action.DepositNative || action == Action.RepayNative) {
+            sequence = sendTokenBridgeMessageNative(assetAmount + wormhole().messageFee(), serialized);
         }
     }
 }

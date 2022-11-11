@@ -10,7 +10,6 @@ import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import "@pythnetwork/pyth-sdk-solidity/MockPyth.sol";
 
 contract HubSetters is HubSpokeStructs, HubState, HubGetters {
-
     function setChainId(uint16 chainId) internal {
         _state.provider.chainId = chainId;
     }

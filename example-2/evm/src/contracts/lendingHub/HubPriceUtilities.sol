@@ -11,12 +11,11 @@ import "./HubSetters.sol";
 import "./HubInterestUtilities.sol";
 
 contract HubPriceUtilities is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilities {
-
-    /** 
-    * Get the price, through Pyth, of the asset at address assetAddress
-    * @param {address} assetAddress - The address of the relevant asset
-    * @return {uint64, uint64} The price (in USD) of the asset, from Pyth; the confidence (in USD) of the asset's price
-    */
+    /**
+     * Get the price, through Pyth, of the asset at address assetAddress
+     * @param {address} assetAddress - The address of the relevant asset
+     * @return {uint64, uint64} The price (in USD) of the asset, from Pyth; the confidence (in USD) of the asset's price
+     */
     function getOraclePrices(address assetAddress) internal view returns (uint64, uint64) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
 
@@ -56,12 +55,12 @@ contract HubPriceUtilities is HubSpokeStructs, HubGetters, HubSetters, HubIntere
     /**
      * Using the pyth prices, get the total price of the assets deposited into the vault, and
      * total price of the assets borrowed from the vault (multiplied by their respecetive collateralization ratios)
-     * The result will be multiplied by interestAccrualIndexPrecision * collateralizationRatioPrecision * pricePrecision * 10^(maxDecimals) 
+     * The result will be multiplied by interestAccrualIndexPrecision * collateralizationRatioPrecision * pricePrecision * 10^(maxDecimals)
      * because we are denormalizing without dividing by this value, and we are multiplying by collateralizationRatios without dividing
      * by the precision, and we are using getPriceCollateralAndPriceDebt with returns the prices multiplied by pricePrecision
      * and we are multiplying by 10^maxDecimals to keep integers when we divide by 10^(decimals of each asset).
      * @param {address} vaultOwner - The address of the owner of the vault
-     * @return {(uint256, uint256)} The total price of the assets deposited into and borrowed from the vault, respectively, 
+     * @return {(uint256, uint256)} The total price of the assets deposited into and borrowed from the vault, respectively,
      * multiplied by interestAccrualIndexPrecision * collateralizationRatioPrecision * pricePrecision
      */
     function getVaultEffectiveNotionals(address vaultOwner) internal view returns (uint256, uint256) {
@@ -87,7 +86,7 @@ contract HubPriceUtilities is HubSpokeStructs, HubGetters, HubSetters, HubIntere
             (uint64 priceCollateral, uint64 priceDebt) = getPriceCollateralAndPriceDebt(asset);
             uint8 maxDecimals = getMaxDecimals();
             effectiveNotionalDeposited += denormalizedDeposited * priceCollateral
-                * 10 ** (maxDecimals - assetInfo.decimals) * assetInfo.collateralizationRatioDeposit; 
+                * 10 ** (maxDecimals - assetInfo.decimals) * assetInfo.collateralizationRatioDeposit;
             effectiveNotionalBorrowed += denormalizedBorrowed * priceDebt * 10 ** (maxDecimals - assetInfo.decimals)
                 * assetInfo.collateralizationRatioBorrow;
         }
@@ -98,13 +97,13 @@ contract HubPriceUtilities is HubSpokeStructs, HubGetters, HubSetters, HubIntere
     /**
      * Gets priceCollateral and priceDebt, which are price - c*stdev and price + c*stdev, respectively
      * where c is a constant specified by the protocol (priceStandardDeviations),
-     * and stdev is the standard deviation of the price. 
+     * and stdev is the standard deviation of the price.
      * Multiplies each of these values by getPricePrecision().
      * These values are used as lower and upper bounds of the price when determining whether to allow
      * borrows and withdraws
      * @param assetAddress the address of the relevant asset
-     * @return priceCollateral: getPricePrecision() * (price - c*stdev) 
-     * @return priceDebt: getPricePrecision() * (price + c*stdev) 
+     * @return priceCollateral: getPricePrecision() * (price - c*stdev)
+     * @return priceDebt: getPricePrecision() * (price + c*stdev)
      */
     function getPriceCollateralAndPriceDebt(address assetAddress)
         internal
@@ -116,7 +115,7 @@ contract HubPriceUtilities is HubSpokeStructs, HubGetters, HubSetters, HubIntere
         uint64 priceStandardDeviations = getPriceStandardDeviations();
         uint64 pricePrecision = getPricePrecision();
         priceCollateral = 0;
-        if(price * pricePrecision >= conf * priceStandardDeviations) {
+        if (price * pricePrecision >= conf * priceStandardDeviations) {
             priceCollateral = price * pricePrecision - conf * priceStandardDeviations;
         }
         priceDebt = price * pricePrecision + conf * priceStandardDeviations;
@@ -125,7 +124,7 @@ contract HubPriceUtilities is HubSpokeStructs, HubGetters, HubSetters, HubIntere
     /**
      * Gets the value of priceDebt described above
      * @param assetAddress the address of the relevant asset
-     * @return priceDebt: getPricePrecision() * (price + c*stdev) 
+     * @return priceDebt: getPricePrecision() * (price + c*stdev)
      */
     function getPriceDebt(address assetAddress) internal view returns (uint64) {
         (, uint64 debt) = getPriceCollateralAndPriceDebt(assetAddress);
@@ -135,21 +134,20 @@ contract HubPriceUtilities is HubSpokeStructs, HubGetters, HubSetters, HubIntere
     /**
      * Gets the value of priceCollateral described above
      * @param assetAddress the address of the relevant asset
-     * @return priceCollateral: getPricePrecision() * (price - c*stdev) 
+     * @return priceCollateral: getPricePrecision() * (price - c*stdev)
      */
     function getPriceCollateral(address assetAddress) internal view returns (uint64) {
-        (uint64 collateral, ) = getPriceCollateralAndPriceDebt(assetAddress);
+        (uint64 collateral,) = getPriceCollateralAndPriceDebt(assetAddress);
         return collateral;
     }
 
     /**
      * Gets the price of the asset (i.e. the mean of the confidence interval returned by Pyth)
      * @param assetAddress the address of the relevant asset
-     * @return price: getPricePrecision() * (price) 
+     * @return price: getPricePrecision() * (price)
      */
     function getPrice(address assetAddress) internal view returns (uint64) {
-        (uint64 price, ) = getOraclePrices(assetAddress);
+        (uint64 price,) = getOraclePrices(assetAddress);
         return price * getPricePrecision();
     }
-    
 }

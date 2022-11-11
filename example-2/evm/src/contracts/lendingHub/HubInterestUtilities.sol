@@ -6,12 +6,12 @@ import "./HubGetters.sol";
 import "./HubSetters.sol";
 
 contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
-
-    /*******************************************
+    /**
+     *
      *  The following two functions describe the Interest Rate Model of the whole protocol!
      *  TODO: IMPORTANT! Substitute this function out for whatever desired interest rate model you wish to have
-     *******************************************/
-
+     *
+     */
 
     /*
      * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued).
@@ -41,7 +41,8 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         uint256 reservePrecision = assetInfo.interestRateModel.reservePrecision;
         accrualIndices.borrowed += interestFactor;
 
-        accrualIndices.deposited += (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
+        accrualIndices.deposited +=
+            (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
     }
@@ -62,12 +63,14 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
                 / interestRateModel.ratePrecision
         ) / 365 / 24 / 60 / 60;
     }
-    
-    /**************************
-     *  End Interest Rate Model
-     **************************/
 
-      /**
+    /**
+     *
+     *  End Interest Rate Model
+     *
+     */
+
+    /**
      * Assets accrue interest over time, so at any given point in time the value of an asset is (amount of asset on day 1) * (the amount of interest that has accrued).
      *
      * @param {uint256} denormalizedAmount - The true amount of an asset
@@ -76,7 +79,11 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
      * @return {uint256} The normalized amount of the asset
      */
 
-    function normalizeAmount(uint256 denormalizedAmount, uint256 interestAccrualIndex, Round round) public view returns (uint256) {
+    function normalizeAmount(uint256 denormalizedAmount, uint256 interestAccrualIndex, Round round)
+        public
+        view
+        returns (uint256)
+    {
         return divide(denormalizedAmount * getInterestAccrualIndexPrecision(), interestAccrualIndex, round);
     }
 
@@ -87,11 +94,15 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
      * @param {uint256} interestAccrualIndex - The amount of interest that has accrued, multiplied by getInterestAccrualIndexPrecision().
      * @return {uint256} The true amount of the asset
      */
-    function denormalizeAmount(uint256 normalizedAmount, uint256 interestAccrualIndex, Round round) public view returns (uint256) {
+    function denormalizeAmount(uint256 normalizedAmount, uint256 interestAccrualIndex, Round round)
+        public
+        view
+        returns (uint256)
+    {
         return divide(normalizedAmount * interestAccrualIndex, getInterestAccrualIndexPrecision(), round);
     }
 
-    /** 
+    /**
      * Divide helper function, for rounding
      * @param dividend - the dividend
      * @param divisor - the divisor
@@ -101,7 +112,7 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
     function divide(uint256 dividend, uint256 divisor, Round round) internal view returns (uint256) {
         uint256 modulo = dividend % divisor;
         uint256 quotient = dividend / divisor;
-        if(modulo == 0 || round == Round.DOWN) {
+        if (modulo == 0 || round == Round.DOWN) {
             return quotient;
         }
         return quotient + 1;
