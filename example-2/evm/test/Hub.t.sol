@@ -62,6 +62,16 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
                 reserveFactor: 0,
                  pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_avax") 
         }));
+
+        addAsset(AddAsset({assetAddress: 0xA56B1b9f4e5A1A1e0868F5Fd4352ce7CdF0C2A4F, // WMATIC
+                collateralizationRatioDeposit: 100 * 10 ** 4,
+                collateralizationRatioBorrow: 100 * 10 ** 4,
+                ratePrecision: 1 * 10**6,
+                rateIntercept: 1 * 10**4,
+                rateCoefficientA: 0,
+                reserveFactor: 0,
+                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_matic") 
+        }));
         
         addSpoke(
             uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
@@ -109,6 +119,8 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
 
         doDeposit(0, getAsset(0), 5 * 10 ** 16);
 
+        doBorrowRevert(0, getAsset(1), 5 * 10 ** 16, "Global supply does not have required assets");
+
         doDeposit(0, getAsset(1), 6 * 10 ** 16, address(0x1));
 
         doBorrowRevert(0, getAsset(1), 5 * 10 ** 16, "Vault is undercollateralized if this borrow goes through");
@@ -141,12 +153,21 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         );
 
         doWithdraw(0, getAsset(0), 5 * 10 ** 14);
+
+        doWithdrawRevert(
+            0, getAsset(1), 6 * 10 ** 16 + 1 * 10 ** 10, address(0x1), "Vault does not have required assets"
+        );
+
+        doWithdrawRevert(
+            0, getAsset(1), 6 * 10 ** 16, address(0x1), "Global supply does not have required assets"
+        );
     }
 
 
     function testRDBPW() public {
         deal(getAssetAddress(0), address(this), 5* 10 ** 16);
         deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
+        deal(getAssetAddress(1), address(this), 1 * 10 ** 10);
 
         doRegisterAsset(getAsset(0));
         doRegisterAsset(getAsset(1));
@@ -161,6 +182,8 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         doDeposit(0, getAsset(1), 6 * 10 ** 16, address(0x1));
 
         doBorrow(0, getAsset(1), 5 * 10 ** 16);
+
+        doRepayRevertPayment(0, getAsset(1), 5 * 10 ** 16 + 1 * 10 ** 10);
 
         doRepay(0, getAsset(1), 5 * 10 ** 16 - 1 * 10 ** 10);
 
@@ -195,28 +218,44 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         address[] memory assetRepayAddresses = new address[](1);
         assetRepayAddresses[0] = getAssetAddress(1);
         uint256[] memory assetRepayAmounts = new uint256[](1);
-        assetRepayAmounts[0] = 250 * 10 ** 14;
+      
         address[] memory assetReceiptAddresses = new address[](1);
         assetReceiptAddresses[0] = getAssetAddress(0);
         uint256[] memory assetReceiptAmounts = new uint256[](1);
-        assetReceiptAmounts[0] = 1;
 
+        assetRepayAmounts[0] = 1 * 10 ** 14;
+        assetReceiptAmounts[0] = 1 * 10 ** 14;
+        
         doLiquidate(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts, "vault not underwater");
 
         // move the price up for borrowed asset
-        setPrice(getAsset(1), 95);
+        setPrice(getAsset(1), 91);
 
-        // liquidation attempted by address(this)
-        assetRepayAddresses = new address[](1);
-        assetRepayAddresses[0] = getAssetAddress(1);
-        assetRepayAmounts = new uint256[](1);
+        assetRepayAmounts[0] = 501 * 10 ** 14;
+        assetReceiptAmounts[0] = 501 * 10 ** 14;
+
+        doLiquidate(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts, "cannot repay more than has been borrowed");
+
+        assetRepayAmounts[0] = 1 * 10 ** 14;
+        assetReceiptAmounts[0] = 90 * 10 ** 12; 
+
+        doLiquidate(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts, "Liquidator receipt less than amount they repaid");
+
+        assetRepayAmounts[0] = 251 * 10 ** 14;
+        assetReceiptAmounts[0] = 251 * 10 ** 14; 
+
+        doLiquidate(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts, "Liquidator cannot claim more than maxLiquidationPortion of the total debt of the vault");
+
         assetRepayAmounts[0] = 250 * 10 ** 14;
-        assetReceiptAddresses = new address[](1);
-        assetReceiptAddresses[0] = getAssetAddress(0);
-        assetReceiptAmounts = new uint256[](1);
-        assetReceiptAmounts[0] = 240 * 10 ** 14;
+        assetReceiptAmounts[0] = 250 * 10 ** 10 * 91 * 126; 
+
+        doLiquidate(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts, "Liquidator receiving too much value");
+
+        assetRepayAmounts[0] = 250 * 10 ** 14;
+        assetReceiptAmounts[0] = 250 * 10 ** 10 * 91 * 125; 
 
         doLiquidate(address(0x1), assetRepayAddresses, assetRepayAmounts, assetReceiptAddresses, assetReceiptAmounts);
+
 
         // try repayment of the borrow, should not execute the repayment because liquidation already occured
         doRepayRevertPayment(0, getAsset(1), 400 * 10 ** 14, address(0x1));
@@ -270,12 +309,11 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
     }
 
     function testRDNativeBPW() public {
-        address user = address(this);
 
-        deal(getAssetAddress(0), user, 6 * 10 ** 16);
-        uint256 userInitBalance = 105 * 10 ** 18;
-        vm.deal(user, userInitBalance);
-        vm.deal(address(0x1), userInitBalance);
+        deal(getAssetAddress(0), address(this), 6 * 10 ** 16);
+
+        vm.deal(address(this), 105 * 10 ** 18);
+        vm.deal(address(0x1), 105 * 10 ** 18);
 
         doRegisterAsset(getAsset(0));
         doRegisterAsset(getAsset(2));
@@ -300,7 +338,105 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         doWithdraw(0, getAsset(0), 4 * 10 ** 16);
     }
 
-    // test register SPOKE (make sure nothing is possible without doing this)
+    function testDontRegisterSpoke() public {
+
+        deal(getAssetAddress(0), address(this), 105 * 10 ** 18);
+        deal(getAssetAddress(2), address(this), 105 * 10 ** 18);
+
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(2));
+
+        setPrice(getAsset(0), 80);
+        setPrice(getAsset(2), 90);
+
+        doDepositRevert(0, getAsset(0), 6 * 10 ** 16, "Invalid spoke");
+
+        doBorrowRevert(0, getAsset(2), 4 * 10 ** 16, "Invalid spoke");
+
+        doWithdrawRevert(0, getAsset(0), 4 * 10 ** 16, "Invalid spoke");
+
+        doRepayRevert(0, getAsset(2), 4 * 10 ** 16, "Invalid spoke");
+    }
+
+    function testConstantInterestRate() public {
+        deal(getAssetAddress(3), address(this), 100 * 10 ** 18);
+        deal(getAssetAddress(3), address(0x1), 100 * 10 ** 18);
+        deal(getAssetAddress(2), address(this), 100 * 10 ** 18);
+
+        doRegisterAsset(getAsset(3));
+        doRegisterAsset(getAsset(2));
+
+        setPrice(getAsset(2), 100);
+        setPrice(getAsset(3), 100);
+
+        doRegisterSpoke(0);
+        
+        doDeposit(0, getAsset(2), 1 * 10 ** 20);
+        doDeposit(0, getAsset(3), 1 * 10 ** 16, address(0x1));
+
+        doBorrow(0, getAsset(3), 1 * 10 ** 16);
+
+        skip(365 days);
+        doRepayRevertPayment(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14 + 1 * 10 ** 10);
+
+        doRepay(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14);
+
+        doWithdrawRevert(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14 + 1 * 10 ** 10, address(0x1), "Vault does not have required assets");
+
+
+        doWithdraw(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14, address(0x1));
+
+
+        doDeposit(0, getAsset(3), 2345675423 * 10 ** 10, address(0x1));
+
+        doBorrow(0, getAsset(3), 2345675422 * 10 ** 10);
+
+        skip(365 days / 2);
+
+        doRepayRevertPayment(0, getAsset(3), 2357287678 * 10 ** 10);
+        doRepay(0, getAsset(3), 2357287677 * 10 ** 10);
+        doWithdrawRevert(0, getAsset(3), 2357285356 * 10 ** 10, address(0x1), "Vault does not have required assets");
+        
+        doWithdraw(0, getAsset(3), 2357285355 * 10 ** 10, address(0x1));
+
+    }
+
+    function testPriceStandardDev() public {
+        deal(getAssetAddress(0), address(this), 5 * 10 ** 16);
+        deal(getAssetAddress(1), address(0x1), 6 * 10 ** 16);
+
+        doRegisterAsset(getAsset(0));
+        doRegisterAsset(getAsset(1));
+
+        doRegisterSpoke(0);
+
+        setPrice(getAsset(0), 1000000);
+        setPrice(getAsset(1), 867600, 10000, 0, 100, 100);
+
+        doDeposit(0, getAsset(0), 5 * 10 ** 16);
+
+        doBorrowRevert(0, getAsset(1), 5 * 10 ** 16, "Global supply does not have required assets");
+
+        doDeposit(0, getAsset(1), 6 * 10 ** 16, address(0x1));
+
+        doBorrowRevert(0, getAsset(1), 5 * 10 ** 16, "Vault is undercollateralized if this borrow goes through");
+
+        setPrice(getAsset(1), 857600, 10000, 0, 100, 100); 
+
+        doBorrow(0, getAsset(1), 5 * 10 ** 16);
+
+        doRepay(0, getAsset(1), 5 * 10 ** 16);
+
+        setPrice(getAsset(0), 1032399, 10000, 0, 100, 100);
+
+        doBorrowRevert(0, getAsset(1), 5 * 10 ** 16, "Vault is undercollateralized if this borrow goes through");
+
+        setPrice(getAsset(0), 1032400, 10000, 0, 100, 100);
+        
+        doBorrow(0, getAsset(1), 5 * 10 ** 16);
+    }
+
+
 
 
     /*

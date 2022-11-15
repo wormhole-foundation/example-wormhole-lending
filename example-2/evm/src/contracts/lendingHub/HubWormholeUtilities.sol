@@ -68,4 +68,22 @@ contract HubWormholeUtilities is HubGetters, HubSetters {
     function verifySenderIsSpoke(uint16 chainId, address sender) internal view {
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
+
+    function normalizeAmountTokenBridge(uint256 amount, uint8 decimals, Round round) internal pure returns (uint256) {
+        uint256 newAmount = amount;
+        if (decimals > 8) {
+            newAmount /= 10 ** (decimals - 8);
+        }
+        if(amount % (10 ** (decimals - 8)) != 0 && round == Round.UP) {
+            newAmount += 1;
+        }
+        return newAmount;
+    }
+
+    function denormalizeAmountTokenBridge(uint256 amount, uint8 decimals) internal pure returns (uint256) {
+        if (decimals > 8) {
+            amount *= 10 ** (decimals - 8);
+        }
+        return amount;
+    }
 }
