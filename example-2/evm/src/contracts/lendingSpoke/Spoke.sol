@@ -10,17 +10,26 @@ import "./SpokeGetters.sol";
 import "./SpokeUtilities.sol";
 
 contract Spoke is HubSpokeStructs, HubSpokeMessages, SpokeGetters, SpokeSetters, SpokeUtilities {
+    /**
+     * @notice Spoke constructor - Initializes a new spoke with given parameters
+     * 
+     * @param chainId: Chain ID of the chain that this Spoke is deployed on
+     * @param wormhole: Address of the Wormhole contract on this Spoke chain
+     * @param tokenBridge: Address of the TokenBridge contract on this Spoke chain
+     * @param hubChainId: Chain ID of the Hub
+     * @param hubContractAddress: Contract address of the Hub contract (on the Hub chain)
+     */
     constructor(
-        uint16 chainId_,
-        address wormhole_,
-        address tokenBridge_,
-        uint16 hubChainId_,
+        uint16 chainId,
+        address wormhole,
+        address tokenBridge,
+        uint16 hubChainId,
         address hubContractAddress
     ) {
-        setChainId(chainId_);
-        setWormhole(wormhole_);
-        setTokenBridge(tokenBridge_);
-        setHubChainId(hubChainId_);
+        setChainId(chainId);
+        setWormhole(wormhole);
+        setTokenBridge(tokenBridge);
+        setHubChainId(hubChainId);
         setHubContractAddress(hubContractAddress);
     }
 
