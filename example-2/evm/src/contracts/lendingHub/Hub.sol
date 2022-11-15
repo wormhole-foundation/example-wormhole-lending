@@ -26,8 +26,8 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
      * @param pythAddress: Address of the Pyth oracle on the Hub chain
      * @param oracleMode: Variable that should be 0 and exists only for testing purposes.
      * If oracleMode = 0, Hub uses Pyth; if 1, Hub uses a mock Pyth for testing, and if 2, Hub uses a dummy oracle that can be manually set
-     * @param priceStandardDeviations: priceStandardDeviations = (psd * pricePrecision), where psd is the number of standard deviations that we use for our price intervals in calculations relating to allowing withdraws, borrows, or liquidations
-     * @param pricePrecision: A precision number that allows us to represent our desired noninteger price standard deviation as an integer (specifically, psd = priceStandardDeviations/pricePrecision)
+     * @param priceStandardDeviations: priceStandardDeviations = (psd * priceStandardDeviationsPrecision), where psd is the number of standard deviations that we use for our price intervals in calculations relating to allowing withdraws, borrows, or liquidations
+     * @param priceStandardDeviationsPrecision: A precision number that allows us to represent our desired noninteger price standard deviation as an integer (specifically, psd = priceStandardDeviations/priceStandardDeviationsPrecision)
      *
      * @param maxLiquidationBonus: maxLiquidationBonus = (mlb * collateralizationRatioPrecision), where mlb is the multiplier such that if the fair value of a liquidator's repayed assets is v, the assets they receive can have a maximum of mlb*v in fair value. Fair value is computed using Pyth prices.
      * @param maxLiquidationPortion: maxLiquidationPortion = (mlp * maxLiquidationPortionPrecision), where mlp is the maximum fraction of the borrowed value vault that a liquidator can liquidate at once.
@@ -45,7 +45,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         address pythAddress,
         uint8 oracleMode,
         uint64 priceStandardDeviations,
-        uint64 pricePrecision,
+        uint64 priceStandardDeviationsPrecision,
         /* Liquidation Information */
         uint256 maxLiquidationBonus,
         uint256 maxLiquidationPortion,
@@ -56,7 +56,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         require(interestAccrualIndexPrecision <= 10 ** 6);
         require(collateralizationRatioPrecision <= 10 ** 6);
         require(maxLiquidationPortionPrecision <= 10 ** 6);
-        require(pricePrecision <= 10 ** 6);
+        require(priceStandardDeviationsPrecision <= 10 ** 6);
 
         setWormhole(wormhole);
         setTokenBridge(tokenBridge);
@@ -70,7 +70,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         setMaxLiquidationPortionPrecision(maxLiquidationPortionPrecision);
         setMockPyth(60 * (10 ** 18), 0);
         setPriceStandardDeviations(priceStandardDeviations);
-        setPricePrecision(pricePrecision);
+        setPriceStandardDeviationsPrecision(priceStandardDeviationsPrecision);
     }
 
     /**
@@ -134,6 +134,8 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         });
 
         registerAssetInfo(assetAddress, info);
+
+        setLastActivityBlockTimestamp(assetAddress, block.timestamp);
     }
 
     /**
@@ -207,6 +209,8 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
 
         checkValidAddress(params.assetAddress);
         bool returnTokensForInvalidRepay = false;
+
+        updateAccrualIndices(params.assetAddress);
 
         if (action == Action.Withdraw) {
             checkAllowedToWithdraw(params.sender, params.assetAddress, params.assetAmount);
@@ -284,7 +288,6 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     function logActionOnHub(Action action, address vault, address assetAddress, uint256 amount)
         internal
     {
-        updateAccrualIndices(assetAddress);
 
         VaultAmount memory vaultAmounts = getVaultAmounts(vault, assetAddress);
         VaultAmount memory globalAmounts = getGlobalAmounts(assetAddress);
@@ -305,6 +308,9 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
             globalAmounts.borrowed += normalizedBorrow;
         } else if (action == Action.Repay) {
             uint256 normalizedRepay = normalizeAmount(amount, indices.borrowed, Round.DOWN);
+            if(normalizedRepay > vaultAmounts.borrowed) {
+                normalizedRepay = vaultAmounts.borrowed;
+            }
             vaultAmounts.borrowed -= normalizedRepay;
             globalAmounts.borrowed -= normalizedRepay;
         }

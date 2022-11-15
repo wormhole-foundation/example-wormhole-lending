@@ -6,8 +6,9 @@ import "./HubGetters.sol";
 import "./HubSetters.sol";
 import "./HubPriceUtilities.sol";
 import "./HubInterestUtilities.sol";
+import "./HubWormholeUtilities.sol";
 
-contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilities, HubPriceUtilities {
+contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilities, HubPriceUtilities, HubWormholeUtilities {
     /** @notice Check if vaultOwner is allowed to withdraw assetAmount of assetAddress from their vault
      * 
      * @param vaultOwner - The address of the owner of the vault
@@ -25,7 +26,7 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
         uint256 normalizedAmount = normalizeAmount(assetAmount, indices.deposited, Round.UP);
 
-        (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
+        (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner, true);
 
         checkVaultHasAssets(vaultOwner, assetAddress, normalizedAmount);
         checkProtocolGloballyHasAssets(assetAddress, normalizedAmount);
@@ -55,7 +56,7 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
         uint256 normalizedAmount = normalizeAmount(assetAmount, indices.borrowed, Round.UP);
 
-        (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner);
+        (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner, true);
 
         checkProtocolGloballyHasAssets(assetAddress, normalizedAmount);
         require(
@@ -84,9 +85,11 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
         AccrualIndices memory indices = getInterestAccrualIndices(assetAddress);
 
-        uint256 normalizedAmount = normalizeAmount(assetAmount, indices.borrowed, Round.DOWN);
+        uint8 decimals = getAssetInfo(assetAddress).decimals;
 
-        bool check = vaultAmount.borrowed >= normalizedAmount;
+        uint256 denormalizedAmount = denormalizeAmount(vaultAmount.borrowed, indices.borrowed, Round.UP);
+
+        bool check = normalizeAmountTokenBridge(denormalizedAmount, decimals, Round.UP) >= normalizeAmountTokenBridge(assetAmount, decimals, Round.DOWN);
 
         return check;
     }
@@ -95,22 +98,24 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
      * @notice Check if vaultOwner is allowed to, for each i, repay assetRepayAmounts[i] of the asset at assetRepayAddresses[i] to the vault at 'vault',
      * and receive from the vault, for each i, assetReceiptAmounts[i] of the asset at assetReceiptAddresses[i]. Uses the Pyth prices to see if this liquidation should be allowed
      * 
-     * @param vault - The address of the owner of the vault
+     * @param vaultOwner - The address of the owner of the vault
      * @param assetRepayAddresses - The array of addresses of the assets being repayed
      * @param assetRepayAmounts - The array of amounts of each asset in assetRepayAddresses
      * @param assetReceiptAddresses - The array of addresses of the assets being repayed
      * @param assetReceiptAmounts - The array of amounts of each asset in assetRepayAddresses
      */
     function checkAllowedToLiquidate(
-        address vault,
+        address vaultOwner,
         address[] memory assetRepayAddresses,
         uint256[] memory assetRepayAmounts,
         address[] memory assetReceiptAddresses,
         uint256[] memory assetReceiptAmounts
     ) internal view {
-        (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vault);
+        (uint256 vaultDepositedValue, uint256 vaultBorrowedValue) = getVaultEffectiveNotionals(vaultOwner, true);
 
         require(vaultDepositedValue < vaultBorrowedValue, "vault not underwater");
+
+        (, uint256 vaultBorrowedTrueValue) = getVaultEffectiveNotionals(vaultOwner, false);
 
         uint256 notionalRepaid = 0;
         uint256 notionalReceived = 0;
@@ -126,7 +131,7 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
             uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed, Round.DOWN);
 
-            require(allowedToRepay(vault, asset, amount), "cannot repay more than has been borrowed");
+            require(allowedToRepay(vaultOwner, asset, amount), "cannot repay more than has been borrowed");
 
             notionalRepaid +=
                 normalizedAmount * indices.borrowed * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
@@ -143,7 +148,7 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
             uint256 normalizedAmount = normalizeAmount(amount, indices.deposited, Round.UP);
 
-            checkVaultHasAssets(vault, asset, normalizedAmount);
+            checkVaultHasAssets(vaultOwner, asset, normalizedAmount);
 
             checkProtocolGloballyHasAssets(asset, normalizedAmount);
 
@@ -156,8 +161,8 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
         // check to ensure that amount of debt repaid <= maxLiquidationPortion * amount of debt / liquidationPortionPrecision
         require(
-            notionalRepaid * getCollateralizationRatioPrecision()
-                <= getMaxLiquidationPortion() * vaultBorrowedValue / getMaxLiquidationPortionPrecision(),
+            notionalRepaid 
+                <= getMaxLiquidationPortion() * vaultBorrowedTrueValue / getMaxLiquidationPortionPrecision(),
             "Liquidator cannot claim more than maxLiquidationPortion of the total debt of the vault"
         );
 

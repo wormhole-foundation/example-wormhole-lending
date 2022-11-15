@@ -28,7 +28,6 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
             // no need to update anything
             return;
         }
-        accrualIndices.lastBlock = block.timestamp;
         if (deposited == 0) {
             // avoid divide by 0 due to 0 deposits
             return;
@@ -41,7 +40,6 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         uint256 reserveFactor = assetInfo.interestRateModel.reserveFactor;
         uint256 reservePrecision = assetInfo.interestRateModel.reservePrecision;
         accrualIndices.borrowed += interestFactor;
-
         accrualIndices.deposited +=
             (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
 
@@ -53,14 +51,14 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         uint256 deposited,
         uint256 borrowed,
         InterestRateModel memory interestRateModel
-    ) internal pure returns (uint256) {
+    ) internal view returns (uint256) {
         if (deposited == 0) {
             return 0;
         }
 
-        return (
+        return (getInterestAccrualIndexPrecision() *
             secondsElapsed
-                * (interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed) / deposited)
+                * (deposited * interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed)) / deposited
                 / interestRateModel.ratePrecision
         ) / 365 / 24 / 60 / 60;
     }

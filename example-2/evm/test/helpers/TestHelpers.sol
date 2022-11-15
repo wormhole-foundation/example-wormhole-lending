@@ -59,12 +59,12 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         uint8 wormholeFinality = 1;
         uint256 interestAccrualIndexPrecision = 10 ** 6;
         uint256 collateralizationRatioPrecision = 10 ** 6;
-        uint256 maxLiquidationBonus = 105 * 10**4;
-        uint256 maxLiquidationPortion = 100;
+        uint256 maxLiquidationBonus = 125 * 10**4;
+        uint256 maxLiquidationPortion = 50;
         uint256 maxLiquidationPortionPrecision = 10 ** 2;
         uint8 oracleMode = 1;
         uint64 priceStandardDeviations = 424;
-        uint64 pricePrecision = 10 ** 2;
+        uint64 priceStandardDeviationsPrecision = 10 ** 2;
         address pythAddress = vm.envAddress("TESTING_PYTH_ADDRESS_AVAX");
 
         Hub hub = new Hub(
@@ -74,7 +74,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             pythAddress, 
             oracleMode,
             priceStandardDeviations,
-            pricePrecision, 
+            priceStandardDeviationsPrecision, 
             maxLiquidationBonus, 
             maxLiquidationPortion, 
             maxLiquidationPortionPrecision,
@@ -198,7 +198,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             return;
         }
 
-        if(action == Action.Borrow || action == Action.Withdraw) {
+        if(action == Action.Borrow || action == Action.Withdraw || params.paymentReversion) {
             entries = vm.getRecordedLogs();
             encodedMessage = fetchSignedMessageFromHubLogs(entries[entries.length - 1]);
             getHubData().tokenBridgeContract.completeTransfer(encodedMessage);
@@ -316,17 +316,17 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             prankAddress: prankAddress
         }));
     }
-    function doRepayRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault) internal {
+    function doRepayRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, string memory revertString) internal {
         doAction(ActionParameters({
             action: Action.Repay,
             spokeIndex: spokeIndex,
             assetAddress: asset.assetAddress,
             assetAmount: assetAmount,
-            expectRevert: false,
-            revertString: "",
+            expectRevert: true,
+            revertString: revertString,
             paymentReversion: false,
-            prank: true,
-            prankAddress: vault
+            prank: false,
+            prankAddress: address(0x0)
         }));
     }
     
@@ -502,6 +502,19 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             prankAddress: address(0x0)
         }));
     }
+    function doWithdrawRevert(uint256 spokeIndex, Asset memory asset, uint256 assetAmount, address vault, string memory revertString) internal {
+        doAction(ActionParameters({
+            action: Action.Withdraw,
+            spokeIndex: spokeIndex,
+            assetAddress: asset.assetAddress,
+            assetAmount: assetAmount,
+            expectRevert: true,
+            revertString: revertString,
+            paymentReversion: false,
+            prank: true,
+            prankAddress: vault
+        }));
+    }
  
     function setPrice(Asset memory asset, int64 price) internal {
        setPrice(asset, price, 0, 0, 100, 100);
@@ -531,6 +544,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
     }
 
     function doLiquidate(address vaultToLiquidate, address[] memory repayAddresses, uint256[] memory repayAmounts, address[] memory receiptAddresses, uint256[] memory receiptAmounts, bool expectRevert, string memory revertString) internal {
+        
         uint256 repayLength = repayAddresses.length;
         uint256 receiptLength = repayAddresses.length;
 

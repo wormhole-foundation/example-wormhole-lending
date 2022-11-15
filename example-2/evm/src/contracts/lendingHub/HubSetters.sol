@@ -44,7 +44,6 @@ contract HubSetters is HubSpokeStructs, HubState, HubGetters {
         AccrualIndices memory accrualIndices;
         accrualIndices.deposited = 1 * getInterestAccrualIndexPrecision();
         accrualIndices.borrowed = 1 * getInterestAccrualIndexPrecision();
-        accrualIndices.lastBlock = block.timestamp;
 
         setInterestAccrualIndices(assetAddress, accrualIndices);
 
@@ -111,8 +110,8 @@ contract HubSetters is HubSpokeStructs, HubState, HubGetters {
         _state.priceStandardDeviations = priceStandardDeviations;
     }
 
-    function setPricePrecision(uint64 pricePrecision) internal {
-        _state.pricePrecision = pricePrecision;
+    function setPriceStandardDeviationsPrecision(uint64 priceStandardDeviationsPrecision) internal {
+        _state.priceStandardDeviationsPrecision = priceStandardDeviationsPrecision;
     }
 
     function setOraclePrice(bytes32 oracleId, Price memory price) public onlyOwner {

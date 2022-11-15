@@ -10,7 +10,6 @@ contract HubSpokeStructs {
     struct AccrualIndices {
         uint256 deposited;
         uint256 borrowed;
-        uint256 lastBlock;
     }
 
     struct AssetInfo {
