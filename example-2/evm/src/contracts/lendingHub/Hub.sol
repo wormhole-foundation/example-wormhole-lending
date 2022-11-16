@@ -159,7 +159,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
     }
 
     /**
-     * @notice Completes a borrow that was initiated on a spoke
+     * @notice Completes a withdraw that was initiated on a spoke
      * @param encodedMessage: encoded Wormhole message with withdraw information as the payload
      */
     function completeWithdraw(bytes memory encodedMessage) public {
