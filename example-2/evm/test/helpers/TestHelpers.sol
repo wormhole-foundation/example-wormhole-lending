@@ -201,7 +201,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         if(action == Action.Borrow || action == Action.Withdraw || params.paymentReversion) {
             entries = vm.getRecordedLogs();
             encodedMessage = fetchSignedMessageFromHubLogs(entries[entries.length - 1]);
-            getHubData().tokenBridgeContract.completeTransfer(encodedMessage);
+            spoke.tokenBridge().completeTransfer(encodedMessage);
         }
 
         ActionStateData memory afterData = getActionStateData(vault, params.assetAddress, isNative);
