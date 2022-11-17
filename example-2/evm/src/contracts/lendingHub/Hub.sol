@@ -208,27 +208,31 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         Action action = Action(params.action);
 
         checkValidAddress(params.assetAddress);
-        bool returnTokensForInvalidRepay = false;
+        bool completed = true;
+        bool transferTokensToSender = false;
 
         updateAccrualIndices(params.assetAddress);
 
         if (action == Action.Withdraw) {
             checkAllowedToWithdraw(params.sender, params.assetAddress, params.assetAmount);
+            transferTokensToSender = true;
         } else if (action == Action.Borrow) {
             checkAllowedToBorrow(params.sender, params.assetAddress, params.assetAmount);
+            transferTokensToSender = true;
         } else if (action == Action.Repay) {
-            returnTokensForInvalidRepay = !allowedToRepay(params.sender, params.assetAddress, params.assetAmount);
+            completed = allowedToRepay(params.sender, params.assetAddress, params.assetAmount);
+            if (!completed) {
+                transferTokensToSender = true;
+            }
         }
 
-        if (!returnTokensForInvalidRepay) {
+        if (completed) {
             logActionOnHub(action, params.sender, params.assetAddress, params.assetAmount);
         }
 
-        if (action == Action.Withdraw || action == Action.Borrow || returnTokensForInvalidRepay) {
+        if (transferTokensToSender) {
             sequence = transferTokens(params.sender, params.assetAddress, params.assetAmount, parsed.emitterChainId);
         }
-
-        completed = !returnTokensForInvalidRepay;
     }
 
     /**
