@@ -89,6 +89,7 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
         uint256 denormalizedAmount = denormalizeAmount(vaultAmount.borrowed, indices.borrowed, Round.UP);
 
+        // confirm that the amount filtered by token bridge decimal controls is less than the rounded up version of the vault's denormalized outstanding borrow. This allows vault owner to always be able to fully repay outstanding borrows.
         bool check = normalizeAmountTokenBridge(denormalizedAmount, decimals, Round.UP) >= normalizeAmountTokenBridge(assetAmount, decimals, Round.DOWN);
 
         return check;
