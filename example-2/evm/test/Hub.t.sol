@@ -46,8 +46,6 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
                 ratePrecision: 1 * 10**6,
                 kinks: kinks0,
                 rates: rates0,
-                // rateIntercept: 0,
-                // rateCoefficientA: 0,
                 reserveFactor: 0,
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_bnb")  
         }));
@@ -65,8 +63,6 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
                 ratePrecision: 1 * 10**6,
                 kinks: kinks1,
                 rates: rates1,
-                // rateIntercept: 0,
-                // rateCoefficientA: 0,
                 reserveFactor: 0,
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_eth") 
         }));
@@ -84,8 +80,6 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
                 ratePrecision: 1 * 10**6,
                 kinks: kinks2,
                 rates: rates2,
-                // rateIntercept: 0,
-                // rateCoefficientA: 0,
                 reserveFactor: 0,
                  pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_avax") 
         }));
@@ -103,8 +97,6 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
                 ratePrecision: 1 * 10**6,
                 kinks: kinks3,
                 rates: rates3,
-                // rateIntercept: 1 * 10**4,
-                // rateCoefficientA: 0,
                 reserveFactor: 0,
                  pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_matic") 
         }));

@@ -18,7 +18,6 @@ contract HubSpokeStructs {
         bytes32 pythId;
         // pyth id info
         uint8 decimals;
-        // InterestRateModel interestRateModel;
         PiecewiseInterestRateModel interestRateModel;
         bool exists;
     }

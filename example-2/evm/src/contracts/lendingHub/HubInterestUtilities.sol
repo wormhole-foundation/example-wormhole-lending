@@ -34,7 +34,6 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         }
         uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
         setLastActivityBlockTimestamp(assetAddress, block.timestamp);
-        // InterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
         PiecewiseInterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
         uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
@@ -51,7 +50,6 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         uint256 secondsElapsed,
         uint256 deposited,
         uint256 borrowed,
-        // InterestRateModel memory interestRateModel
         PiecewiseInterestRateModel memory interestRateModel
     ) internal view returns (uint256) {
         if (deposited == 0) {
@@ -82,12 +80,6 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
 
 
         return (getInterestAccrualIndexPrecision() * secondsElapsed * interestRate / interestRateModel.ratePrecision) / 365 / 24 / 60 / 60;
-
-        // return (getInterestAccrualIndexPrecision() *
-        //     secondsElapsed
-        //         * (deposited * interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed)) / deposited
-        //         / interestRateModel.ratePrecision
-        // ) / 365 / 24 / 60 / 60;
     }
 
     /*

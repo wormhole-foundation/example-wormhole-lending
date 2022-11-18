@@ -124,8 +124,6 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             asset.ratePrecision,
             asset.kinks,
             asset.rates,
-            // asset.rateIntercept,
-            // asset.rateCoefficientA,
             asset.reserveFactor, 
             reservePrecision, 
             asset.pythId
@@ -133,8 +131,26 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         
         AssetInfo memory info = getHub().getAssetInfo(asset.assetAddress);
 
+        bool kinksMatch = true;
+        bool ratesMatch = true;
+
+        require(info.interestRateModel.kinks.length == asset.kinks.length, "lengths of kinks arrays don't match");
+        require(info.interestRateModel.rates.length == asset.rates.length, "lengths of rates arrays don't match");
+
+        for(uint i=0; i < asset.kinks.length; i++) {
+            if (info.interestRateModel.kinks[i] != asset.kinks[i]) {
+                kinksMatch = false;
+            }
+        }
+
+        for(uint i=0; i < asset.rates.length; i++) {
+            if (info.interestRateModel.rates[i] != asset.rates[i]) {
+                ratesMatch = false;
+            }
+        }
+
         require(
-            (info.collateralizationRatioDeposit == asset.collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == asset.collateralizationRatioBorrow) && (info.decimals == asset.decimals) && (info.pythId == asset.pythId) && (info.exists) && (info.interestRateModel.ratePrecision == asset.ratePrecision) && (info.interestRateModel.reserveFactor == asset.reserveFactor) && (info.interestRateModel.reservePrecision == reservePrecision), // && (info.interestRateModel.rateIntercept == asset.rateIntercept) && (info.interestRateModel.rateCoefficientA == asset.rateCoefficientA) 
+            (info.collateralizationRatioDeposit == asset.collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == asset.collateralizationRatioBorrow) && (info.decimals == asset.decimals) && (info.pythId == asset.pythId) && (info.exists) && (info.interestRateModel.ratePrecision == asset.ratePrecision) && (kinksMatch) && (ratesMatch) && (info.interestRateModel.reserveFactor == asset.reserveFactor) && (info.interestRateModel.reservePrecision == reservePrecision), 
             "didn't register properly" 
         );
     }

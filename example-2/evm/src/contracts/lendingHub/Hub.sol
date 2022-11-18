@@ -110,13 +110,6 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
 
         allowAsset(assetAddress);
 
-        // InterestRateModel memory interestRateModel = InterestRateModel({
-        //     ratePrecision: ratePrecision,
-        //     rateIntercept: rateIntercept,
-        //     rateCoefficientA: rateCoefficientA,
-        //     reserveFactor: reserveFactor,
-        //     reservePrecision: reservePrecision
-        // });
         PiecewiseInterestRateModel memory interestRateModel = PiecewiseInterestRateModel({
             ratePrecision: ratePrecision,
             kinks: kinks,

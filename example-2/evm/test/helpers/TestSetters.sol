@@ -47,8 +47,6 @@ contract TestSetters is TestStructs, TestState, TestGetters {
             ratePrecision: addAssetData.ratePrecision,
             kinks: addAssetData.kinks,
             rates: addAssetData.rates,
-            // rateIntercept: addAssetData.rateIntercept,
-            // rateCoefficientA: addAssetData.rateCoefficientA,
             reserveFactor: addAssetData.reserveFactor,
             pythId: addAssetData.pythId
         });
