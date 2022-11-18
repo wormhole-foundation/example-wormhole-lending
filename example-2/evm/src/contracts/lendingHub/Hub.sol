@@ -85,8 +85,8 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
      * for purposes of allowing withdraws, borrows, or liquidations, we multiply any borrowed amount of this asset by crb.
      * One way to think about crb is that for every '$1 worth' of effective deposits we allow $c worth of this asset borrowed
      * @param ratePrecision: A precision number that allows us to represent noninteger rate intercept value ri and rate coefficient value rca as integers.
-     * @param rateIntercept: rateIntercept = ri * ratePrecision, where ri is the intercept of the interest rate model in HubInterestUtilities.sol used to set our interest accrual indices
-     * @param rateCoefficientA: rateCoefficientA = rca * ratePrecision, where rca is the first coefficient of the interest rate model in HubInterestUtilities.sol used to set our interest accrual indices
+     * @param kinks: x values of points on the piecewise linear curve, using ratePrecision for decimal expression
+     * @param rates: y values of points on the piecewise linear curve, using ratePrecision for decimal expression; TODO: maybe these two should have different precisions
      * @param reserveFactor: reserveFactor = rf * reservePrecision, The portion of the paid interest by borrowers that is diverted to the protocol for rainy day,
      * the remainder is distributed among lenders of the asset
      * @param reservePrecision: A precision number that allows us to represent our noninteger reserve factor rf as an integer (specifically reserveFactor = rf * reservePrecision)
@@ -97,8 +97,10 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         uint256 collateralizationRatioDeposit,
         uint256 collateralizationRatioBorrow,
         uint64 ratePrecision,
-        uint64 rateIntercept,
-        uint64 rateCoefficientA,
+        // uint64 rateIntercept,
+        // uint64 rateCoefficientA,
+        uint256[] memory kinks,
+        uint256[] memory rates,
         uint256 reserveFactor,
         uint256 reservePrecision,
         bytes32 pythId
@@ -108,10 +110,17 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
 
         allowAsset(assetAddress);
 
-        InterestRateModel memory interestRateModel = InterestRateModel({
+        // InterestRateModel memory interestRateModel = InterestRateModel({
+        //     ratePrecision: ratePrecision,
+        //     rateIntercept: rateIntercept,
+        //     rateCoefficientA: rateCoefficientA,
+        //     reserveFactor: reserveFactor,
+        //     reservePrecision: reservePrecision
+        // });
+        PiecewiseInterestRateModel memory interestRateModel = PiecewiseInterestRateModel({
             ratePrecision: ratePrecision,
-            rateIntercept: rateIntercept,
-            rateCoefficientA: rateCoefficientA,
+            kinks: kinks,
+            rates: rates,
             reserveFactor: reserveFactor,
             reservePrecision: reservePrecision
         });

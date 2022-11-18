@@ -76,7 +76,8 @@ contract HubGetters is Context, HubSpokeStructs, HubState {
         return _state.totalAssets[assetAddress].borrowed;
     }
 
-    function getInterestRateModel(address assetAddress) public view returns (InterestRateModel memory) {
+    function getInterestRateModel(address assetAddress) public view returns (PiecewiseInterestRateModel memory) {
+// (InterestRateModel memory) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
         return assetInfo.interestRateModel;
     }

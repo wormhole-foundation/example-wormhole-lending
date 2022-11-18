@@ -122,8 +122,10 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             asset.collateralizationRatioDeposit, 
             asset.collateralizationRatioBorrow,
             asset.ratePrecision,
-            asset.rateIntercept,
-            asset.rateCoefficientA,
+            asset.kinks,
+            asset.rates,
+            // asset.rateIntercept,
+            // asset.rateCoefficientA,
             asset.reserveFactor, 
             reservePrecision, 
             asset.pythId
@@ -132,7 +134,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         AssetInfo memory info = getHub().getAssetInfo(asset.assetAddress);
 
         require(
-            (info.collateralizationRatioDeposit == asset.collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == asset.collateralizationRatioBorrow) && (info.decimals == asset.decimals) && (info.pythId == asset.pythId) && (info.exists) && (info.interestRateModel.ratePrecision == asset.ratePrecision) && (info.interestRateModel.rateIntercept == asset.rateIntercept) && (info.interestRateModel.rateCoefficientA == asset.rateCoefficientA) && (info.interestRateModel.reserveFactor == asset.reserveFactor) && (info.interestRateModel.reservePrecision == reservePrecision),
+            (info.collateralizationRatioDeposit == asset.collateralizationRatioDeposit) && (info.collateralizationRatioBorrow == asset.collateralizationRatioBorrow) && (info.decimals == asset.decimals) && (info.pythId == asset.pythId) && (info.exists) && (info.interestRateModel.ratePrecision == asset.ratePrecision) && (info.interestRateModel.reserveFactor == asset.reserveFactor) && (info.interestRateModel.reservePrecision == reservePrecision), // && (info.interestRateModel.rateIntercept == asset.rateIntercept) && (info.interestRateModel.rateCoefficientA == asset.rateCoefficientA) 
             "didn't register properly" 
         );
     }
