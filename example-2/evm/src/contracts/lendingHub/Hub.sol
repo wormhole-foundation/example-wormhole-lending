@@ -97,8 +97,6 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         uint256 collateralizationRatioDeposit,
         uint256 collateralizationRatioBorrow,
         uint64 ratePrecision,
-        // uint64 rateIntercept,
-        // uint64 rateCoefficientA,
         uint256[] memory kinks,
         uint256[] memory rates,
         uint256 reserveFactor,
