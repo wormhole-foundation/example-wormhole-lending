@@ -387,6 +387,9 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
     }
 
     function testConstantInterestRate() public {
+
+        setDebug(true);
+
         deal(getAssetAddress(3), address(this), 100 * 10 ** 18);
         deal(getAssetAddress(3), address(0x1), 100 * 10 ** 18);
         deal(getAssetAddress(2), address(this), 100 * 10 ** 18);
@@ -405,7 +408,9 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         doBorrow(0, getAsset(3), 1 * 10 ** 16);
 
         skip(365 days);
+
         doRepayRevertPayment(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14 + 1 * 10 ** 10);
+
         doRepay(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14);
 
         doWithdrawRevert(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14 + 1 * 10 ** 10, address(0x1), "Vault does not have required assets");
@@ -419,6 +424,7 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         doBorrow(0, getAsset(3), 2345675422 * 10 ** 10);
 
         skip(365 days / 2);
+
         doRepayRevertPayment(0, getAsset(3), 2357287678 * 10 ** 10);
         doRepay(0, getAsset(3), 2357287677 * 10 ** 10);
         doWithdrawRevert(0, getAsset(3), 2357285356 * 10 ** 10, address(0x1), "Vault does not have required assets");

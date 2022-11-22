@@ -76,6 +76,15 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
         
     }
 
+    function getAssetIndex(address assetAddress) internal view returns (uint) {
+        for(uint i=0; i<_testState.assets.length; i++) {
+            if(getAssetAddress(i) == assetAddress) {
+                return i;
+            }
+        }
+        return 2**32;
+    }
+
     function getActionStateData(address vault, address assetAddress, bool isNative) internal view returns(ActionStateData memory data) {
         uint256 balanceUser;
         if(isNative) {
@@ -83,31 +92,35 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
         } else {
             balanceUser = IERC20(assetAddress).balanceOf(vault);
         }
+
+        VaultAmount memory vaultBalance =  getHub().getUserBalance(vault, assetAddress);
+
         data = ActionStateData({
-            global: getHub().getGlobalAmounts(assetAddress),
-            vault: getHub().getVaultAmounts(vault, assetAddress),
+            global: getHub().getGlobalBalance(assetAddress),
+            vault: vaultBalance,
             balanceHub: IERC20(assetAddress).balanceOf(address(getHub())),
             balanceUser: balanceUser
         });
+        
+        if(getDebug()) {
+            console.log("Balance of asset %s is (deposited: %s, borrowed: %s)", getAssetIndex(assetAddress), vaultBalance.deposited, vaultBalance.borrowed);
+        }
     }
+
+    
 
     function requireActionDataValid(Action action, address assetAddress, uint256 assetAmount, ActionStateData memory beforeData, ActionStateData memory afterData, bool paymentReversion) internal view {
 
-        uint256 normalizedAssetAmountDeposited = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).deposited, Round.DOWN);
-        uint256 normalizedAssetAmountBorrowed = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).borrowed, Round.UP);
-        uint256 normalizedAssetAmountWithdrawed = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).deposited, Round.UP);
-        uint256 normalizedAssetAmountRepayed = getHub().normalizeAmount(assetAmount, getHub().getInterestAccrualIndices(assetAddress).borrowed, Round.DOWN);
-        if(normalizedAssetAmountRepayed > beforeData.vault.borrowed) {
-            normalizedAssetAmountRepayed = beforeData.vault.borrowed;
-        }
-
         if(action == Action.Deposit) {
-            require(beforeData.global.deposited + normalizedAssetAmountDeposited == afterData.global.deposited, "Did not deposit globally");
-            require(beforeData.vault.deposited + normalizedAssetAmountDeposited == afterData.vault.deposited, "Did not deposit in vault");
+            require(areSame(beforeData.global.deposited + assetAmount, afterData.global.deposited, getDust(assetAddress, true)), "Did not deposit globally");
+            require(areSame(beforeData.vault.deposited + assetAmount, afterData.vault.deposited, getDust(assetAddress, true)), "Did not deposit in vault");
             require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
             require(beforeData.balanceUser == assetAmount + afterData.balanceUser, "Did not transfer money from user");
         } else if(action == Action.Repay) {
-
+            uint256 amountRepayed = assetAmount;
+            if(assetAmount >= beforeData.vault.borrowed) {
+                amountRepayed = beforeData.vault.borrowed;
+            }
             if(paymentReversion){
                 require(beforeData.global.borrowed == afterData.global.borrowed, "Repay should not have gone through, so expect no changes to global borrowed");
                 require(beforeData.vault.borrowed == afterData.vault.borrowed, "Repay should not have gone through, so expect no changes to vault borrowed");
@@ -115,22 +128,35 @@ contract TestUtilities is TestStructs, TestState, TestGetters, TestSetters {
                 require(beforeData.balanceUser == afterData.balanceUser, "Did transfer money from user, when should have reverted");
             }
             else {
-                require(beforeData.global.borrowed == normalizedAssetAmountRepayed + afterData.global.borrowed, "Did not repay globally");
-                require(beforeData.vault.borrowed == normalizedAssetAmountRepayed + afterData.vault.borrowed, "Did not repay in vault");
+                require(areSame(amountRepayed + afterData.global.borrowed, beforeData.global.borrowed, getDust(assetAddress, false)), "Did not repay globally");
+                require(areSame(amountRepayed + afterData.vault.borrowed, beforeData.vault.borrowed, getDust(assetAddress, false)), "Did not repay in vault");
                 require(beforeData.balanceHub + assetAmount == afterData.balanceHub, "Did not transfer money to hub");
                 require(beforeData.balanceUser == assetAmount + afterData.balanceUser, "Did not transfer money from user");
             }
             
         } else if(action == Action.Withdraw) {
-            require(beforeData.global.deposited == normalizedAssetAmountWithdrawed  + afterData.global.deposited, "Did not borrow globally");
-            require(beforeData.vault.deposited == normalizedAssetAmountWithdrawed + afterData.vault.deposited, "Did not borrow from vault");
+            require(areSame(beforeData.global.deposited, assetAmount  + afterData.global.deposited, getDust(assetAddress, true)), "Did not borrow globally");
+            require(areSame(beforeData.vault.deposited, assetAmount + afterData.vault.deposited, getDust(assetAddress, true)), "Did not borrow from vault");
             require(beforeData.balanceHub == assetAmount + afterData.balanceHub, "Did not transfer money from hub");
             require(beforeData.balanceUser + assetAmount == afterData.balanceUser, "Did not transfer money to user");
         } else if(action == Action.Borrow) {
-            require(beforeData.global.borrowed + normalizedAssetAmountBorrowed == afterData.global.borrowed, "Did not withdraw globally");
-            require(beforeData.vault.borrowed + normalizedAssetAmountBorrowed == afterData.vault.borrowed, "Did not withdraw from vault");
+            require(areSame(afterData.global.borrowed, beforeData.global.borrowed + assetAmount, getDust(assetAddress, false)), "Did not withdraw globally");
+            require(areSame(afterData.vault.borrowed, beforeData.vault.borrowed + assetAmount, getDust(assetAddress, false)), "Did not withdraw from vault");
             require(beforeData.balanceHub == assetAmount + afterData.balanceHub, "Did not transfer money from hub");
             require(beforeData.balanceUser + assetAmount == afterData.balanceUser, "Did not transfer money to user");
         }
     }
+
+    function areSame(uint256 a, uint256 b, uint256 dust) internal pure returns (bool) {
+        return a >= b && (a < b + dust);
+    }
+
+    function getDust(address assetAddress, bool depositedOrBorrowed) internal view returns (uint256) {
+        if(depositedOrBorrowed) {
+            return getHub().getInterestAccrualIndices(assetAddress).deposited/getHub().getInterestAccrualIndexPrecision() + 1;
+        }
+        return getHub().getInterestAccrualIndices(assetAddress).borrowed/getHub().getInterestAccrualIndexPrecision() + 1;
+    }
+
+    
 }

@@ -14,6 +14,8 @@ contract TestStorage is TestStructs {
         Asset[] assets;
         Vm vm;
         uint64 publishTime;
+        uint8 oracleMode;
+        bool debug;
     }
 }
 
