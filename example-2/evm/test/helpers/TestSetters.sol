@@ -91,4 +91,12 @@ contract TestSetters is TestStructs, TestState, TestGetters {
         _testState.publishTime = publishTime;
     }
 
+    function setOracleMode(uint8 newOracleMode) internal {
+        _testState.oracleMode = newOracleMode;
+    }
+
+    function setDebug(bool debug) internal {
+        _testState.debug = debug;
+    }
+
 }

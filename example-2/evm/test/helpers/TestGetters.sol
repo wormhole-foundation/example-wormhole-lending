@@ -46,4 +46,12 @@ contract TestGetters is TestStructs, TestState {
         return _testState.publishTime;
     }
 
+    function getOracleMode() internal view returns(uint8) {
+        return _testState.oracleMode;
+    }
+
+    function getDebug() internal view returns(bool) {
+        return _testState.debug;
+    }
+
 }

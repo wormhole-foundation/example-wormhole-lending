@@ -208,7 +208,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
         Action action = Action(params.action);
 
         checkValidAddress(params.assetAddress);
-        bool completed = true;
+        completed = true;
         bool transferTokensToSender = false;
 
         updateAccrualIndices(params.assetAddress);

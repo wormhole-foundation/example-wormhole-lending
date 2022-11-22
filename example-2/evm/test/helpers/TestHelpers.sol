@@ -82,6 +82,8 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             collateralizationRatioPrecision
         );
 
+        setOracleMode(oracleMode);
+
         setHubData(HubData({
             guardianSigner: guardianSigner,
             wormholeSimulator: wormholeSimulator,
@@ -156,12 +158,16 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
     }
    
     function doAction(ActionParameters memory params) internal {
+        
         Action action = Action(params.action);
         bool isNative = params.action == Action.DepositNative || params.action == Action.RepayNative;
         Spoke spoke = getSpoke(params.spokeIndex);
         address vault = address(this);
         if(params.prank) {
             vault = params.prankAddress;
+        }
+        if(getDebug()) {
+            console.log("-[Vault %s]--------------", vault);
         }
         Vm vm = getVm();
         ActionStateData memory beforeData = getActionStateData(vault, params.assetAddress, isNative);
@@ -177,20 +183,38 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
 
         vm.recordLogs();
         if(action == Action.Deposit) {
+            if(getDebug()) {
+                console.log("Depositing %s of asset %s", params.assetAmount, getAssetIndex(params.assetAddress));
+            }
             spoke.depositCollateral(params.assetAddress, params.assetAmount);
         }
         else if(action == Action.Repay) {
+            if(getDebug()) {
+                console.log("Repaying %s of asset %s", params.assetAmount, getAssetIndex(params.assetAddress));
+            }
             spoke.repay(params.assetAddress, params.assetAmount);
         }
         else if(action == Action.Borrow) {
+            if(getDebug()) {
+                console.log("Borrowing %s of asset %s", params.assetAmount, getAssetIndex(params.assetAddress));
+            }
             spoke.borrow(params.assetAddress, params.assetAmount);
         }
         else if(action == Action.Withdraw) {
+            if(getDebug()) {
+                console.log("Withdrawing %s of asset %s", params.assetAmount, getAssetIndex(params.assetAddress));
+            }
             spoke.withdrawCollateral(params.assetAddress, params.assetAmount);
         } else if(action == Action.DepositNative) {
+            if(getDebug()) {
+                console.log("Depositing %s of native token", params.assetAmount);
+            }
             spoke.depositCollateralNative{value: params.assetAmount}();
         }
         else if(action == Action.RepayNative) {
+            if(getDebug()) {
+                console.log("Repaying %s of native token", params.assetAmount);
+            }
             spoke.repayNative{value: params.assetAmount}();
         }
         
@@ -213,6 +237,11 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             getHub().completeWithdraw(encodedMessage);
         } 
         if(params.expectRevert) {
+            if(getDebug()) {
+            console.log("should revert");
+            console.log("----------------------------------------");
+            console.log("");
+            }
             return;
         }
 
@@ -227,6 +256,11 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         uint256 amount = params.assetAmount;
         if(isNative) amount = amount - getHubData().wormholeContract.messageFee();
         requireActionDataValid(action, params.assetAddress, amount, beforeData, afterData, params.paymentReversion);
+
+        if(getDebug()) {
+            console.log("----------------------------------------");
+            console.log("");
+        }
     }
 
     
@@ -545,10 +579,10 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         publishTime += 1;
         setPublishTime(publishTime);
         
-        if(getHub().getOracleMode() == 1){
+        if(getOracleMode() == 1){
             getHub().setMockPythFeed(asset.pythId, price, conf, expo, emaPrice, emaConf, publishTime);
         }
-        else if(getHub().getOracleMode() == 2){
+        else if(getOracleMode() == 2){
             getHub().setOraclePrice(asset.pythId, Price({price: price, conf: conf, expo: expo, publishTime: publishTime}));
         }
     }
@@ -593,16 +627,16 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             lda.userBalancePreRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(this));
             lda.hubBalancePreRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(getHub()));
 
-            lda.vaultToLiquidateAmountRepayPre[i] = getHub().getVaultAmounts(vaultToLiquidate, repayAddresses[i]).borrowed;
-            lda.globalAmountRepayPre[i] = getHub().getGlobalAmounts(repayAddresses[i]).borrowed;
+            lda.vaultToLiquidateAmountRepayPre[i] = getHub().getUserBalance(vaultToLiquidate, repayAddresses[i]).borrowed;
+            lda.globalAmountRepayPre[i] = getHub().getGlobalBalance(repayAddresses[i]).borrowed;
         }
 
         for(uint256 i=0; i<receiptLength; i++) {
             lda.userBalancePreReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(this));
             lda.hubBalancePreReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(getHub()));
 
-            lda.vaultToLiquidateAmountReceiptPre[i] = getHub().getVaultAmounts(vaultToLiquidate, receiptAddresses[i]).deposited;
-            lda.globalAmountReceiptPre[i] = getHub().getGlobalAmounts(receiptAddresses[i]).deposited;
+            lda.vaultToLiquidateAmountReceiptPre[i] = getHub().getUserBalance(vaultToLiquidate, receiptAddresses[i]).deposited;
+            lda.globalAmountReceiptPre[i] = getHub().getGlobalBalance(receiptAddresses[i]).deposited;
         }
 
         if(expectRevert) {
@@ -618,31 +652,25 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
             lda.userBalancePostRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(this));
             lda.hubBalancePostRepay[i] = IERC20(repayAddresses[i]).balanceOf(address(getHub()));
 
-            lda.vaultToLiquidateAmountRepayPost[i] = getHub().getVaultAmounts(vaultToLiquidate, repayAddresses[i]).borrowed;
-            lda.globalAmountRepayPost[i] = getHub().getGlobalAmounts(repayAddresses[i]).borrowed;
+            lda.vaultToLiquidateAmountRepayPost[i] = getHub().getUserBalance(vaultToLiquidate, repayAddresses[i]).borrowed;
+            lda.globalAmountRepayPost[i] = getHub().getGlobalBalance(repayAddresses[i]).borrowed;
 
             require(lda.userBalancePreRepay[i] == lda.userBalancePostRepay[i] + repayAmounts[i], "User didn't pay tokens for the repay");
             require(lda.hubBalancePreRepay[i] + repayAmounts[i] == lda.hubBalancePostRepay[i], "Hub didn't receive tokens for the repay");
-
-            uint256 normalizedAssetAmount = getHub().normalizeAmount(repayAmounts[i], getHub().getInterestAccrualIndices(repayAddresses[i]).borrowed, Round.DOWN);
-
-            require(lda.vaultToLiquidateAmountRepayPost[i] + normalizedAssetAmount== lda.vaultToLiquidateAmountRepayPre[i], "Vault repay amount not tracked properly");
-            require(lda.globalAmountRepayPost[i] + normalizedAssetAmount == lda.globalAmountRepayPre[i], "Global repay amount not tracked properly");
+            require(lda.vaultToLiquidateAmountRepayPost[i] + repayAmounts[i]== lda.vaultToLiquidateAmountRepayPre[i], "Vault repay amount not tracked properly");
+            require(lda.globalAmountRepayPost[i] + repayAmounts[i] == lda.globalAmountRepayPre[i], "Global repay amount not tracked properly");
         }
         for(uint256 i=0; i<receiptLength; i++) {
             lda.userBalancePostReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(this));
             lda.hubBalancePostReceipt[i] = IERC20(receiptAddresses[i]).balanceOf(address(getHub()));
 
-            lda.vaultToLiquidateAmountReceiptPost[i] = getHub().getVaultAmounts(vaultToLiquidate, receiptAddresses[i]).deposited;
-            lda.globalAmountReceiptPost[i] = getHub().getGlobalAmounts(receiptAddresses[i]).deposited;
+            lda.vaultToLiquidateAmountReceiptPost[i] = getHub().getUserBalance(vaultToLiquidate, receiptAddresses[i]).deposited;
+            lda.globalAmountReceiptPost[i] = getHub().getGlobalBalance(receiptAddresses[i]).deposited;
 
             require(lda.userBalancePreReceipt[i] + receiptAmounts[i] == lda.userBalancePostReceipt[i], "User didn't receive tokens for the receipt");
             require(lda.hubBalancePreReceipt[i] == lda.hubBalancePostReceipt[i] + receiptAmounts[i], "Hub didn't pay tokens for the receipt");
-        
-            uint256 normalizedAssetAmount = getHub().normalizeAmount(receiptAmounts[i], getHub().getInterestAccrualIndices(receiptAddresses[i]).deposited, Round.UP);
-
-            require(lda.vaultToLiquidateAmountReceiptPost[i] + normalizedAssetAmount == lda.vaultToLiquidateAmountReceiptPre[i], "Vault receipt amount not tracked properly");
-            require(lda.globalAmountReceiptPost[i] + normalizedAssetAmount == lda.globalAmountReceiptPre[i] , "Global receipt amount not tracked properly");
+            require(lda.vaultToLiquidateAmountReceiptPost[i] + receiptAmounts[i] == lda.vaultToLiquidateAmountReceiptPre[i], "Vault receipt amount not tracked properly");
+            require(lda.globalAmountReceiptPost[i] + receiptAmounts[i] == lda.globalAmountReceiptPre[i] , "Global receipt amount not tracked properly");
         }
 
     }
