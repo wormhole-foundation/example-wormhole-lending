@@ -45,8 +45,8 @@ contract TestSetters is TestStructs, TestState, TestGetters {
             collateralizationRatioBorrow: addAssetData.collateralizationRatioBorrow,
             decimals: decimals,
             ratePrecision: addAssetData.ratePrecision,
-            rateIntercept: addAssetData.rateIntercept,
-            rateCoefficientA: addAssetData.rateCoefficientA,
+            kinks: addAssetData.kinks,
+            rates: addAssetData.rates,
             reserveFactor: addAssetData.reserveFactor,
             pythId: addAssetData.pythId
         });

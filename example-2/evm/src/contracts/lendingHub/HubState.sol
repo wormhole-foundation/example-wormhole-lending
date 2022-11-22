@@ -45,7 +45,7 @@ contract HubStorage is HubSpokeStructs {
         // last timestamp for update
         mapping(address => uint256) lastActivityBlockTimestamps;
         // interest rate models
-        mapping(address => InterestRateModel) interestRateModels;
+        mapping(address => PiecewiseInterestRateModel) interestRateModels;
         // interest accrual rate precision level
         uint256 interestAccrualIndexPrecision;
         // collateralization ratio precision

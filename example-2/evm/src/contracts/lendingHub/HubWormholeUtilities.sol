@@ -69,6 +69,14 @@ contract HubWormholeUtilities is HubGetters, HubSetters {
         require(getSpokeContract(chainId) == sender, "Invalid spoke");
     }
 
+    /**
+     * @notice Normalize the amount passed into Token Bridge to get the mantissa outputted. Token Bridge filters all tokens to decimals no larger than 8.
+     *
+     * @param amount - The amount of an asset intended to be transferred via the Token Bridge
+     * @param decimals - The decimals of the asset
+     * @param round - Whether to round up or round down, in case the remainder is nonzero
+     * @return {uint256} The normalized amount of the asset
+     */
     function normalizeAmountTokenBridge(uint256 amount, uint8 decimals, Round round) internal pure returns (uint256) {
         uint256 newAmount = amount;
         if (decimals > 8) {
@@ -80,6 +88,13 @@ contract HubWormholeUtilities is HubGetters, HubSetters {
         return newAmount;
     }
 
+    /**
+     * @notice Denormalize the amount passed into Token Bridge by converting from decimals=8 to true decimals of the asset.
+     *
+     * @param amount - The amount of an asset normalized by the Token Bridge
+     * @param decimals - The decimals of the asset
+     * @return {uint256} The denormalized amount of the asset
+     */
     function denormalizeAmountTokenBridge(uint256 amount, uint8 decimals) internal pure returns (uint256) {
         if (decimals > 8) {
             amount *= 10 ** (decimals - 8);

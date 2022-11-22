@@ -36,8 +36,8 @@ contract TestStructs is HubSpokeStructs {
         uint256 collateralizationRatioBorrow;
         uint8 decimals;
         uint64 ratePrecision;
-        uint64 rateIntercept;
-        uint64 rateCoefficientA;
+        uint256[] kinks;
+        uint256[] rates;
         uint256 reserveFactor;
         bytes32 pythId;
     }
@@ -47,8 +47,8 @@ contract TestStructs is HubSpokeStructs {
         uint256 collateralizationRatioDeposit;
         uint256 collateralizationRatioBorrow;
         uint64 ratePrecision;
-        uint64 rateIntercept;
-        uint64 rateCoefficientA;
+        uint256[] kinks;
+        uint256[] rates;
         uint256 reserveFactor;
         bytes32 pythId;
     }

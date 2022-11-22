@@ -39,6 +39,25 @@ contract HubSetters is HubSpokeStructs, HubState, HubGetters {
     }
 
     function registerAssetInfo(address assetAddress, AssetInfo memory info) internal {
+        uint256[] memory kinks = info.interestRateModel.kinks;
+        uint256[] memory rates = info.interestRateModel.rates;
+
+        uint n = kinks.length;
+        uint m = rates.length;
+
+        require(n == m, "lengths of kinks and rates arrays don't match");
+        require(kinks[0]==0, "first kink must be at 0");
+
+        for(uint i=1; i < n; i++) {
+            require(kinks[i] > kinks[i-1], "kinks must be monotonically increasing");
+        }
+
+        require(kinks[n-1]==info.interestRateModel.ratePrecision, "last kink must be 1 (i.e. ratePrecision)");
+
+        for(uint i=1; i < m; i++) {
+            require(rates[i] >= rates[i-1], "rates must be monotonically non-decreasing");
+        }
+
         _state.assetInfos[assetAddress] = info;
 
         AccrualIndices memory accrualIndices;

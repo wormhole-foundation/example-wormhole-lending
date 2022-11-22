@@ -32,43 +32,71 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         
         testSetUp(vm);
 
+        uint256[] memory kinks0 = new uint256[](2);
+        kinks0[0] = 0;
+        kinks0[1] = 1 * 10**6;
+        uint256[] memory rates0 = new uint256[](2);
+        rates0[0] = 0;
+        rates0[1] = 0;
+
         addAsset(AddAsset({
                 assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 110 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
-                rateIntercept: 0,
-                rateCoefficientA: 0,
+                kinks: kinks0,
+                rates: rates0,
                 reserveFactor: 0,
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_bnb")  
         }));
+
+        uint256[] memory kinks1 = new uint256[](2);
+        kinks1[0] = 0;
+        kinks1[1] = 1 * 10**6;
+        uint256[] memory rates1 = new uint256[](2);
+        rates1[0] = 0;
+        rates1[1] = 0;
 
         addAsset(AddAsset({assetAddress: 0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 110 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
-                rateIntercept: 0,
-                rateCoefficientA: 0,
+                kinks: kinks1,
+                rates: rates1,
                 reserveFactor: 0,
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_eth") 
         }));
+
+        uint256[] memory kinks2 = new uint256[](2);
+        kinks2[0] = 0;
+        kinks2[1] = 1 * 10**6;
+        uint256[] memory rates2 = new uint256[](2);
+        rates2[0] = 0;
+        rates2[1] = 0;
 
         addAsset(AddAsset({assetAddress: address(getHubData().tokenBridgeContract.WETH()), // WAVAX
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 110 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
-                rateIntercept: 0,
-                rateCoefficientA: 0,
+                kinks: kinks2,
+                rates: rates2,
                 reserveFactor: 0,
                  pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_avax") 
         }));
+
+        uint256[] memory kinks3 = new uint256[](2);
+        kinks3[0] = 0;
+        kinks3[1] = 1 * 10**6;
+        uint256[] memory rates3 = new uint256[](2);
+        rates3[0] = 1 * 10**4;
+        rates3[1] = 1 * 10**4;
 
         addAsset(AddAsset({assetAddress: 0xA56B1b9f4e5A1A1e0868F5Fd4352ce7CdF0C2A4F, // WMATIC
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 100 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
-                rateIntercept: 1 * 10**4,
-                rateCoefficientA: 0,
+                kinks: kinks3,
+                rates: rates3,
                 reserveFactor: 0,
                  pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_matic") 
         }));
@@ -378,7 +406,6 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
 
         skip(365 days);
         doRepayRevertPayment(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14 + 1 * 10 ** 10);
-
         doRepay(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14);
 
         doWithdrawRevert(0, getAsset(3), 1 * 10 ** 16 + 1 * 10 ** 14 + 1 * 10 ** 10, address(0x1), "Vault does not have required assets");
@@ -392,7 +419,6 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         doBorrow(0, getAsset(3), 2345675422 * 10 ** 10);
 
         skip(365 days / 2);
-
         doRepayRevertPayment(0, getAsset(3), 2357287678 * 10 ** 10);
         doRepay(0, getAsset(3), 2357287677 * 10 ** 10);
         doWithdrawRevert(0, getAsset(3), 2357285356 * 10 ** 10, address(0x1), "Vault does not have required assets");
