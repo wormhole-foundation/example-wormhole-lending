@@ -18,7 +18,7 @@ contract HubSpokeStructs {
         bytes32 pythId;
         // pyth id info
         uint8 decimals;
-        InterestRateModel interestRateModel;
+        PiecewiseInterestRateModel interestRateModel;
         bool exists;
     }
 
@@ -26,6 +26,14 @@ contract HubSpokeStructs {
         uint64 ratePrecision;
         uint64 rateIntercept;
         uint64 rateCoefficientA;
+        uint256 reserveFactor;
+        uint256 reservePrecision;
+    }
+
+    struct PiecewiseInterestRateModel {
+        uint64 ratePrecision;
+        uint256[] kinks;
+        uint256[] rates;
         uint256 reserveFactor;
         uint256 reservePrecision;
     }

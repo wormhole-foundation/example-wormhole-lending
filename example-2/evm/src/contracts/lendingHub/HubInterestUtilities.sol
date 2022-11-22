@@ -34,7 +34,7 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         }
         uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
         setLastActivityBlockTimestamp(assetAddress, block.timestamp);
-        InterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
+        PiecewiseInterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
         uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
         uint256 reserveFactor = assetInfo.interestRateModel.reserveFactor;
@@ -50,17 +50,36 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
         uint256 secondsElapsed,
         uint256 deposited,
         uint256 borrowed,
-        InterestRateModel memory interestRateModel
+        PiecewiseInterestRateModel memory interestRateModel
     ) internal view returns (uint256) {
         if (deposited == 0) {
             return 0;
         }
 
-        return (getInterestAccrualIndexPrecision() *
-            secondsElapsed
-                * (deposited * interestRateModel.rateIntercept + (interestRateModel.rateCoefficientA * borrowed)) / deposited
-                / interestRateModel.ratePrecision
-        ) / 365 / 24 / 60 / 60;
+        uint256[] memory kinks = interestRateModel.kinks;
+        uint256[] memory rates = interestRateModel.rates;
+
+        uint i = 0;
+        uint256 interestRate = 0;
+        while (borrowed * interestRateModel.ratePrecision > deposited * kinks[i]) {
+            interestRate = rates[i];
+            i += 1;
+
+            if (i == rates.length) {
+                return rates[i-1];
+            }
+        }
+
+        // if zero borrows and nonzero deposits, then set interest rate for period to the rate intercept i.e. first kink; ow linearly interpolate between kinks
+        if (i==0) {
+            interestRate = rates[0];
+        }
+        else {
+            interestRate += (rates[i] - rates[i-1]) * ((borrowed - kinks[i-1] * deposited) / deposited) / (kinks[i] - kinks[i-1]);
+        }
+
+
+        return (getInterestAccrualIndexPrecision() * secondsElapsed * interestRate / interestRateModel.ratePrecision) / 365 / 24 / 60 / 60;
     }
 
     /*
