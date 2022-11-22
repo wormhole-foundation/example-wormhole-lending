@@ -8,7 +8,7 @@ import "./HubSetters.sol";
 contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
     /*
      *
-     *  The following two functions describe the Interest Rate Model of the whole protocol!
+     *  The following three functions describe the Interest Rate Model of the whole protocol!
      *  TODO: IMPORTANT! Substitute this function out for whatever desired interest rate model you wish to have
      *
      */
@@ -20,30 +20,27 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
      * @param assetAddress - The asset to update the interest accrual indices of
      */
     function updateAccrualIndices(address assetAddress) internal {
+        setInterestAccrualIndices(assetAddress, getCurrentAccrualIndices(assetAddress));
+        setLastActivityBlockTimestamp(assetAddress, block.timestamp);
+    }
+
+    function getCurrentAccrualIndices(address assetAddress) internal view returns (AccrualIndices memory) {
         uint256 lastActivityBlockTimestamp = getLastActivityBlockTimestamp(assetAddress);
         uint256 secondsElapsed = block.timestamp - lastActivityBlockTimestamp;
         uint256 deposited = getTotalAssetsDeposited(assetAddress);
         AccrualIndices memory accrualIndices = getInterestAccrualIndices(assetAddress);
-        if (secondsElapsed == 0) {
-            // no need to update anything
-            return;
+        if ((secondsElapsed != 0) && (deposited != 0)) {
+            uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
+            PiecewiseInterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
+            uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
+            AssetInfo memory assetInfo = getAssetInfo(assetAddress);
+            uint256 reserveFactor = assetInfo.interestRateModel.reserveFactor;
+            uint256 reservePrecision = assetInfo.interestRateModel.reservePrecision;
+            accrualIndices.borrowed += interestFactor;
+            accrualIndices.deposited +=
+                (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
         }
-        if (deposited == 0) {
-            // avoid divide by 0 due to 0 deposits
-            return;
-        }
-        uint256 borrowed = getTotalAssetsBorrowed(assetAddress);
-        setLastActivityBlockTimestamp(assetAddress, block.timestamp);
-        PiecewiseInterestRateModel memory interestRateModel = getInterestRateModel(assetAddress);
-        uint256 interestFactor = computeSourceInterestFactor(secondsElapsed, deposited, borrowed, interestRateModel);
-        AssetInfo memory assetInfo = getAssetInfo(assetAddress);
-        uint256 reserveFactor = assetInfo.interestRateModel.reserveFactor;
-        uint256 reservePrecision = assetInfo.interestRateModel.reservePrecision;
-        accrualIndices.borrowed += interestFactor;
-        accrualIndices.deposited +=
-            (interestFactor * (reservePrecision - reserveFactor) * borrowed) / reservePrecision / deposited;
-
-        setInterestAccrualIndices(assetAddress, accrualIndices);
+        return accrualIndices;
     }
 
     function computeSourceInterestFactor(
@@ -119,6 +116,40 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
     {
         return divide(normalizedAmount * interestAccrualIndex, getInterestAccrualIndexPrecision(), round);
     }
+
+    /**
+     * @notice Get a user's account balance in an asset
+     *
+     * @param vaultOwner - the address of the user
+     * @param assetAddress - the address of the asset
+     * @return a struct with 'deposited' field and 'borrowed' field for the amount deposited and borrowed of the asset
+     * multiplied by 10^decimal for that asset. Values are denormalized.
+     */
+    function getUserBalance(address vaultOwner, address assetAddress) public view returns (VaultAmount memory) {
+        VaultAmount memory normalized = getVaultAmounts(vaultOwner, assetAddress);
+        AccrualIndices memory interestAccrualIndex = getCurrentAccrualIndices(assetAddress);
+        return VaultAmount({
+            deposited: denormalizeAmount(normalized.deposited, interestAccrualIndex.deposited, Round.DOWN),
+            borrowed: denormalizeAmount(normalized.borrowed, interestAccrualIndex.borrowed, Round.UP)
+        });
+    }
+
+    /**
+     * @notice Get the protocol's global balance in an asset
+     *
+     * @param assetAddress - the address of the asset
+     * @return a struct with 'deposited' field and 'borrowed' field for the amount deposited and borrowed of the asset
+     * multiplied by 10^decimal for that asset. Values are denormalized.
+     */
+    function getGlobalBalance(address assetAddress) public view returns (VaultAmount memory) {
+        VaultAmount memory normalized = getGlobalAmounts(assetAddress);
+        AccrualIndices memory interestAccrualIndex = getCurrentAccrualIndices(assetAddress);
+        return VaultAmount({
+            deposited: denormalizeAmount(normalized.deposited, interestAccrualIndex.deposited, Round.DOWN),
+            borrowed: denormalizeAmount(normalized.borrowed, interestAccrualIndex.borrowed, Round.UP)
+        });
+    }
+
 
     /**
      * @notice Divide helper function, for rounding

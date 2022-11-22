@@ -12,51 +12,48 @@ import "./HubState.sol";
 import "forge-std/console.sol";
 
 contract HubGetters is Context, HubSpokeStructs, HubState {
-    function getChainId() public view returns (uint16) {
+
+    function getChainId() internal view returns (uint16) {
         return _state.provider.chainId;
     }
 
-    function wormhole() public view returns (IWormhole) {
+    function wormhole() internal view returns (IWormhole) {
         return IWormhole(_state.provider.wormhole);
     }
 
-    function tokenBridge() public view returns (ITokenBridge) {
+    function tokenBridge() internal view returns (ITokenBridge) {
         return ITokenBridge(payable(_state.provider.tokenBridge));
     }
 
-    function tokenBridgeAddress() public view returns (address) {
+    function tokenBridgeAddress() internal view returns (address) {
         return _state.provider.tokenBridge;
     }
 
-    function setOracleMode() public view returns (uint8) {
-        return _state.oracleMode;
-    }
-
-    function consistencyLevel() public view returns (uint8) {
+    function consistencyLevel() internal view returns (uint8) {
         return _state.consistencyLevel;
     }
 
-    function getAllowList() public view returns (address[] memory) {
+    function getAllowList() internal view returns (address[] memory) {
         return _state.allowList;
     }
 
-    function getMaxLiquidationBonus() public view returns (uint256) {
+    function getMaxLiquidationBonus() internal view returns (uint256) {
         return _state.maxLiquidationBonus;
     }
 
-    function getCollateralizationRatioPrecision() public view returns (uint256) {
+    function getCollateralizationRatioPrecision() internal view returns (uint256) {
         return _state.collateralizationRatioPrecision;
     }
 
-    function getSpokeContract(uint16 chainId) public view returns (address) {
+    function getSpokeContract(uint16 chainId) internal view returns (address) {
         return _state.spokeContracts[chainId];
     }
 
-    function mockPyth() public view returns (IMockPyth) {
+    function mockPyth() internal view returns (IMockPyth) {
         return IMockPyth(_state.mockPythAddress);
     }
 
-    function messageHashConsumed(bytes32 vmHash) public view returns (bool) {
+    function messageHashConsumed(bytes32 vmHash) internal view returns (bool) {
         return _state.consumedMessages[vmHash];
     }
 
@@ -64,19 +61,19 @@ contract HubGetters is Context, HubSpokeStructs, HubState {
         return _state.assetInfos[assetAddress];
     }
 
-    function getLastActivityBlockTimestamp(address assetAddress) public view returns (uint256) {
+    function getLastActivityBlockTimestamp(address assetAddress) internal view returns (uint256) {
         return _state.lastActivityBlockTimestamps[assetAddress];
     }
 
-    function getTotalAssetsDeposited(address assetAddress) public view returns (uint256) {
+    function getTotalAssetsDeposited(address assetAddress) internal view returns (uint256) {
         return _state.totalAssets[assetAddress].deposited;
     }
 
-    function getTotalAssetsBorrowed(address assetAddress) public view returns (uint256) {
+    function getTotalAssetsBorrowed(address assetAddress) internal view returns (uint256) {
         return _state.totalAssets[assetAddress].borrowed;
     }
 
-    function getInterestRateModel(address assetAddress) public view returns (PiecewiseInterestRateModel memory) {
+    function getInterestRateModel(address assetAddress) internal view returns (PiecewiseInterestRateModel memory) {
         AssetInfo memory assetInfo = getAssetInfo(assetAddress);
         return assetInfo.interestRateModel;
     }
@@ -89,47 +86,47 @@ contract HubGetters is Context, HubSpokeStructs, HubState {
         return _state.interestAccrualIndexPrecision;
     }
 
-    function getMaxDecimals() public view returns (uint8) {
+    function getMaxDecimals() internal view returns (uint8) {
         return _state.MAX_DECIMALS;
     }
 
-    function getVaultAmounts(address vaultOwner, address assetAddress) public view returns (VaultAmount memory) {
+    function getVaultAmounts(address vaultOwner, address assetAddress) internal view returns (VaultAmount memory) {
         return _state.vault[vaultOwner][assetAddress];
     }
 
-    function getGlobalAmounts(address assetAddress) public view returns (VaultAmount memory) {
+    function getGlobalAmounts(address assetAddress) internal view returns (VaultAmount memory) {
         return _state.totalAssets[assetAddress];
     }
 
-    function getMaxLiquidationPortion() public view returns (uint256) {
+    function getMaxLiquidationPortion() internal view returns (uint256) {
         return _state.maxLiquidationPortion;
     }
 
-    function getMaxLiquidationPortionPrecision() public view returns (uint256) {
+    function getMaxLiquidationPortionPrecision() internal view returns (uint256) {
         return _state.maxLiquidationPortionPrecision;
     }
 
-    function getOracleMode() public view returns (uint8) {
+    function getOracleMode() internal view returns (uint8) {
         return _state.oracleMode;
     }
 
-    function getPythPriceStruct(bytes32 pythId) public view returns (PythStructs.Price memory) {
+    function getPythPriceStruct(bytes32 pythId) internal view returns (PythStructs.Price memory) {
         return _state.provider.pyth.getPrice(pythId);
     }
 
-    function getOraclePrice(bytes32 oracleId) public view returns (Price memory price) {
+    function getOraclePrice(bytes32 oracleId) internal view returns (Price memory price) {
         return _state.oracle[oracleId];
     }
 
-    function getMockPythPriceStruct(bytes32 pythId) public view returns (PythStructs.Price memory) {
+    function getMockPythPriceStruct(bytes32 pythId) internal view returns (PythStructs.Price memory) {
         return _state.provider.mockPyth.getPrice(pythId);
     }
 
-    function getPriceStandardDeviationsPrecision() public view returns (uint64) {
+    function getPriceStandardDeviationsPrecision() internal view returns (uint64) {
         return _state.priceStandardDeviationsPrecision;
     }
 
-    function getPriceStandardDeviations() public view returns (uint64) {
+    function getPriceStandardDeviations() internal view returns (uint64) {
         return _state.priceStandardDeviations;
     }
 }
