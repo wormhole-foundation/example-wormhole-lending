@@ -123,38 +123,36 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
 
         for (uint256 i = 0; i < assetRepayAddresses.length; i++) {
             address asset = assetRepayAddresses[i];
-            uint256 amount = assetRepayAmounts[i];
             AccrualIndices memory indices = getInterestAccrualIndices(asset);
-
-            uint64 price = getPrice(asset);
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            uint256 normalizedAmount = normalizeAmount(amount, indices.borrowed, Round.DOWN);
+            uint256 normalizedAmount = normalizeAmount(assetRepayAmounts[i], indices.borrowed, Round.DOWN);
 
-            require(allowedToRepay(vaultOwner, asset, amount), "cannot repay more than has been borrowed");
+            require(allowedToRepay(vaultOwner, asset, assetRepayAmounts[i]), "cannot repay more than has been borrowed");
 
             notionalRepaid +=
-                normalizedAmount * indices.borrowed * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
+                normalizedAmount * indices.borrowed * getPrice(asset) * 10 ** (getMaxDecimals() - assetInfo.decimals);
         }
 
         for (uint256 i = 0; i < assetReceiptAddresses.length; i++) {
             address asset = assetReceiptAddresses[i];
-            uint256 amount = assetReceiptAmounts[i];
             AccrualIndices memory indices = getInterestAccrualIndices(asset);
-
-            uint64 price = getPrice(asset);
 
             AssetInfo memory assetInfo = getAssetInfo(asset);
 
-            uint256 normalizedAmount = normalizeAmount(amount, indices.deposited, Round.UP);
+            uint256 normalizedAmount = normalizeAmount(
+                assetReceiptAmounts[i], // amount
+                indices.deposited,
+                Round.UP
+            );
 
             checkVaultHasAssets(vaultOwner, asset, normalizedAmount);
 
             checkProtocolGloballyHasAssets(asset, normalizedAmount);
 
             notionalReceived +=
-                normalizedAmount * indices.deposited * price * 10 ** (getMaxDecimals() - assetInfo.decimals);
+                normalizedAmount * indices.deposited * getPrice(asset) * 10 ** (getMaxDecimals() - assetInfo.decimals);
         }
 
         // safety check to ensure liquidator receives greater than or equal to the amount they pay
@@ -163,15 +161,13 @@ contract HubChecks is HubSpokeStructs, HubGetters, HubSetters, HubInterestUtilit
         // check to ensure that amount of debt repaid <= maxLiquidationPortion * amount of debt / liquidationPortionPrecision
         require(
             notionalRepaid 
-                <= getMaxLiquidationPortion() * vaultBorrowedTrueValue / getMaxLiquidationPortionPrecision(),
+                <= (getMaxLiquidationPortion() * vaultBorrowedTrueValue) / getMaxLiquidationPortionPrecision(),
             "Liquidator cannot claim more than maxLiquidationPortion of the total debt of the vault"
         );
 
         // check if notional received <= notional repaid * max liquidation bonus
-        uint256 maxLiquidationBonus = getMaxLiquidationBonus();
-
         require(
-            notionalReceived <= maxLiquidationBonus * notionalRepaid / getCollateralizationRatioPrecision(),
+            notionalReceived <= (getMaxLiquidationBonus() * notionalRepaid) / getCollateralizationRatioPrecision(),
             "Liquidator receiving too much value"
         );
     }
