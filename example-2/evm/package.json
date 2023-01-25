@@ -1,0 +1,30 @@
+{
+  "name": "wormhole-lending-example-1-evm",
+  "version": "0.0.1",
+  "description": "EVM Contracts for Wormhole Lending Example 1",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "chai": "^4.3.6",
+    "ethers": "^5.7.1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.7.3",
+    "@pythnetwork/pyth-sdk-solidity": "^2.0.0",
+    "@types/chai": "^4.3.3",
+    "@types/mocha": "^9.1.1",
+    "elliptic": "^6.5.4",
+    "forge-std": "^1.1.2",
+    "mocha": "^10.0.0",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^4.8.3"
+  }
+}
