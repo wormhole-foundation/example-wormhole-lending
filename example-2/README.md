@@ -64,7 +64,7 @@ We store all state on the Hub chain, and have a Spoke contract deployed on each 
     1. Capital inefficiency—higher effective collateralization ratio (product of two different min collateralization ratios, one for the USDC borrow and one for the BNB borrow)
     2. Liquidation risk—risk of liquidation on both chains’ legs of the loan
     
-    ![stablecoins.PNG](imgs/stablecoins.png)
+    ![inefficient_model.PNG](imgs/inefficient_model.png)
     
     An alternative to this is to have borrow-lend operations take place on one designated hub chain that serves as the central accounting layer for the whole cross-chain ecosystem. Suppose that layer is on chain X. Consider a user who wants to deposit ETH on an Ethereum spoke and take out a loan of BNB on a BNB spoke. Then, the schematic looks as follows : 
     
