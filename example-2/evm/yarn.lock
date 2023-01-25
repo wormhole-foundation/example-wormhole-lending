@@ -349,6 +349,11 @@
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.7.3.tgz#939534757a81f8d69cc854c7692805684ff3111e"
   integrity sha512-dGRS0agJzu8ybo44pCIf3xBaPQN/65AIXNgK8+4gzKd5kbvlqyxryUYVLJv7fK98Seyd2hDZzVEHSWAh0Bt1Yw==
 
+"@pythnetwork/pyth-sdk-solidity@^2.0.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@pythnetwork/pyth-sdk-solidity/-/pyth-sdk-solidity-2.2.0.tgz#e970dbb64f473789f5129fd8c93950731e5030d1"
+  integrity sha512-LsRMmaf9MTflGSymqOJMepFk/3R7DyxMOJfLDB5RDSieyiq+RJ5IYIYnXAFsMrqkjibOtVxARcortHtE9VWwhw==
+
 "@types/chai@^4.3.3":
   version "4.3.3"
   resolved "https://registry.yarnpkg.com/@types/chai/-/chai-4.3.3.tgz#3c90752792660c4b562ad73b3fbd68bf3bc7ae07"
@@ -660,6 +665,11 @@ flat@^5.0.2:
   version "5.0.2"
   resolved "https://registry.yarnpkg.com/flat/-/flat-5.0.2.tgz#8ca6fe332069ffa9d324c327198c598259ceb241"
   integrity sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==
+
+forge-std@^1.1.2:
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/forge-std/-/forge-std-1.1.2.tgz#f4a0eda103538d56f9c563f3cd1fa2fd01bd9378"
+  integrity sha512-Wfb0iAS9PcfjMKtGpWQw9mXzJxrWD62kJCUqqLcyuI0+VRtJ3j20XembjF3kS20qELYdXft1vD/SPFVWVKMFOw==
 
 fs.realpath@^1.0.0:
   version "1.0.0"
