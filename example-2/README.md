@@ -1,6 +1,23 @@
-# Cross Chain Borrow Lend Hub and Spoke
+## Setup
 
-We propose a design and reference implementation (EVM only) for a Cross-chain borrow lend protocol, using a Hub and Spoke model.
+# Running tests in localnet
+
+To run tests on this reference example suite, you will need to [install yarn](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable).
+
+After installing yarn, you should:
+
+1. run `make build`--This will install Forge (a standard EVM development toolkit that allows tests to be written in Solidity) and the necessary node modules. It will also compile the smart contract code.
+2. run `make test`--This will compile and then run all the tests, which are defined in `example-2/evm/test/Hub.t.sol`. This will take a bit the first time and should print the results of the tests as well as some logs output in the terminal.
+
+[HOW THIS IS SET UP]
+
+# Tips for deploying and testing on different chains on devnet/testnet
+
+[HOW TO DO THIS, HIGH LEVEL]
+
+## Cross Chain Borrow Lend Hub and Spoke Docs
+
+We propose a design and reference example (EVM only) for a Cross-chain borrow lend protocol, using a Hub and Spoke model.
 
 Users can deposit assets into the protocol. They can also borrow assets from the protocol, using the assets that they have deposited as collateral. The protocol keeps track of the amount of each asset a user has deposited, and the amount of each asset a user has borrowed. We will often refer to a user’s deposited and borrowed assets in the protocol as their ‘vault’.
 
