@@ -370,7 +370,7 @@ Now, suppose User 2 has no assets in the protocol. User 2 wishes to borrow 35 CC
     
     1) Does the user have enough value in their vault for this borrow to be valid; i.e.,
     
-    $40 \cdot (\text{price of wAAA}) + 50 \cdot (\text{price of wBBB}) ≥ 35 \cdot (\text{price of wCCC})$ 
+    $40 \cdot (\text{price of wAAA}) + 50 \cdot (\text{price of wBBB}) ≥ 35 \cdot (\text{price of wCCC})$
     
     2) Does the protocol have enough total supply of the CCC token to lend out these 35 CCC? The answer to this is yes because User 1 has 100 wCCC in their vault, so the protocol currently has 100 wCCC available to lend out. 
     
@@ -391,9 +391,7 @@ Suppose next that User 2 wishes to withdraw some of its collateral, specifically
     
     1) does the user have enough value in their vault for this withdraw to be valid (we use Pyth prices of the assets in the user’s vault to check this. In fact we use slightly different prices for borrowed vs deposited assets; see details in the Pyth Oracle Integration section).  
     
-    $$
-    (40-10) \cdot (\text{price of wAAA}) + 50 \cdot (\text{price of wBBB}) \ge 35 \cdot (\text{price of wCCC}) 
-    $$
+    $(40-10) \cdot (\text{price of wAAA}) + 50 \cdot (\text{price of wBBB}) \ge 35 \cdot (\text{price of wCCC})$
     
         2) does the user have enough of the token in their vault for the withdraw to be valid. Specifically, does the user have ≥ 10 wAAA in their vault. The answer to this is yes since User 2 has 40 wAAA in their vault.
     
@@ -433,21 +431,15 @@ Then suppose that User 3 on Chain X (the Hub) attempts to liquidate the vault by
     
     1) The vault is underwater. Specifically, 
     
-    $$
-    30 \cdot (\text{price of wAAA}) + 50 \cdot (\text{price of wBBB}) < 20 \cdot (\text{price of wCCC}) 
-    $$
+    $30 \cdot (\text{price of wAAA}) + 50 \cdot (\text{price of wBBB}) < 20 \cdot (\text{price of wCCC})$
     
     2) The liquidator is receiving nonnegative value, i.e. (total price of received assets) ≥ the (total price of repaid assets) (this isn’t strictly necessary for the health of the protocol but serves as a ‘safety check’ to safeguard liquidators from making bad liquidations).
     
-    $$
-    15 \cdot \text{price of wAAA} + 25 \cdot \text{price of wBBB} \\ \geq 10 \cdot \text{price of wCCC}
-    $$
+    $15 \cdot \text{price of wAAA} + 25 \cdot \text{price of wBBB} \\ \geq 10 \cdot \text{price of wCCC}$
     
     3) a check to make sure that the (total price of received assets) is no more than some max liquidation bonus (set by the owner/governance) times the (total price of repaid assets)
     
-    $$
-    15 \cdot \text{price of wAAA} + 25 \cdot \text{price of wBBB} \\ \leq 10 \cdot \text{price of wCCC} \cdot \text{max liquidation bonus}
-    $$
+    $15 \cdot \text{price of wAAA} + 25 \cdot \text{price of wBBB} \\ \leq 10 \cdot \text{price of wCCC} \cdot \text{max liquidation bonus}$
     
     4) Each amount of token being repaid is less than or equal to the outstanding amount of that token owed by the vault being liquidated. Specifically, 10 ≤ 20. We don’t allow people to repay more than a vault actually owes. In particular, we do this check at the level of individual tokens, because we don’t want the protocol to be paid in one token denomination in excess of what the vault borrowed while leaving a shortfall in another token borrowed, since that introduces price risk and potential liquidity crunch issues.
     
@@ -498,17 +490,13 @@ All that remains to decide is how these interest accrual indices change over tim
     
     Our interest rate model is a simpler version of the [model used by Aave](https://docs.aave.com/risk/liquidity-risk/borrow-interest-rate). Our model is simpler because we don’t use a piecewise function and instead use a single linear function. This model can be replaced with a piecewise linear function, or something more complicated (e.g. Euler uses a [control-theory-set rate](https://docs.euler.finance/getting-started/white-paper#reactive-interest-rates)). The interest owed by a borrower (since the last update of the accrual index) can be written out as
     
-    $$
-    t \cdot (a \cdot \frac{N_{borrowed}}{N_{deposited}} + b)
-    $$
+    $t \cdot (a \cdot \frac{N_{borrowed}}{N_{deposited}} + b)$
     
     where $t$ is the amount of time since the last update to the index, $a$ is the rate coefficient in the interest rate linear model, $b$ is the rate intercept, and $N_{borrowed}$ and $N_{deposited}$ are the total normalized amounts borrowed and deposited of the asset, respectively. $a$ and $b$ can be set by the protocol controller.
     
     The interest paid into the protocol by borrowers is distributed to two sets of parties. A part of the interest paid is siphoned off for the protocol reserves, to serve as a layer of defense against bad debt accumulation and protocol insolvency. The rest of it (the vast majority) is distributed amongst depositors pro rata to their computed interest factors. Thus, once the reserve portion $r \in [0,1]$ is partitioned off for the reserves, the remainder
     
-    $$
-    (1-r) \cdot t \cdot (a \cdot \frac{N_{borrowed}}{N_{deposited}} + b)
-    $$
+    $(1-r) \cdot t \cdot (a \cdot \frac{N_{borrowed}}{N_{deposited}} + b)$
     
     is distributed amongst depositors of that asset.
     
@@ -614,9 +602,7 @@ It is important to carefully decide how rounding is done in every situation it i
 
 Additionally, we use uint256 to store these numbers. We implicitly therefore make the assumption that, for each vault, 
 
-$$
-\left(\sum_{\text{asset A}}\text{price}(A) \cdot \text{amount}(A)\right) \cdot 10^{\text{MAX DECIMALS}} \cdot \text{collateralizationRatioPrecision} \cdot \text{priceStandardDeviationPrecision} \le  2^{256} - 1
-$$
+$\left(\sum_{\text{asset A}}\text{price}(A) \cdot \text{amount}(A)\right) \cdot 10^{\text{MAX DECIMALS}} \cdot \text{collateralizationRatioPrecision} \cdot \text{priceStandardDeviationPrecision} \le  2^{256} - 1$
 
 (We want this equation to hold both when we use deposited amounts and when we used borrowed amounts). This assumption is tested when we calculate the vault values when determining whether to allow withdraws, borrows, etc. So it must hold even when including the one ‘potential borrow’ or ‘potential withdraw’, etc. being tested
 
