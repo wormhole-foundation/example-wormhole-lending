@@ -61,16 +61,14 @@ We store all state on the Hub chain, and have a Spoke contract deployed on each 
     
     Instead of only communicating accounting in Wormhole messages, we could try to wrap tokens instead between deposit and withdrawal chains. One potential version of this is depicted in the schematic below, and as can be seen this model suffers from two big problems relating to interacting with two different chains:
     
-    1. Capital inefficiency—higher effective collateralization ratio (product of two different min collateralization ratios, one for the USDC borrow and one for the SOL borrow)
+    1. Capital inefficiency—higher effective collateralization ratio (product of two different min collateralization ratios, one for the USDC borrow and one for the BNB borrow)
     2. Liquidation risk—risk of liquidation on both chains’ legs of the loan
     
     ![stablecoins.PNG](imgs/stablecoins.png)
     
-    An alternative to this is to have borrow-lend operations take place on one designated hub chain that serves as the central accounting layer for the whole cross-chain ecosystem. Suppose that layer is on chain X. Consider a user who wants to deposit ETH on an Ethereum spoke and take out a loan of SOL on a Solana spoke. Then, the schematic looks as follows : 
+    An alternative to this is to have borrow-lend operations take place on one designated hub chain that serves as the central accounting layer for the whole cross-chain ecosystem. Suppose that layer is on chain X. Consider a user who wants to deposit ETH on an Ethereum spoke and take out a loan of BNB on a BNB spoke. Then, the schematic looks as follows : 
     
     ![Untitled](imgs/alternative_hub_spoke.png)
-    
-    *correction: the ‘USDC’ bubble should instead be labelled ‘WSOL’*
     
     This is better than the previous approach of deposits and withdrawals done directly on different chains, because now there is no state asynchronicity problem. The user does need to wrap assets and then deposit those wrapped assets on chain X to make deposits, and a withdrawer needs to take an action on chain X and then unwrap their assets, but all of this is configurable on the frontend. Because all accounting is done on a single blockchain, state is atomically updated, and there is no potential for asynchronicity. In essence, the ability to atomically execute and update makes it far easier to maintain this design of the protocol than a version where borrowing and lending happen on different chains. That type of design in any case does not provide too much for a user base that shouldn’t really care all that much about where the borrowing and lending happen, as long as they can initiate the deposit and borrow of assets easily, on their preferred chains, and with good UX.
     
