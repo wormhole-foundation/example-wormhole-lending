@@ -9,7 +9,11 @@ After installing yarn, you should:
 1. run `make build`--This will install Forge (a standard EVM development toolkit that allows tests to be written in Solidity) and the necessary node modules. It will also compile the smart contract code.
 2. run `make test`--This will compile and then run all the tests, which are defined in `example-2/evm/test/Hub.t.sol`. This will take a bit the first time and should print the results of the tests as well as some logs output in the terminal.
 
-[HOW THIS IS SET UP]
+# Cross-chain design and testing in localnet
+
+The `make test` command references the `Makefile` and runs the [`forge test`](https://book.getfoundry.sh/forge/tests) command as defined in the `Makefile`. For the purposes of simulating and testing hubs and spokes on localnet, the current codebase does not spin up different networks and interface across them. Instead, it uses the same network for the hub and all the spokes and registers each with a specific chain ID. Messages to particular spokes are then routed to those spokes via a forked Wormhole contract that simulates the Wormhole network but with one guardian that signs using the key stored in the `TESTING_DEVNET_GUARDIAN` environment variable. This simulates the Wormhole cross-chain connectivity by replicating the normal VAA construction, without requiring spinning up multiple local networks.
+
+All environment variables are defined in `testing.env`. In addition to the guardian key, the tests fork the [Wormhole core contract](https://book.wormhole.com/reference/contracts.html#core-bridge) and [Token Bridge contract from mainnet](https://book.wormhole.com/reference/contracts.html#token-bridge) (in the current codebase, from Avalanche), set the guardian set index to represent the one guardian Wormhole testing framework leveraged on localnet, set the Wormhole chain ID, and fork the [Pyth contract](https://docs.pyth.network/pythnet-price-feeds/evm#mainnet) from mainnet. All this is done in the `testSetUp` function found in `example-2/evm/test/helpers/TestHelpers.sol`. forge enables forking the existing EVM mainnet environment by setting a `fork-url` flag equal to an RPC endpoint from which to fork state.
 
 # Tips for deploying and testing on different chains on devnet/testnet
 
