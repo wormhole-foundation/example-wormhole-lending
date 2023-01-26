@@ -11,13 +11,17 @@ After installing yarn, you should:
 
 # Cross-chain design and testing in localnet
 
-The `make test` command references the `Makefile` and runs the [`forge test`](https://book.getfoundry.sh/forge/tests) command as defined in the `Makefile`. For the purposes of simulating and testing hubs and spokes on localnet, the current codebase does not spin up different networks and interface across them. Instead, it uses the same network for the hub and all the spokes and registers each with a specific chain ID. Messages to particular spokes are then routed to those spokes via a forked Wormhole contract that simulates the Wormhole network but with one guardian that signs using the key stored in the `TESTING_DEVNET_GUARDIAN` environment variable. This simulates the Wormhole cross-chain connectivity by replicating the normal VAA construction, without requiring spinning up multiple local networks.
+The `make test` command references the `Makefile` and runs the [`forge test`](https://book.getfoundry.sh/forge/tests) command as defined in the `Makefile`. For the purposes of simulating and testing hubs and spokes on localnet, the current codebase does not spin up different networks and interface across them. Instead, it uses the same network for the hub and all the spokes and registers each with a specific chain ID. Messages to particular spokes are then routed to those spokes via a forked Wormhole contract that simulates the Wormhole network but with one guardian that signs using the key stored in the `TESTING_DEVNET_GUARDIAN` environment variable. This simulates the Wormhole cross-chain connectivity by replicating the normal VAA construction, without requiring spinning up multiple local networks. This setup was adapted from the [Wormhole scaffolding repo](https://github.com/wormhole-foundation/wormhole-scaffolding/tree/main/evm).
 
 All environment variables are defined in `testing.env`. In addition to the guardian key, the tests fork the [Wormhole core contract](https://book.wormhole.com/reference/contracts.html#core-bridge) and [Token Bridge contract from mainnet](https://book.wormhole.com/reference/contracts.html#token-bridge) (in the current codebase, from Avalanche), set the guardian set index to represent the one guardian Wormhole testing framework leveraged on localnet, set the Wormhole chain ID, and fork the [Pyth contract](https://docs.pyth.network/pythnet-price-feeds/evm#mainnet) from mainnet. All this is done in the `testSetUp` function found in `example-2/evm/test/helpers/TestHelpers.sol`. forge enables forking the existing EVM mainnet environment by setting a `fork-url` flag equal to an RPC endpoint from which to fork state.
 
 # Tips for deploying and testing on different chains on devnet/testnet
 
-[HOW TO DO THIS, HIGH LEVEL]
+Deploying and testing on a devnet/testnet environment would involve different steps than the localnet setup outlined above. One would not need to deploy the Wormhole core, Token Bridge, or Pyth contracts, since they could leverage the existing official contracts on devnet/testnet. One would need to deploy the hub on a single network and the spoke on as many chains as they wanted.
+
+
+
+Note that there is currently no relayer infrastructure in place 
 
 ## Cross Chain Borrow Lend Hub and Spoke Docs
 
@@ -391,7 +395,9 @@ Now, suppose User 2 has no assets in the protocol. User 2 wishes to borrow 35 CC
     
     1) Does the user have enough value in their vault for this borrow to be valid; i.e.,
     
-    $40 \cdot (\text{price of wAAA}) + 50 \cdot (\text{price of wBBB}) ≥ 35 \cdot (\text{price of wCCC})$
+    $40 \cdot (\text{price of wAAA}) \cdot (\text{deposit collat. ratio of wAAA}) + 50 \cdot (\text{price of wBBB}) \cdot (\text{deposit collat. ratio of wBBB}) ≥ 35 \cdot (\text{price of wCCC}) \cdot (\text{borrow collat. ratio of wCCC})$
+
+    The deposit and borrow collateralization ratios are important but are discussed in more detail in a later section; for now, you can ignore them and understand the equation as providing a check that the value of the borrow does not exceed the value of the deposited assets.
     
     2) Does the protocol have enough total supply of the CCC token to lend out these 35 CCC? The answer to this is yes because User 1 has 100 wCCC in their vault, so the protocol currently has 100 wCCC available to lend out. 
     
@@ -412,7 +418,7 @@ Suppose next that User 2 wishes to withdraw some of its collateral, specifically
     
     1) does the user have enough value in their vault for this withdraw to be valid (we use Pyth prices of the assets in the user’s vault to check this. In fact we use slightly different prices for borrowed vs deposited assets; see details in the Pyth Oracle Integration section).  
     
-    $(40-10) \cdot (\text{price of wAAA}) + 50 \cdot (\text{price of wBBB}) \ge 35 \cdot (\text{price of wCCC})$
+    $(40-10) \cdot (\text{price of wAAA}) \cdot (\text{deposit collat. ratio of wAAA}) + 50 \cdot (\text{price of wBBB}) \cdot (\text{deposit collat. ratio of wBBB}) \ge 35 \cdot (\text{price of wCCC}) \cdot (\text{borrow collat. ratio of wCCC})$
     
         2) does the user have enough of the token in their vault for the withdraw to be valid. Specifically, does the user have ≥ 10 wAAA in their vault. The answer to this is yes since User 2 has 40 wAAA in their vault.
     
@@ -452,7 +458,7 @@ Then suppose that User 3 on Chain X (the Hub) attempts to liquidate the vault by
     
     1) The vault is underwater. Specifically, 
     
-    $30 \cdot (\text{price of wAAA}) + 50 \cdot (\text{price of wBBB}) < 20 \cdot (\text{price of wCCC})$
+    $30 \cdot (\text{price of wAAA}) \cdot (\text{deposit collat. ratio of wAAA}) + 50 \cdot (\text{price of wBBB}) \cdot (\text{deposit collat. ratio of wBBB}) < 20 \cdot (\text{price of wCCC}) \cdot (\text{borrow collat. ratio of wCCC})$
     
     2) The liquidator is receiving nonnegative value, i.e. (total price of received assets) ≥ the (total price of repaid assets) (this isn’t strictly necessary for the health of the protocol but serves as a ‘safety check’ to safeguard liquidators from making bad liquidations).
     
