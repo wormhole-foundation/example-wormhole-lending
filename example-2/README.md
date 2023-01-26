@@ -1,6 +1,6 @@
-## Setup
+# Setup
 
-# Running tests in localnet
+## Running tests in localnet
 
 To run tests on this reference example suite, you will need to [install yarn](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable).
 
@@ -9,19 +9,19 @@ After installing yarn, you should:
 1. run `make build`--This will install Forge (a standard EVM development toolkit that allows tests to be written in Solidity) and the necessary node modules. It will also compile the smart contract code.
 2. run `make test`--This will compile and then run all the tests, which are defined in `example-2/evm/test/Hub.t.sol`. This will take a bit the first time and should print the results of the tests as well as some logs output in the terminal.
 
-# Cross-chain design and testing in localnet
+## Cross-chain design and testing in localnet
 
 The `make test` command references the `Makefile` and runs the [`forge test`](https://book.getfoundry.sh/forge/tests) command as defined in the `Makefile`. For the purposes of simulating and testing hubs and spokes on localnet, the current codebase does not spin up different networks and interface across them. Instead, it uses the same network for the hub and all the spokes and registers each with a specific chain ID. Messages to particular spokes are then routed to those spokes via a forked Wormhole contract that simulates the Wormhole network but with one guardian that signs using the key stored in the `TESTING_DEVNET_GUARDIAN` environment variable. This simulates the Wormhole cross-chain connectivity by replicating the normal VAA construction, without requiring spinning up multiple local networks. This setup was adapted from the [Wormhole scaffolding repo](https://github.com/wormhole-foundation/wormhole-scaffolding/tree/main/evm).
 
 All environment variables are defined in `testing.env`. In addition to the guardian key, the tests fork the [Wormhole core contract](https://book.wormhole.com/reference/contracts.html#core-bridge) and [Token Bridge contract from mainnet](https://book.wormhole.com/reference/contracts.html#token-bridge) (in the current codebase, from Avalanche), set the guardian set index to represent the one guardian Wormhole testing framework leveraged on localnet, set the Wormhole chain ID, and fork the [Pyth contract](https://docs.pyth.network/pythnet-price-feeds/evm#mainnet) from mainnet. All this is done in the `testSetUp` function found in `example-2/evm/test/helpers/TestHelpers.sol`. forge enables forking the existing EVM mainnet environment by setting a `fork-url` flag equal to an RPC endpoint from which to fork state.
 
-# Tips for deploying and testing on different chains on devnet/testnet
+## Tips for deploying and testing on different chains on devnet/testnet
 
 Deploying and testing on a devnet/testnet environment would involve different steps than the localnet setup outlined above. One would not need to deploy the Wormhole core, Token Bridge, or Pyth contracts, since they could leverage the existing official contracts on devnet/testnet. One would need to deploy the hub on a single network and the spoke on as many chains as they wanted.
 
 Note that we did not include any cross-chain relayer infrastructure in this codebase. To actually run the protocol in practice, one would need to build in relayer capabilities, either by building out and operating a relayer specifically made for your application or by connecting to generic relayer infrastructure. More details on relayers can be found in the [Wormhole book](https://book.wormhole.com/wormhole/6_relayers.html). 
 
-## Cross Chain Borrow Lend Hub and Spoke Docs
+# Cross Chain Borrow Lend Hub and Spoke Docs
 
 We propose a design and reference example (EVM only) for a Cross-chain borrow lend protocol, using a Hub and Spoke model.
 
@@ -35,7 +35,7 @@ We store all state on the Hub chain, and have a Spoke contract deployed on each 
 
 ![Untitled](imgs/initial_diagram.png)
 
-# Table of Contents
+## Table of Contents
 
 1. Preface
 2. Setting up the Hub and Spoke
@@ -47,7 +47,7 @@ We store all state on the Hub chain, and have a Spoke contract deployed on each 
 8. Decimal Considerations
 9. Protocol Design Choices
 
-# 1. Preface
+## 1. Preface
 
 - Why Cross Chain?
     
@@ -96,7 +96,7 @@ We store all state on the Hub chain, and have a Spoke contract deployed on each 
     This is better than the previous approach of deposits and withdrawals done directly on different chains, because now there is no state asynchronicity problem. The user does need to wrap assets and then deposit those wrapped assets on chain X to make deposits, and a withdrawer needs to take an action on chain X and then unwrap their assets, but all of this is configurable on the frontend. Because all accounting is done on a single blockchain, state is atomically updated, and there is no potential for asynchronicity. In essence, the ability to atomically execute and update makes it far easier to maintain this design of the protocol than a version where borrowing and lending happen on different chains. That type of design in any case does not provide too much for a user base that shouldn’t really care all that much about where the borrowing and lending happen, as long as they can initiate the deposit and borrow of assets easily, on their preferred chains, and with good UX.
     
 
-# 2. Setting up the Hub and Spoke
+## 2. Setting up the Hub and Spoke
 
 As the deployer/owner of the protocol, one has to:
 
@@ -211,13 +211,10 @@ As the deployer/owner of the protocol, one has to:
             bytes32 pythId
         ) public onlyOwner;
     ```
-    
-
-************************************Note: Click on any of the above arrows to see the relevant functions and inputs************************************
 
 Now the system is set up so that users can perform deposits, borrows, repays, and withdraws of any of the registered assets, from any of the registered spokes!
 
-# 3. User Functions
+## 3. User Functions
 
 - depositCollateral
     
@@ -365,7 +362,7 @@ Now the system is set up so that users can perform deposits, borrows, repays, an
     Then, the Hub contract, if the liquidation is valid, will spend these tokens, use them to repay the collateral of the user at address `vault` , and give, for each i, `assetReceiptAmount[i]` of the asset with address `assetReceiptAddresses[i]` back to User A.
     
 
-# 4. Illustration of User Functions
+## 4. Illustration of User Functions
 
 *********************************************************Note: Some of the equations in this section aren’t exactly what is checked in the protocol, because we consider 1) interest, 2) collateralization ratios, and 3) price confidence intervals. Check sections 4, 5, and 6 for more information. For this section you can assume there is no interest, collateralization ratios are all 1, and all used Pyth price updates have confidence value (i.e. standard deviation) 0.********************************************************* 
 
@@ -477,7 +474,7 @@ Then suppose that User 3 on Chain X (the Hub) attempts to liquidate the vault by
     ![Untitled](imgs/hub_diagram_liquidation.png)
     
 
-# 5. Keeping Track of Interest
+## 5. Keeping Track of Interest
 
 We store two indices for each asset; we call them the ‘deposit interest accrual index’ and ‘borrow interest accrual index’ for each asset. These values generally increase over time, starting at 1 at the initialization of the protocol. 
 
@@ -528,7 +525,7 @@ All that remains to decide is how these interest accrual indices change over tim
     For illustration, consider the following example. At time $0$ the interest accrual index is $1$ and a depositor $D_1$ deposits $X$ tokens; at time $t_1$ another depositor $D_2$ deposits $Y$ tokens. Suppose for simplicity that at time $0$ a borrower $B_0$ withdraws all of the $X$ tokens deposited by $D_1$. Then, from time $0$ through $t_1$, $D_1$ collects all but $r$ of the paid out interest by $B_1$, and from time $t_1$ through $2 \cdot t_1$, $D_1$ and $D_2$ split (all but $r$ of) the interest paid out by $B_1$ pro rata according to $X$ and $Y$. Do note that the interest paid out by $B_1$ between $t_1$ and $2 \cdot t_1$ will be lower than that paid out between $0$ and $t_1$, since the utilization rate is lower.
     
 
-# 6. Collateralization Ratios
+## 6. Collateralization Ratios
 
 For health of the protocol, it doesn’t make sense to allow borrowing x AAA against a deposit of y BBB, if x AAA and y BBB have the same value. For example, if there is even a slight decrease in price of BBB, then suddenly the user’s vault is unhealthy and there is no incentive for a liquidator to liquidate. 
 
@@ -553,7 +550,7 @@ In each of these cases, we modify the corresponding equation to multiply all amo
     $40 \cdot (\text{price of wAAA}) \cdot (\text{deposit collat. ratio of wAAA}) + 50 \cdot (\text{price of wBBB}) \cdot (\text{deposit collat. ratio of wBBB}) ≥ 35 \cdot (\text{price of wCCC}) \cdot (\text{borrow collat. ratio of wCCC})$
     
 
-# 7. Prices - Pyth Oracle Integration
+## 7. Prices - Pyth Oracle Integration
 
 Our protocol leverages the Pyth price oracle model for providing high-fidelity, precise prices for different price feeds. More details on how to integrate Pyth can be found [here](https://docs.pyth.network/consume-data/best-practices). A list of available price feeds on different chains is accessible [here](https://pyth.network/developers/price-feed-ids).
 
@@ -596,7 +593,7 @@ Using these adjusted prices, we undervalue collateral and overvalue debt, so as 
 
 To install the `pythnetwork` requirements for testing and deployment, run `npm install @pythnetwork/pyth-sdk-solidity`.
 
-# 8. Decimal Considerations
+## 8. Decimal Considerations
 
 We want to be able to store non-integer values (i.e. non-integer amounts of assets, non-integer collateralization ratios, non-integer interest accrual indices, etc).
 
@@ -635,7 +632,7 @@ Also, due to decimal constraints, when a user deposits $x$ tokens (where $X = x 
 
 This is upper bounded by $\left\lfloor f \cdot \lfloor X/f \rfloor \right\rfloor > f(X/f - 1) - 1 = X - f - 1$. So, in each action, we lose at most $10^{-1 \cdot \text{decimals}} (f + 1)$ of the token, where f is the interest accrual index. This ideally is a negligible value compared to the gas. 
 
-# 9. Design Choices
+## 9. Design Choices
 
 - Why Liquidations on the Hub only? Why not allow liquidations from spokes?
     
