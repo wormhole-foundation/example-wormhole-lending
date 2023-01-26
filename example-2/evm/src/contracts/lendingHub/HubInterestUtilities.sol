@@ -72,7 +72,7 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
             interestRate = rates[0];
         }
         else {
-            interestRate += (rates[i] - rates[i-1]) * ((borrowed - kinks[i-1] * deposited) / deposited) / (kinks[i] - kinks[i-1]);
+            interestRate += (rates[i] - rates[i-1]) * ((borrowed * interestRateModel.ratePrecision - kinks[i-1] * deposited) / deposited) / (kinks[i] - kinks[i-1]);
         }
 
 
