@@ -510,7 +510,7 @@ All that remains to decide is how these interest accrual indices change over tim
     
     Intuitively, if deposited amounts are high relative to borrowed amounts, then a deposit should not earn much interest, and a borrow should not be charged much interest. On the converse, if borrowed amounts are high (a.k.a. utilization rate is high), then we want to hike up the deposit interest rate to encourage more deposits relative to borrows. This philosophy is at the heart of the variable interest rate model.
     
-    Our interest rate model is a simpler version of the [model used by Aave](https://docs.aave.com/risk/liquidity-risk/borrow-interest-rate). Our model is simpler because we don’t use a piecewise function and instead use a single linear function. This model can be replaced with a piecewise linear function, or something more complicated (e.g. Euler uses a [control-theory-set rate](https://docs.euler.finance/getting-started/white-paper#reactive-interest-rates)). The interest owed by a borrower (since the last update of the accrual index) can be written out as
+    Our interest rate model is a version of the [model used by Aave](https://docs.aave.com/risk/liquidity-risk/borrow-interest-rate). This model can be replaced with something more complicated (e.g. Euler uses a [control-theory-set rate](https://docs.euler.finance/getting-started/white-paper#reactive-interest-rates)). Below, we describe the form of the basic linear model. The interest owed by a borrower (since the last update of the accrual index) can be written out as
     
     $t \cdot (a \cdot \frac{N_{borrowed}}{N_{deposited}} + b)$
     
@@ -523,6 +523,10 @@ All that remains to decide is how these interest accrual indices change over tim
     is distributed amongst depositors of that asset.
     
     For illustration, consider the following example. At time $0$ the interest accrual index is $1$ and a depositor $D_1$ deposits $X$ tokens; at time $t_1$ another depositor $D_2$ deposits $Y$ tokens. Suppose for simplicity that at time $0$ a borrower $B_0$ withdraws all of the $X$ tokens deposited by $D_1$. Then, from time $0$ through $t_1$, $D_1$ collects all but $r$ of the paid out interest by $B_1$, and from time $t_1$ through $2 \cdot t_1$, $D_1$ and $D_2$ split (all but $r$ of) the interest paid out by $B_1$ pro rata according to $X$ and $Y$. Do note that the interest paid out by $B_1$ between $t_1$ and $2 \cdot t_1$ will be lower than that paid out between $0$ and $t_1$, since the utilization rate is lower.
+
+    The piecewise linear version of this involves performing a cumulative sum of linear functions through inflection points that define the endpoints of each of the pieces. Suppose we define a set of inflection points $\{i_0 = 0, i_1, i_2, \ldots\}$ (such that $i_j \leq 1 \, \forall \, j, j_1 < j_2 \Rightarrow i_{j_1} < i_{j_2}$, that is all inflection points are less than or equal to $1$ and are monotonically increasing) that correspond to interest rates $\{r_0, r_1, r_2, \ldots\}$ (such that $r_j > 0 \, \forall \, j, j_1 < j_2 \Rightarrow r_{j_1} < r_{j_2}$). Then we want to find the indices $j, j+1$ such that our observed $i = \frac{N_{borrowed}}{N_{deposited}}$ satisfies $i_j \leq i < i_{j+1}$), and we compute the interest rate as:
+
+    $\frac{r_{j+1}-r_j}{k_{j+1}-k_j} \cdot (\frac{N_{borrowed}}{N_{deposited}} - k_j)$
     
 
 ## 6. Collateralization Ratios
