@@ -1,3 +1,5 @@
+**WARNING**: This repository has not been audited, so it may contain bugs and should be used for example purposes only. If you intend to use or build on this example to perform actual lending, it's highly recommended that you have the final code commit audited by a smart contract auditing firm.
+
 # Setup
 
 ## Running tests in localnet
@@ -526,7 +528,7 @@ All that remains to decide is how these interest accrual indices change over tim
 
     The piecewise linear version of this involves performing a cumulative sum of linear functions through inflection points that define the endpoints of each of the pieces. Suppose we define a set of inflection points $\{i_0 = 0, i_1, i_2, \ldots\}$ (such that $i_j \leq 1 \, \forall \, j, j_1 < j_2 \Rightarrow i_{j_1} < i_{j_2}$, that is all inflection points are less than or equal to $1$ and are monotonically increasing) that correspond to interest rates $\{r_0, r_1, r_2, \ldots\}$ (such that $r_j > 0 \, \forall \, j, j_1 < j_2 \Rightarrow r_{j_1} < r_{j_2}$). Then we want to find the indices $j, j+1$ such that our observed $i = \frac{N_{borrowed}}{N_{deposited}}$ satisfies $i_j \leq i < i_{j+1}$), and we compute the interest rate as:
 
-    $\frac{r_{j+1}-r_j}{k_{j+1}-k_j} \cdot (\frac{N_{borrowed}}{N_{deposited}} - k_j)$
+    $r_j + \frac{r_{j+1}-r_j}{k_{j+1}-k_j} \cdot (\frac{N_{borrowed}}{N_{deposited}} - k_j)$
     
 
 ## 6. Collateralization Ratios
