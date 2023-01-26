@@ -19,7 +19,7 @@ All environment variables are defined in `testing.env`. In addition to the guard
 
 Deploying and testing on a devnet/testnet environment would involve different steps than the localnet setup outlined above. One would not need to deploy the Wormhole core, Token Bridge, or Pyth contracts, since they could leverage the existing official contracts on devnet/testnet. One would need to deploy the hub on a single network and the spoke on as many chains as they wanted.
 
-Note that we did not include any cross-chain relayer infrastructure in this codebase. To actually run the protocol in practice, one would need to build in relayer capabilities, either by building out and operating a relayer specifically made for your application or by connecting to generic relayer infrastructure. More details on relayers can be found in the [Wormhole book](https://book.wormhole.com/wormhole/6_relayers.html). 
+Note that there is currently no cross-chain relayer infrastructure in place around these contracts. To actually run the protocol in practice, one would need to build in relayer capabilities, either by building out and operating a bespoke relayer for this application or by connecting to generic relayer infrastructure. More details on relayers can be found in the [Wormhole book](https://book.wormhole.com/wormhole/6_relayers.html). 
 
 # Cross Chain Borrow Lend Hub and Spoke Docs
 
