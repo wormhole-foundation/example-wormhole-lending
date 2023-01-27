@@ -26,7 +26,6 @@ contract SpokeUtilities is HubSpokeStructs, SpokeState, SpokeGetters, SpokeSette
 
         SafeERC20.safeApprove(IERC20(assetAddress), tokenBridgeAddress(), assetAmount);
 
-        // TODO: Do we need to check some sort of maximum limit of assetAmount
         sequence = tokenBridge().transferTokensWithPayload(
             assetAddress, assetAmount, hubChainId(), bytes32(uint256(uint160(hubContractAddress()))), 0, payload
         );

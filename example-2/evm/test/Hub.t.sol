@@ -81,7 +81,7 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
                 kinks: kinks2,
                 rates: rates2,
                 reserveFactor: 0,
-                 pythId: vm.envBytes32("PYTH_PRICE_FEED_eth") 
+                 pythId: vm.envBytes32("PYTH_PRICE_FEED_matic") 
         }));
 
         uint256[] memory kinks3 = new uint256[](2);
@@ -91,14 +91,14 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         rates3[0] = 1 * 10**4;
         rates3[1] = 1 * 10**4;
 
-        addAsset(AddAsset({assetAddress: 0x51f3D34651523dD8CC4872ee261A1B0B3f73AceF, // WAVAX
+        addAsset(AddAsset({assetAddress: 0xF8542587BCaFCA72D78f29734cE8Ccf08fCd5E5D, 
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 100 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
                 kinks: kinks3,
                 rates: rates3,
                 reserveFactor: 0,
-                 pythId: vm.envBytes32("PYTH_PRICE_FEED_avax") 
+                 pythId: vm.envBytes32("PYTH_PRICE_FEED_bnb") 
         }));
         
         addSpoke(

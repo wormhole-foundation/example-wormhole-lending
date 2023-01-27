@@ -573,8 +573,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
     }
 
     function setPrice(Asset memory asset, int64 price, uint64 conf, int32 expo, int64 emaPrice, uint64 emaConf) internal {
-        // TODO: Double check publish time is correct
-
+        
         uint64 publishTime = getPublishTime();
         publishTime += 1;
         setPublishTime(publishTime);

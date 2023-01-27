@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "../HubSpokeStructs.sol";
 import "./HubGetters.sol";
 import "./HubSetters.sol";
+import "forge-std/console.sol";
 
 contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
     /*
@@ -72,9 +73,8 @@ contract HubInterestUtilities is HubSpokeStructs, HubGetters, HubSetters {
             interestRate = rates[0];
         }
         else {
-            interestRate += (rates[i] - rates[i-1]) * ((borrowed * interestRateModel.ratePrecision - kinks[i-1] * deposited) / deposited) / (kinks[i] - kinks[i-1]);
+            interestRate += (rates[i] - rates[i-1]) * ((borrowed  - kinks[i-1] * deposited) / deposited) / (kinks[i] - kinks[i-1]);
         }
-
 
         return (getInterestAccrualIndexPrecision() * secondsElapsed * interestRate / interestRateModel.ratePrecision) / 365 / 24 / 60 / 60;
     }
