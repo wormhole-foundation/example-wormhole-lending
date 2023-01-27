@@ -8,8 +8,9 @@ To run tests on this reference example suite, you will need to [install yarn](ht
 
 After installing yarn, you should:
 
-1. run `make build`--This will install Forge (a standard EVM development toolkit that allows tests to be written in Solidity) and the necessary node modules. It will also compile the smart contract code.
-2. run `make test`--This will compile and then run all the tests, which are defined in `example-2/evm/test/Hub.t.sol`. This will take a bit the first time and should print the results of the tests as well as some logs output in the terminal.
+1. Navigate to the 'example-2/evm' folder.
+2. run `make build`--This will install Forge (a standard EVM development toolkit that allows tests to be written in Solidity) and the necessary node modules. It will also compile the smart contract code.
+3. run `make test`--This will compile and then run all the tests, which are defined in `example-2/evm/test/Hub.t.sol`. This will take a bit the first time and should print the results of the tests as well as some logs output in the terminal.
 
 ## Cross-chain design and testing in localnet
 
