@@ -40,14 +40,14 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         rates0[1] = 0;
 
         addAsset(AddAsset({
-                assetAddress: 0x442F7f22b1EE2c842bEAFf52880d4573E9201158, // WBNB
+                assetAddress: 0xF8542587BCaFCA72D78f29734cE8Ccf08fCd5E5D, // WBNB
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 110 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
                 kinks: kinks0,
                 rates: rates0,
                 reserveFactor: 0,
-                pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_bnb")  
+                pythId: vm.envBytes32("PYTH_PRICE_FEED_bnb")  
         }));
 
         uint256[] memory kinks1 = new uint256[](2);
@@ -57,14 +57,14 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         rates1[0] = 0;
         rates1[1] = 0;
 
-        addAsset(AddAsset({assetAddress: 0x8b82A291F83ca07Af22120ABa21632088fC92931, // WETH
+        addAsset(AddAsset({assetAddress: 0xc6735cc74553Cc2caeB9F5e1Ea0A4dAe12ef4632, // WETH
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 110 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
                 kinks: kinks1,
                 rates: rates1,
                 reserveFactor: 0,
-                pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_eth") 
+                pythId: vm.envBytes32("PYTH_PRICE_FEED_eth") 
         }));
 
         uint256[] memory kinks2 = new uint256[](2);
@@ -74,14 +74,14 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         rates2[0] = 0;
         rates2[1] = 0;
 
-        addAsset(AddAsset({assetAddress: address(getHubData().tokenBridgeContract.WETH()), // WAVAX
+        addAsset(AddAsset({assetAddress: address(getHubData().tokenBridgeContract.WETH()), 
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 110 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
                 kinks: kinks2,
                 rates: rates2,
                 reserveFactor: 0,
-                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_avax") 
+                 pythId: vm.envBytes32("PYTH_PRICE_FEED_eth") 
         }));
 
         uint256[] memory kinks3 = new uint256[](2);
@@ -91,20 +91,20 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         rates3[0] = 1 * 10**4;
         rates3[1] = 1 * 10**4;
 
-        addAsset(AddAsset({assetAddress: 0xA56B1b9f4e5A1A1e0868F5Fd4352ce7CdF0C2A4F, // WMATIC
+        addAsset(AddAsset({assetAddress: 0x51f3D34651523dD8CC4872ee261A1B0B3f73AceF, // WAVAX
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 100 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
                 kinks: kinks3,
                 rates: rates3,
                 reserveFactor: 0,
-                 pythId: vm.envBytes32("PYTH_PRICE_FEED_AVAX_matic") 
+                 pythId: vm.envBytes32("PYTH_PRICE_FEED_avax") 
         }));
         
         addSpoke(
-            uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")),
-            vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"),
-            vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")
+            uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_MUMBAI")),
+            vm.envAddress("TESTING_WORMHOLE_ADDRESS_MUMBAI"),
+            vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_MUMBAI")
         );
     }
 
