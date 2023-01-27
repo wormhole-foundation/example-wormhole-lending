@@ -86,7 +86,7 @@ contract Hub is HubSpokeStructs, HubSpokeMessages, HubGetters, HubSetters, HubWo
      * One way to think about crb is that for every '$1 worth' of effective deposits we allow $c worth of this asset borrowed
      * @param ratePrecision: A precision number that allows us to represent noninteger rate intercept value ri and rate coefficient value rca as integers.
      * @param kinks: x values of points on the piecewise linear curve, using ratePrecision for decimal expression
-     * @param rates: y values of points on the piecewise linear curve, using ratePrecision for decimal expression; TODO: maybe these two should have different precisions
+     * @param rates: y values of points on the piecewise linear curve, using ratePrecision for decimal expression;
      * @param reserveFactor: reserveFactor = rf * reservePrecision, The portion of the paid interest by borrowers that is diverted to the protocol for rainy day,
      * the remainder is distributed among lenders of the asset
      * @param reservePrecision: A precision number that allows us to represent our noninteger reserve factor rf as an integer (specifically reserveFactor = rf * reservePrecision)

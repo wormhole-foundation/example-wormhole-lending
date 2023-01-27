@@ -35,24 +35,24 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         uint256 guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
         WormholeSimulator wormholeSimulator =
-            new WormholeSimulator(vm.envAddress("TESTING_WORMHOLE_ADDRESS_AVAX"), guardianSigner);
+            new WormholeSimulator(vm.envAddress("TESTING_WORMHOLE_ADDRESS_MUMBAI"), guardianSigner);
 
         // we may need to interact with Wormhole throughout the test
         IWormhole wormholeContract = wormholeSimulator.wormhole();
 
         // verify Wormhole state from fork
-        require(wormholeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), "wrong chainId");
-        require(wormholeContract.messageFee() == vm.envUint("TESTING_WORMHOLE_MESSAGE_FEE_AVAX"), "wrong messageFee");
+        require(wormholeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_MUMBAI")), "wrong chainId");
+        require(wormholeContract.messageFee() == vm.envUint("TESTING_WORMHOLE_MESSAGE_FEE_MUMBAI"), "wrong messageFee");
         require(
-            wormholeContract.getCurrentGuardianSetIndex() == uint32(vm.envUint("TESTING_WORMHOLE_GUARDIAN_SET_INDEX_AVAX")),
+            wormholeContract.getCurrentGuardianSetIndex() == uint32(vm.envUint("TESTING_WORMHOLE_GUARDIAN_SET_INDEX_MUMBAI")),
             "wrong guardian set index"
         );
 
         // set up Token Bridge
-        ITokenBridge tokenBridgeContract = ITokenBridge(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX"));
+        ITokenBridge tokenBridgeContract = ITokenBridge(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_MUMBAI"));
 
         // verify Token Bridge state from fork
-        require(tokenBridgeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_AVAX")), "wrong chainId");
+        require(tokenBridgeContract.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_MUMBAI")), "wrong chainId");
         
 
         // initialize Hub contract
@@ -65,7 +65,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
         uint8 oracleMode = 1;
         uint64 priceStandardDeviations = 424;
         uint64 priceStandardDeviationsPrecision = 10 ** 2;
-        address pythAddress = vm.envAddress("TESTING_PYTH_ADDRESS_AVAX");
+        address pythAddress = vm.envAddress("TESTING_PYTH_ADDRESS_MUMBAI");
 
         Hub hub = new Hub(
             address(wormholeContract), 
@@ -97,7 +97,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
 
         setPublishTime(1);
         
-        registerChainOnHub(6, bytes32(uint256(uint160(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_AVAX")))));
+        registerChainOnHub(uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_MUMBAI")), bytes32(uint256(uint160(vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_MUMBAI")))));
 
     }
 
@@ -573,8 +573,7 @@ contract TestHelpers is TestStructs, TestState, TestGetters, TestSetters, TestUt
     }
 
     function setPrice(Asset memory asset, int64 price, uint64 conf, int32 expo, int64 emaPrice, uint64 emaConf) internal {
-        // TODO: Double check publish time is correct
-
+        
         uint64 publishTime = getPublishTime();
         publishTime += 1;
         setPublishTime(publishTime);
