@@ -1,0 +1,53 @@
+pragma solidity ^0.8.0;
+
+// ERC20 Token Interface
+interface IERC20 {
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+
+contract LoanLiquidator {
+    address public lender;
+    address public borrower;
+    address public collateralToken;
+    uint256 public loanAmount;
+    uint256 public collateralAmount;
+    uint256 public liquidationThreshold; // Threshold in percentage
+    
+    constructor(
+        address _lender,
+        address _borrower,
+        address _collateralToken,
+        uint256 _loanAmount,
+        uint256 _collateralAmount,
+        uint256 _liquidationThreshold
+    ) {
+        lender = _lender;
+        borrower = _borrower;
+        collateralToken = _collateralToken;
+        loanAmount = _loanAmount;
+        collateralAmount = _collateralAmount;
+        liquidationThreshold = _liquidationThreshold;
+    }
+    
+    // Function to check if liquidation is required using basic math if the collateralvalue is lower than the liquidation threshold not queal to or more.
+    // we can append the contract to add pyth price feeds that work on live price of the token for liquidation. 
+  function checkLiquidationRequired() external {
+        require(msg.sender == lender, "Only the lender can check liquidation");
+        uint256 collateralValue = IERC20(collateralToken).balanceOf(address(this));
+        uint256 collateralRatio = (collateralValue * 100) / loanAmount;
+        
+        if (collateralRatio < liquidationThreshold) {
+            // Liquidate the loan
+            liquidate();
+        }
+    }
+    
+    // Function to liquidate the loan
+    function liquidate() private {
+        // Transfer the collateral to the lender
+        uint256 collateralValue = IERC20(collateralToken).balanceOf(address(this));
+        IERC20(collateralToken).transfer(lender, collateralValue);
+        selfdestruct(payable(lender));
+    }
+}
