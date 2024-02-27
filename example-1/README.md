@@ -62,7 +62,7 @@ To repay an open borrow position, the user flow for a user repaying a WETH loan 
 Borrow Message
 ```
 uint8 payloadID                         // payloadID = 1
-addreww borrower                        // address of borrower
+address borrower                        // address of borrower
 address collateralAddress               // collateral information
 address borrowAddress                   // borrow information
 uint256 borrowAmount                    // amount borrowed
@@ -73,7 +73,7 @@ uint256 interestAccuralIndex            // interest accural on chain that collat
 Revert Borrow Message
 ```
 uint8 payloadID                         // payloadID = 2
-addreww borrower                        // address of borrower
+address borrower                        // address of borrower
 address collateralAddress               // collateral information
 address borrowAddress                   // borrow information
 uint256 borrowAmount                    // amount borrowed
@@ -83,7 +83,7 @@ uint256 sourceInterestAccuralIndex      // interest accural on chain that collat
 Repay Message
 ```
 uint8 payloadID                         // payloadID = 3
-addreww borrower                        // address of borrower
+address borrower                        // address of borrower
 address collateralAddress               // collateral information
 address borrowAddress                   // borrow information
 uint256 repayAmount                     // amount of collateral to repay
@@ -95,7 +95,7 @@ uint8 paidInFull                        // numeric toggle indicating if a loan i
 Liquidation Intent Message
 ```
 uint8 payloadID                         // payloadID = 4
-addreww borrower                        // address of borrower
+address borrower                        // address of borrower
 address collateralAddress               // collateral information
 address borrowAddress                   // borrow information
 // TODO: add necesssary variables
