@@ -38,9 +38,9 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         uint256[] memory rates0 = new uint256[](2);
         rates0[0] = 0;
         rates0[1] = 0;
-
+        
         addAsset(AddAsset({
-                assetAddress: 0xF8542587BCaFCA72D78f29734cE8Ccf08fCd5E5D, // WBNB
+                assetAddress: 0x0bc8AEE2DbecfB45E1559BD7F81905156Cf64077, // WBNB
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 110 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
@@ -57,7 +57,7 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         rates1[0] = 0;
         rates1[1] = 0;
 
-        addAsset(AddAsset({assetAddress: 0xc6735cc74553Cc2caeB9F5e1Ea0A4dAe12ef4632, // WETH
+        addAsset(AddAsset({assetAddress: 0xb16F35c0Ae2912430DAc15764477E179D9B9EbEa, // WETH
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 110 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
@@ -65,7 +65,7 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
                 rates: rates1,
                 reserveFactor: 0,
                 pythId: vm.envBytes32("PYTH_PRICE_FEED_eth") 
-        }));
+        }));  
 
         uint256[] memory kinks2 = new uint256[](2);
         kinks2[0] = 0;
@@ -91,7 +91,7 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         rates3[0] = 1 * 10**4;
         rates3[1] = 1 * 10**4;
 
-        addAsset(AddAsset({assetAddress: 0xF8542587BCaFCA72D78f29734cE8Ccf08fCd5E5D, 
+        addAsset(AddAsset({assetAddress: 0x0bc8AEE2DbecfB45E1559BD7F81905156Cf64077, 
                 collateralizationRatioDeposit: 100 * 10 ** 4,
                 collateralizationRatioBorrow: 100 * 10 ** 4,
                 ratePrecision: 1 * 10**6,
@@ -102,9 +102,9 @@ contract HubTest is Test, HubSpokeStructs, HubSpokeMessages, TestStructs, TestSt
         }));
         
         addSpoke(
-            uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_MUMBAI")),
-            vm.envAddress("TESTING_WORMHOLE_ADDRESS_MUMBAI"),
-            vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_MUMBAI")
+            uint16(vm.envUint("TESTING_WORMHOLE_CHAINID_SEPOLIA")),
+            vm.envAddress("TESTING_WORMHOLE_ADDRESS_SEPOLIA"),
+            vm.envAddress("TESTING_TOKEN_BRIDGE_ADDRESS_SEPOLIA")
         );
     }
 
