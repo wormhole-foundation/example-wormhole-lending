@@ -25,12 +25,12 @@ unit-test: forge-test
 
 .PHONY: forge-test
 forge-test: dependencies
-	forge test --fork-url ${TESTING_FORK_RPC_MUMBAI} -vv --via-ir
+	forge test --fork-url ${TESTING_FORK_RPC_SEPOLIA} -vvv --via-ir
 	rm -rf lib/forge-std/.git
 
 .PHONY: forge-test-verbose
 forge-test-verbose: dependencies
-	forge test --fork-url ${TESTING_FORK_RPC_MUMBAI} -vvvvv --via-ir
+	forge test --fork-url ${TESTING_FORK_RPC_SEPOLIA} -vvvvv --via-ir
 	rm -rf lib/forge-std/.git
 
 .PHONY: test
